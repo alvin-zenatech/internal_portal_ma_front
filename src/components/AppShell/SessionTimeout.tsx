@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Timer, AlertTriangle } from "lucide-react";
 
 
-const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-const COUNTDOWN_MS = 5 * 60 * 1000; // 5 minutes (Total 15 mins)
+const IDLE_TIMEOUT_MS = 55 * 60 * 1000; // 55 minutes
+const COUNTDOWN_MS = 5 * 60 * 1000; // 5 minutes (Total 60 mins)
 
 export default function SessionTimeout() {
   const { logout, user } = useAuth();
