@@ -1,0 +1,162 @@
+import React, { useState } from "react";
+import { 
+  useReactTable, getCoreRowModel, getPaginationRowModel, getSortedRowModel, getFilteredRowModel,
+  flexRender, type ColumnDef, type SortingState, type ColumnFiltersState 
+} from "@tanstack/react-table";
+import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Edit, Trash2, ArrowUpDown, Filter } from "lucide-react";
+import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
+function ColumnHeader({ column, title }: { column: any, title: string }) {
+  return (
+    <div className="flex items-center space-x-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 data-[state=open]:bg-accent"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        <span>{title}</span>
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Filter className={`h-3 w-3 ${column.getFilterValue() ? "text-primary" : "text-muted-foreground"}`} />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2" align="start">
+          <Input
+            placeholder={`Filter ${title}...`}
+            value={(column.getFilterValue() ?? "") as string}
+            onChange={(e) => column.setFilterValue(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks: PipelineTask[], onTaskClick: (task: PipelineTask) => void, onEdit: (task: PipelineTask) => void }) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const { mutate: removeTask } = useDeleteTask();
+
+  const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
+    { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company" /> },
+    { accessorKey: "name", header: ({ column }) => <ColumnHeader column={column} title="Contact Name" /> },
+    { accessorKey: "industry_name", header: ({ column }) => <ColumnHeader column={column} title="Industry" /> },
+    { accessorKey: "priority_name", header: ({ column }) => <ColumnHeader column={column} title="Priority" /> },
+    { accessorKey: "email", header: ({ column }) => <ColumnHeader column={column} title="Email" /> },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const task = row.original;
+        return (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(task)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
+              setTaskToDelete(task.id);
+            }}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )
+      }
+    }
+  ], [onEdit, removeTask]);
+
+  const table = useReactTable({
+    data: tasks,
+    columns,
+    state: { sorting, columnFilters, globalFilter },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, columnId, filterValue) => {
+      const search = filterValue.toLowerCase();
+      const company = (row.original.company_name || "").toLowerCase();
+      const name = (row.original.name || "").toLowerCase();
+      const ind = (row.original.industry_name || "").toLowerCase();
+      const pri = (row.original.priority_name || "").toLowerCase();
+      const em = (row.original.email || "").toLowerCase();
+      return company.includes(search) || name.includes(search) || ind.includes(search) || pri.includes(search) || em.includes(search);
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  return (
+    <div className="h-full flex flex-col p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <Input 
+          placeholder="Search everything..." 
+          value={globalFilter} 
+          onChange={(event) => setGlobalFilter(event.target.value)} 
+          className="max-w-sm" 
+        />
+      </div>
+      <div className="rounded-md border bg-card flex-1 overflow-auto shadow-sm">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map(hg => (
+              <TableRow key={hg.id} className="bg-muted/50">
+                {hg.headers.map(h => (
+                  <TableHead key={h.id}>
+                    {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map(row => (
+                <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onTaskClick(row.original)}>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">No tasks found.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="pt-2">
+        <DataTablePagination table={table} />
+      </div>
+
+      <ConfirmDialog 
+        open={taskToDelete !== null} 
+        onOpenChange={(open) => !open && setTaskToDelete(null)}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? All history and notes will be permanently lost."
+        onConfirm={() => {
+          if (taskToDelete) {
+            removeTask(taskToDelete, { onSuccess: () => toast.success("Task deleted") });
+            setTaskToDelete(null);
+          }
+        }}
+      />
+    </div>
+  );
+}
