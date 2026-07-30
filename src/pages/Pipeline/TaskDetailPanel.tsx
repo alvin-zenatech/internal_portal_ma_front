@@ -130,7 +130,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                             </div>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap">{note.note}</p>
+                          <p className="whitespace-pre-wrap break-all">{note.note}</p>
                         )}
                       </div>
                     ))}
