@@ -1,8 +1,10 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, List, Upload, Loader2, Search } from "lucide-react";
+import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PipelineKanbanView from "./PipelineKanbanView";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
@@ -12,7 +14,17 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function PipelineDashboard() {
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list">("list");
+  const [isCompact, setIsCompact] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(() => {
+    const saved = localStorage.getItem("pipelineKanbanZoom");
+    return saved ? parseFloat(saved) : 0.75;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("pipelineKanbanZoom", zoomLevel.toString());
+  }, [zoomLevel]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
@@ -68,11 +80,7 @@ export default function PipelineDashboard() {
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
-      <div className="px-8 py-6 border-b bg-card flex justify-between items-center shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pipeline</h1>
-          <p className="text-muted-foreground mt-1">Manage and track your pipeline tasks.</p>
-        </div>
+      <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
           <div className="relative w-64 hidden md:block">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -84,23 +92,66 @@ export default function PipelineDashboard() {
             />
           </div>
           
-          <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
-            <TabsList>
-              <TabsTrigger value="kanban" className="gap-2"><LayoutGrid className="h-4 w-4" /> Board</TabsTrigger>
-              <TabsTrigger value="list" className="gap-2"><List className="h-4 w-4" /> List</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <TooltipProvider delayDuration={300}>
+            <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
+              <TabsList>
+                <TabsTrigger value="kanban" className="px-3" title="Board View"><LayoutGrid className="h-4 w-4" /></TabsTrigger>
+                <TabsTrigger value="list" className="px-3" title="List View"><List className="h-4 w-4" /></TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+          {view === "kanban" && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setIsCompact(!isCompact)} 
+                  >
+                    {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isCompact ? "Expand view" : "Compact view"}</TooltipContent>
+              </Tooltip>
+              
+              <Select value={zoomLevel.toString()} onValueChange={(val) => setZoomLevel(parseFloat(val))}>
+                <SelectTrigger className="h-9 w-24">
+                  <SelectValue placeholder="Zoom" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.5">50%</SelectItem>
+                  <SelectItem value="0.75">75%</SelectItem>
+                  <SelectItem value="0.9">90%</SelectItem>
+                  <SelectItem value="1">100%</SelectItem>
+                  <SelectItem value="1.1">110%</SelectItem>
+                  <SelectItem value="1.25">125%</SelectItem>
+                  <SelectItem value="1.5">150%</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
           
           <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
           <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
-          <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Import XLSX
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Import XLSX</TooltipContent>
+          </Tooltip>
 
-          <Button onClick={() => handleCreate()} className="gap-2">
-            <Plus className="h-4 w-4" /> New Task
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" onClick={() => handleCreate()}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>New Task</TooltipContent>
+          </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -117,6 +168,8 @@ export default function PipelineDashboard() {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onCreate={handleCreate}
+                isCompact={isCompact}
+                zoomLevel={zoomLevel}
               />
             ) : (
               <PipelineListView 

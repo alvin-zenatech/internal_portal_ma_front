@@ -49,6 +49,7 @@ export interface PipelineTask {
   team_size: string | null;
   country_id: number | null;
   country_name: string | null;
+  latest_note: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,6 +74,8 @@ export interface PipelineNote {
   author_name: string | null;
   author_email: string | null;
   note: string;
+  attachment_url?: string | null;
+  attachment_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +84,7 @@ export interface UserData {
   id: string;
   full_name: string;
   email: string;
+  is_super_admin?: boolean;
 }
 
 export const useUsers = () => useQuery({ queryKey: ["users"], queryFn: () => api.get<UserData[]>("/api/configuration/users") });
@@ -175,7 +179,7 @@ export const useDeleteCountry = () => { const qc = useQueryClient(); return useM
 export const usePipelineTasks = () => useQuery({ queryKey: ["tasks"], queryFn: () => api.get<PipelineTask[]>("/api/pipeline/tasks") });
 export const usePipelineTask = (id: number | null) => useQuery({ queryKey: ["tasks", id], queryFn: () => api.get<PipelineTask>(`/api/pipeline/tasks/${id}`), enabled: !!id });
 export const useCreateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (data: any) => api.post("/api/pipeline/tasks", data), onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }) }); };
-export const useUpdateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({id, data}: {id: number, data: any}) => api.put(`/api/pipeline/tasks/${id}`, data), onSuccess: (_, {id}) => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["tasks", id] }); } }); };
+export const useUpdateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({id, data}: {id: number, data: any}) => api.put(`/api/pipeline/tasks/${id}`, data), onSuccess: (_, {id}) => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["tasks", id] }); qc.invalidateQueries({ queryKey: ["tasks", id, "history"] }); } }); };
 export const useUpdateTaskStatus = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({id, priority_id, note}: {id: number, priority_id: number, note?: string}) => api.patch(`/api/pipeline/tasks/${id}/status`, { priority_id, note }), onSuccess: (_, {id}) => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["tasks", id] }); qc.invalidateQueries({ queryKey: ["tasks", id, "history"] }); } }); };
 export const useDeleteTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/tasks/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }) }); };
 
@@ -183,8 +187,13 @@ export const useDeleteTask = () => { const qc = useQueryClient(); return useMuta
 export const useTaskHistory = (taskId: number | null) => useQuery({ queryKey: ["tasks", taskId, "history"], queryFn: () => api.get<PipelineTaskHistory[]>(`/api/pipeline/tasks/${taskId}/history`), enabled: !!taskId });
 export const useTaskNotes = (taskId: number | null) => useQuery({ queryKey: ["tasks", taskId, "notes"], queryFn: () => api.get<PipelineNote[]>(`/api/pipeline/tasks/${taskId}/notes`), enabled: !!taskId });
 export const useCreateTaskNote = () => { const queryClient = useQueryClient();  return useMutation({
-    mutationFn: async ({ taskId, note }: { taskId: number, note: string }) => {
-      return await api.post(`/api/pipeline/tasks/${taskId}/notes`, { note });
+    mutationFn: async ({ taskId, note, file }: { taskId: number, note: string, file?: File | null }) => {
+      const formData = new FormData();
+      formData.append("note", note);
+      if (file) {
+        formData.append("file", file);
+      }
+      return await api.post(`/api/pipeline/tasks/${taskId}/notes`, formData);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });

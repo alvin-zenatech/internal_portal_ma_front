@@ -118,7 +118,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
             </div>
             {hasColor && (
               <div className="flex items-center gap-4 pt-2">
-                <span className="text-sm font-medium text-muted-foreground">Priority Color:</span>
+                <span className="text-sm font-medium text-muted-foreground">Color:</span>
                 {renderColorPicker(color, setColor)}
               </div>
             )}

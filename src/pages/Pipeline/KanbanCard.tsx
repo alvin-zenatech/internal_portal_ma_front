@@ -37,43 +37,20 @@ export const getPriorityColors = (taskOrName: Partial<PipelineTask> | string) =>
   };
 };
 
-export default function KanbanCard({ 
-  task, onClick, onEdit, onDelete, isOverlay, isUpdating 
-}: { 
-  task: PipelineTask, onClick: () => void, onEdit: (task: PipelineTask) => void, onDelete: (id: number) => void, isOverlay?: boolean, isUpdating?: boolean
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
-    id: task.id,
-    data: { type: "Task", task },
-    disabled: isOverlay || isUpdating
-  });
+import { memo, useCallback, useMemo } from "react";
 
-  const { data: users } = useUsers();
-  const { mutate: updateTask } = useUpdateTask();
-
-  const handleAnalystChange = (analystId: string) => {
-    updateTask({ id: task.id, data: { analyst_id: analystId === "unassigned" ? null : analystId } });
-  };
-
-  const colors = getPriorityColors(task);
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
+const PureKanbanCard = memo(({ 
+  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isDragging, users, handleAnalystChange, colors, isCompact 
+}: any) => {
   const cardContent = (
     <Card 
-      ref={setNodeRef} 
-      style={style} 
-      {...attributes} 
-      {...listeners}
       onClick={() => {
         if (!isDragging && !isUpdating) {
           onClick();
         }
       }}
-      className={`relative overflow-hidden p-4 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing shrink-0 h-40 flex flex-col
+      className={`relative overflow-hidden cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing shrink-0 flex flex-col
+        ${isCompact ? "p-3 pb-3 h-auto min-h-[110px]" : "p-4 pb-4 h-auto min-h-[160px]"}
         ${isDragging ? "shadow-lg scale-105 z-50" : ""}
         ${isUpdating ? "opacity-50 pointer-events-none cursor-not-allowed" : ""}`}
     >
@@ -83,10 +60,10 @@ export default function KanbanCard({
       />
       <div className="flex flex-col gap-2 h-full">
         <div className="flex flex-col items-start mb-1">
-          <h4 className="font-semibold text-sm text-foreground break-words leading-tight pr-2 line-clamp-2">
+          <h4 className={`font-semibold text-foreground break-words leading-tight pr-2 ${isCompact ? "text-xs line-clamp-2" : "text-sm line-clamp-2"}`}>
             {task.company_name} 
           </h4>
-          {(task.location || task.country_name) ? (
+          {(!isCompact && (task.location || task.country_name)) ? (
             <span className="text-xs text-muted-foreground font-normal mt-1 truncate w-full">
               {[task.location, task.country_name].filter(Boolean).join(", ")}
             </span>
@@ -98,7 +75,7 @@ export default function KanbanCard({
             <User className="h-3 w-3 shrink-0" />
             <span className="truncate">{task.name} {task.position_name ? `• ${task.position_name}` : ''}</span>
           </div>
-          {task.industry_name && (
+          {(!isCompact && task.industry_name) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Building2 className="h-3 w-3 shrink-0" />
               <span className="truncate">{task.industry_name}</span>
@@ -156,7 +133,7 @@ export default function KanbanCard({
               onValueChange={handleAnalystChange}
             >
               <ContextMenuRadioItem value="unassigned">Unassigned</ContextMenuRadioItem>
-              {users?.map(u => (
+              {users?.filter(u => !u.is_super_admin).map(u => (
                 <ContextMenuRadioItem key={u.id} value={u.id}>
                   {u.full_name}
                 </ContextMenuRadioItem>
@@ -172,5 +149,41 @@ export default function KanbanCard({
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+  );
+});
+
+export default function KanbanCard({ 
+  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isCompact 
+}: { 
+  task: PipelineTask, onClick: () => void, onEdit: (task: PipelineTask) => void, onDelete: (id: number) => void, isOverlay?: boolean, isUpdating?: boolean, isCompact?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+    id: task.id,
+    data: { type: "Task", task },
+    disabled: isOverlay || isUpdating
+  });
+
+  const { data: users } = useUsers();
+  const { mutate: updateTask } = useUpdateTask();
+
+  const handleAnalystChange = useCallback((analystId: string) => {
+    updateTask({ id: task.id, data: { analyst_id: analystId === "unassigned" ? null : analystId } });
+  }, [updateTask, task.id]);
+
+  const colors = useMemo(() => getPriorityColors(task), [task.priority_color]);
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <PureKanbanCard 
+        task={task} onClick={onClick} onEdit={onEdit} onDelete={onDelete} isOverlay={isOverlay} isUpdating={isUpdating}
+        isDragging={isDragging} users={users} handleAnalystChange={handleAnalystChange} colors={colors} isCompact={isCompact}
+      />
+    </div>
   );
 }

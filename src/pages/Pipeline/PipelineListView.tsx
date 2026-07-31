@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { 
-  useReactTable, getCoreRowModel, getPaginationRowModel, getSortedRowModel, getFilteredRowModel,
+  useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type ColumnDef, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
 import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Edit, Trash2, ArrowUpDown, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -76,7 +75,6 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 
 export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks: PipelineTask[], onTaskClick: (task: PipelineTask) => void, onEdit: (task: PipelineTask) => void }) {
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "analyst_name", desc: false },
     { id: "priority_name", desc: false }
   ]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -110,12 +108,21 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
         return a.localeCompare(b);
       }
     },
-    { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company" /> },
-    { accessorKey: "name", header: ({ column }) => <ColumnHeader column={column} title="Contact Name" /> },
-    { accessorKey: "industry_name", header: ({ column }) => <ColumnHeader column={column} title="Industry" /> },
+    { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company Name" /> },
+    { accessorKey: "location", header: ({ column }) => <ColumnHeader column={column} title="Location" /> },
+    { accessorKey: "revenue", header: ({ column }) => <ColumnHeader column={column} title="Revenue" /> },
+    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" /> },
+    { 
+      accessorKey: "latest_note", 
+      header: ({ column }) => <ColumnHeader column={column} title="Note" />,
+      cell: ({ row }) => {
+        const note = row.original.latest_note || "-";
+        return <span className="text-muted-foreground truncate max-w-[200px] inline-block" title={note}>{note}</span>;
+      }
+    },
     { 
       accessorKey: "priority_name", 
-      header: ({ column }) => <ColumnHeader column={column} title="Priority" />,
+      header: ({ column }) => <ColumnHeader column={column} title="Next Steps" />,
       cell: ({ row }) => {
         const priority = row.original.priority_name;
         if (!priority) return <span className="text-muted-foreground">-</span>;
@@ -130,25 +137,38 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
         );
       },
       sortingFn: (rowA, rowB) => {
-        const p1 = rowA.original.priority_name || "";
-        const p2 = rowB.original.priority_name || "";
-        const isHigh1 = p1.toLowerCase().includes("high value") || p1.toLowerCase().includes("high");
-        const isHigh2 = p2.toLowerCase().includes("high value") || p2.toLowerCase().includes("high");
-        if (isHigh1 && !isHigh2) return -1;
-        if (!isHigh1 && isHigh2) return 1;
+        const p1 = (rowA.original.priority_name || "").toLowerCase();
+        const p2 = (rowB.original.priority_name || "").toLowerCase();
+        
+        const PRIORITY_ORDER = [
+          "new",
+          "high value",
+          "good fit",
+          "50/50",
+          "loi-sent",
+          "loi-accepted",
+          "loi-declined",
+          "not a fit",
+          "not ready to sell"
+        ];
+        
+        const idx1 = PRIORITY_ORDER.indexOf(p1);
+        const idx2 = PRIORITY_ORDER.indexOf(p2);
+        
+        if (idx1 !== -1 && idx2 !== -1) return idx1 - idx2;
+        if (idx1 !== -1) return -1;
+        if (idx2 !== -1) return 1;
         return p1.localeCompare(p2);
       }
     },
-    { accessorKey: "email", header: ({ column }) => <ColumnHeader column={column} title="Email" /> },
+    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" /> },
+    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> },
     {
       id: "actions",
       cell: ({ row }) => {
         const task = row.original;
         return (
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(task)}>
-              <Edit className="h-4 w-4" />
-            </Button>
             <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
               setTaskToDelete(task.id);
             }}>
@@ -177,7 +197,6 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
       return company.includes(search) || name.includes(search) || ind.includes(search) || pri.includes(search) || em.includes(search);
     },
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
@@ -224,9 +243,6 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
             )}
           </TableBody>
         </Table>
-      </div>
-      <div className="pt-2">
-        <DataTablePagination table={table} />
       </div>
 
       <ConfirmDialog 

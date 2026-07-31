@@ -6,5 +6,5 @@ export default function MasterDataCountry() {
   const { mutateAsync: create } = useCreateCountry();
   const { mutateAsync: remove } = useDeleteCountry();
   const { mutateAsync: update } = useUpdateCountry();
-  return <MasterDataTemplate title="Country" data={data} isLoading={isLoading} onCreate={create} onDelete={remove} onUpdate={update} hasCode />;
+  return <MasterDataTemplate title="Country" data={data} isLoading={isLoading} onCreate={create} onDelete={remove} onUpdate={update} />;
 }
