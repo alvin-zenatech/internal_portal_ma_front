@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
+import { CalendarIcon, X } from "lucide-react";
+import { format, parse } from "date-fns";
+import { cn } from "@/lib/utils";
 import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePositions, usePriorities, useCountries, useUsers } from "@/hooks/usePipeline";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
@@ -18,9 +23,9 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const { mutateAsync: updateTask } = useUpdateTask();
 
   const [formData, setFormData] = useState<any>({
-    company_name: "", name: "", email: "", priority_id: "", industry_id: "", position_id: "", 
-    country_id: "", location: "", phone: "", first_poc: "", nda: "", p_and_l: "", 
-    revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned"
+    company_name: "", name: "", email: "", priority_id: "", industry_id: "", position_id: "",
+    country_id: "", location: "", phone: "", first_poc: "", nda: "", p_and_l: "",
+    revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
   });
 
   useEffect(() => {
@@ -32,13 +37,13 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         location: task.location || "", phone: task.phone || "", first_poc: task.first_poc || "", 
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
         team_size: task.team_size || "", no_of_calls: task.no_of_calls || "", notes: "",
-        analyst_id: task.analyst_id || "unassigned"
+        analyst_id: task.analyst_id || "unassigned", follow_up_date: task.follow_up_date || ""
       });
     } else {
       setFormData({
         company_name: "", name: "", email: "", priority_id: priorities?.find(p => p.name.toLowerCase() === "new")?.id?.toString() || priorities?.[0]?.id?.toString() || "", 
         industry_id: "", position_id: "", country_id: "", location: "", phone: "", first_poc: "", 
-        nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned"
+        nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
       });
     }
   }, [task, open, priorities]);
@@ -53,6 +58,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         position_id: formData.position_id ? parseInt(formData.position_id) : undefined,
         country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
         analyst_id: formData.analyst_id === "unassigned" ? null : formData.analyst_id,
+        follow_up_date: formData.follow_up_date || null,
       };
 
       if (task) {
@@ -162,6 +168,50 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             <div className="space-y-2">
               <Label>Team Size</Label>
               <Input value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Follow-up Date</Label>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.follow_up_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.follow_up_date
+                        ? format(parse(formData.follow_up_date, "yyyy-MM-dd", new Date()), "PPP")
+                        : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.follow_up_date ? parse(formData.follow_up_date, "yyyy-MM-dd", new Date()) : undefined}
+                      onSelect={(date) =>
+                        setFormData({ ...formData, follow_up_date: date ? format(date, "yyyy-MM-dd") : "" })
+                      }
+                    />
+                  </PopoverContent>
+                </Popover>
+                {formData.follow_up_date && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setFormData({ ...formData, follow_up_date: "" })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Emails the assigned analyst the day before and on this date.</p>
             </div>
           </div>
 

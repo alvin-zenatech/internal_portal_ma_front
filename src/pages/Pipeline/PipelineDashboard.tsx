@@ -9,7 +9,7 @@ import PipelineKanbanView from "./PipelineKanbanView";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
-import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask } from "@/hooks/usePipeline";
+import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask, useUsers } from "@/hooks/usePipeline";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -26,6 +26,7 @@ export default function PipelineDashboard() {
   }, [zoomLevel]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
@@ -34,22 +35,35 @@ export default function PipelineDashboard() {
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { data: priorities, isLoading: prioritiesLoading } = usePriorities();
+  const { data: users } = useUsers();
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
 
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
-    if (!searchQuery.trim()) return tasks;
     
-    const query = searchQuery.toLowerCase();
-    return tasks.filter(t => 
-      (t.company_name?.toLowerCase().includes(query)) ||
-      (t.name?.toLowerCase().includes(query)) ||
-      (t.email?.toLowerCase().includes(query)) ||
-      (t.phone?.toLowerCase().includes(query)) ||
-      (t.location?.toLowerCase().includes(query))
-    );
-  }, [tasks, searchQuery]);
+    let result = tasks;
+    if (analystFilter !== "all") {
+      if (analystFilter === "unassigned") {
+        result = result.filter(t => !t.analyst_id);
+      } else {
+        result = result.filter(t => t.analyst_id === analystFilter);
+      }
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(t => 
+        (t.company_name?.toLowerCase().includes(query)) ||
+        (t.name?.toLowerCase().includes(query)) ||
+        (t.email?.toLowerCase().includes(query)) ||
+        (t.phone?.toLowerCase().includes(query)) ||
+        (t.location?.toLowerCase().includes(query))
+      );
+    }
+    
+    return result;
+  }, [tasks, searchQuery, analystFilter]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: importPipeline, isPending } = useImportPipeline();
@@ -82,6 +96,20 @@ export default function PipelineDashboard() {
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
       <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
+          <div className="hidden sm:block">
+            <Select value={analystFilter} onValueChange={setAnalystFilter}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="All Analysts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Analysts</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {users?.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="relative w-64 hidden md:block">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

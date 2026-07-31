@@ -79,6 +79,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     <dd className="font-medium">{task.country_name || '-'}</dd>
                   </div>
                   <div>
+                    <dt className="text-muted-foreground">Follow-up Date</dt>
+                    <dd className="font-medium">
+                      {task.follow_up_date
+                        ? new Date(task.follow_up_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+                        : '-'}
+                    </dd>
+                  </div>
+                  <div>
                     <dt className="text-muted-foreground">Revenue</dt>
                     <dd className="font-medium">{task.revenue || '-'}</dd>
                   </div>
