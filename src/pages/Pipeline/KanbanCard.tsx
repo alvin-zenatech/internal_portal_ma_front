@@ -3,7 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useUpdateTask, useUsers, type PipelineTask } from "@/hooks/usePipeline";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, User, Edit, Trash2, UserPlus } from "lucide-react";
+import { Building2, User, Edit, Trash2, UserPlus, CalendarClock } from "lucide-react";
 import { 
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
   ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent,
@@ -56,6 +56,17 @@ export default function KanbanCard({
   };
 
   const colors = getPriorityColors(task);
+
+  const followUpDate = task.follow_up_date ? new Date(task.follow_up_date + "T00:00:00") : null;
+  let followUpTone = "text-muted-foreground";
+  if (followUpDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((followUpDate.getTime() - today.getTime()) / 86400000);
+    if (diffDays < 0) followUpTone = "text-red-600 dark:text-red-400 font-medium";
+    else if (diffDays <= 1) followUpTone = "text-amber-600 dark:text-amber-400 font-medium";
+  }
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -102,6 +113,14 @@ export default function KanbanCard({
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Building2 className="h-3 w-3 shrink-0" />
               <span className="truncate">{task.industry_name}</span>
+            </div>
+          )}
+          {followUpDate && (
+            <div className={`flex items-center gap-2 text-xs ${followUpTone}`}>
+              <CalendarClock className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                Follow-up {followUpDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </span>
             </div>
           )}
         </div>

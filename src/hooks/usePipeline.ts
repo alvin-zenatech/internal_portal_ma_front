@@ -49,6 +49,7 @@ export interface PipelineTask {
   team_size: string | null;
   country_id: number | null;
   country_name: string | null;
+  follow_up_date: string | null;
   created_at: string;
   updated_at: string;
 }
