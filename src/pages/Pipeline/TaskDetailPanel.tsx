@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskHistory, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Building2, User, Mail, Phone, Edit, MessageSquare, History, Edit2, Trash2, Paperclip, X } from "lucide-react";
+import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X } from "lucide-react";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
-  const { data: history } = useTaskHistory(task?.id || null);
+
   const { data: notes } = useTaskNotes(task?.id || null);
   const { mutateAsync: createNote } = useCreateTaskNote();
   const { mutateAsync: updateNote } = useUpdateTaskNote();

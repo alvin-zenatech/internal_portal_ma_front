@@ -27,8 +27,10 @@ const PureKanbanColumn = memo(({
         style={colors.badgeStyle}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0" {...attributes} {...listeners}>
-          <GripVertical className={`cursor-grab active:cursor-grabbing shrink-0 opacity-50 ${isCompact ? "h-3 w-3" : "h-4 w-4"}`} />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div {...attributes} {...listeners} className="flex items-center p-1 -ml-1 rounded cursor-grab active:cursor-grabbing hover:bg-black/10 dark:hover:bg-white/10" onClick={(e) => e.stopPropagation()}>
+            <GripVertical className={`shrink-0 opacity-50 ${isCompact ? "h-3 w-3" : "h-4 w-4"}`} />
+          </div>
           <h3 className={`font-bold truncate flex-1 uppercase tracking-wider select-none ${isCompact ? "text-xs" : "text-sm"}`}>{column.title}</h3>
         </div>
         <div className="flex items-center gap-2">
