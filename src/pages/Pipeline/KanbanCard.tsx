@@ -1,10 +1,21 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type PipelineTask } from "@/hooks/usePipeline";
+import { useUpdateTask, useUsers, type PipelineTask } from "@/hooks/usePipeline";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, User, Phone, Mail, Edit, Trash2 } from "lucide-react";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { Building2, User, Phone, Mail, Edit, Trash2, UserPlus } from "lucide-react";
+import { 
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
+  ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent,
+  ContextMenuRadioGroup, ContextMenuRadioItem, ContextMenuSeparator
+} from "@/components/ui/context-menu";
+
+const getInitials = (name: string) => {
+  if (!name) return "";
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
 
 export const getPriorityColors = (taskOrName: Partial<PipelineTask> | string) => {
   const name = typeof taskOrName === 'string' ? taskOrName : taskOrName?.priority_name || "";
@@ -37,12 +48,18 @@ export default function KanbanCard({
     disabled: isOverlay || isUpdating
   });
 
+  const { data: users } = useUsers();
+  const { mutate: updateTask } = useUpdateTask();
+
+  const handleAnalystChange = (analystId: string) => {
+    updateTask({ id: task.id, data: { analyst_id: analystId === "unassigned" ? null : analystId } });
+  };
+
   const colors = getPriorityColors(task);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    ...colors.borderStyle
   };
 
   const cardContent = (
@@ -56,23 +73,27 @@ export default function KanbanCard({
           onClick();
         }
       }}
-      className={`p-4 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing border-l-4 
+      className={`relative overflow-hidden p-4 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing shrink-0 h-40 flex flex-col
         ${isDragging ? "shadow-lg scale-105 z-50" : ""}
         ${isUpdating ? "opacity-50 pointer-events-none cursor-not-allowed" : ""}`}
     >
-      <div className="flex flex-col gap-2">
-        <div className="flex justify-between items-start mb-2">
-          <h4 className="font-semibold text-sm text-foreground flex-1 break-words leading-tight pr-2">
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-1.5" 
+        style={{ backgroundColor: colors.borderStyle.borderLeftColor }} 
+      />
+      <div className="flex flex-col gap-2 h-full">
+        <div className="flex flex-col items-start mb-1">
+          <h4 className="font-semibold text-sm text-foreground break-words leading-tight pr-2 line-clamp-2">
             {task.company_name} 
-            {(task.location || task.country_name) ? (
-              <span className="text-xs text-muted-foreground font-normal ml-1">
-                ({[task.location, task.country_name].filter(Boolean).join(" - ")})
-              </span>
-            ) : null}
           </h4>
+          {(task.location || task.country_name) ? (
+            <span className="text-xs text-muted-foreground font-normal mt-1 truncate w-full">
+              {[task.location, task.country_name].filter(Boolean).join(", ")}
+            </span>
+          ) : null}
         </div>
         
-        <div className="space-y-1.5 mt-1">
+        <div className="space-y-1.5 mt-auto">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <User className="h-3 w-3 shrink-0" />
             <span className="truncate">{task.name} {task.position_name ? `• ${task.position_name}` : ''}</span>
@@ -85,12 +106,12 @@ export default function KanbanCard({
           )}
         </div>
         
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50 shrink-0">
           <div className="flex items-center gap-2">
             {task.analyst_name ? (
               <Avatar className="h-6 w-6">
                 <AvatarFallback className="text-[10px] bg-muted text-muted-foreground font-medium">
-                  {task.analyst_name.charAt(0).toUpperCase()}
+                  {getInitials(task.analyst_name)}
                 </AvatarFallback>
               </Avatar>
             ) : (
@@ -120,10 +141,32 @@ export default function KanbanCard({
       <ContextMenuTrigger asChild>
         {cardContent}
       </ContextMenuTrigger>
-      <ContextMenuContent>
+      <ContextMenuContent className="w-56">
         <ContextMenuItem onClick={() => onEdit(task)} className="gap-2">
           <Edit className="h-4 w-4" /> Edit Task
         </ContextMenuItem>
+        
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="gap-2">
+            <UserPlus className="h-4 w-4" /> Modify Analyst
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
+            <ContextMenuRadioGroup 
+              value={task.analyst_id || "unassigned"} 
+              onValueChange={handleAnalystChange}
+            >
+              <ContextMenuRadioItem value="unassigned">Unassigned</ContextMenuRadioItem>
+              {users?.map(u => (
+                <ContextMenuRadioItem key={u.id} value={u.id}>
+                  {u.full_name}
+                </ContextMenuRadioItem>
+              ))}
+            </ContextMenuRadioGroup>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+
+        <ContextMenuSeparator />
+
         <ContextMenuItem onClick={() => onDelete(task.id)} className="gap-2 text-red-600 focus:text-red-600">
           <Trash2 className="h-4 w-4" /> Remove Task
         </ContextMenuItem>

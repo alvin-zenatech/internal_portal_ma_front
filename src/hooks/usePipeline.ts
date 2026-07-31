@@ -33,14 +33,14 @@ export interface PipelineTask {
   name: string;
   position_id: number | null;
   position_name: string | null;
-  email: string;
+  email: string | null;
   phone: string | null;
   first_poc: string | null;
   nda?: string;
   priority_id?: number;
   priority_name?: string;
   priority_color?: string;
-  no_of_calls?: number | null;
+  no_of_calls?: string | null;
   p_and_l: string | null;
   analyst_id: string | null;
   analyst_name: string | null;
@@ -76,6 +76,14 @@ export interface PipelineNote {
   created_at: string;
   updated_at: string;
 }
+
+export interface UserData {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
+export const useUsers = () => useQuery({ queryKey: ["users"], queryFn: () => api.get<UserData[]>("/api/configuration/users") });
 
 // Master Data Hooks
 export const useIndustries = () => useQuery({ queryKey: ["industries"], queryFn: () => api.get<MasterData[]>("/api/pipeline/industries") });
@@ -209,9 +217,7 @@ export function useImportPipeline() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return await api.post("/api/pipeline/import", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
+      return await api.post("/api/pipeline/import", formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskHistory, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskHistory, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -12,11 +12,13 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const { mutateAsync: createNote } = useCreateTaskNote();
   const { mutateAsync: updateNote } = useUpdateTaskNote();
   const { mutateAsync: deleteNote } = useDeleteTaskNote();
+  const { mutateAsync: deleteTask } = useDeleteTask();
 
   const [newNote, setNewNote] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
+  const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
 
   const handleAddNote = async () => {
     if (!newNote.trim() || !task) return;
@@ -41,9 +43,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   {task.phone && <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {task.phone}</span>}
                 </div>
               </div>
-              <Button variant="outline" onClick={() => onEdit(task)} className="gap-2 mr-8">
-                <Edit className="h-4 w-4" /> Edit Task
-              </Button>
+              <div className="flex gap-2 mr-8">
+                <Button variant="destructive" onClick={() => setIsConfirmDeleteTask(true)} className="gap-2">
+                  <Trash2 className="h-4 w-4" /> Remove Task
+                </Button>
+                <Button variant="outline" onClick={() => onEdit(task)} className="gap-2">
+                  <Edit className="h-4 w-4" /> Edit Task
+                </Button>
+              </div>
             </div>
 
             <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
@@ -185,6 +192,19 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
           if (noteToDelete && task) {
             deleteNote({ taskId: task.id, noteId: noteToDelete });
             setNoteToDelete(null);
+          }
+        }}
+      />
+      <ConfirmDialog 
+        open={isConfirmDeleteTask} 
+        onOpenChange={(open) => !open && setIsConfirmDeleteTask(false)}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        onConfirm={async () => {
+          if (task) {
+            await deleteTask(task.id);
+            setIsConfirmDeleteTask(false);
+            onClose();
           }
         }}
       />

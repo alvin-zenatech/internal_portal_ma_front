@@ -32,6 +32,7 @@ export default function PipelineKanbanView({
   const columns = useMemo(() => {
     return localPriorities.map(p => ({
       id: p.id,
+      priorityId: p.id,
       title: p.name,
       color: p.color,
       tasks: localTasks.filter(t => t.priority_id === p.id)
@@ -43,13 +44,7 @@ export default function PipelineKanbanView({
   const [updatingTaskIds, setUpdatingTaskIds] = useState<Set<number>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (scrollContainerRef.current && e.deltaY !== 0 && e.deltaX === 0) {
-      // Don't intercept if dragging or if modifier keys are pressed
-      if (activeTask || activeColumn || e.ctrlKey || e.shiftKey) return;
-      scrollContainerRef.current.scrollLeft += e.deltaY;
-    }
-  };
+
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -131,7 +126,6 @@ export default function PipelineKanbanView({
   return (
     <div 
       ref={scrollContainerRef}
-      onWheel={handleWheel}
       className="h-full w-full overflow-x-auto p-6 bg-muted/20 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50"
     >
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

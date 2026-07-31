@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { 
   useReactTable, getCoreRowModel, getPaginationRowModel, getSortedRowModel, getFilteredRowModel,
-  flexRender, type ColumnDef, type SortingState, type ColumnFiltersState 
+  flexRender, type ColumnDef, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
 import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,8 +12,24 @@ import { Edit, Trash2, ArrowUpDown, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const getInitials = (name: string) => {
+  if (!name) return "";
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
+  const uniqueValues = React.useMemo(() => {
+    return Array.from(column.getFacetedUniqueValues().keys())
+      .filter(Boolean)
+      .sort() as string[];
+  }, [column.getFacetedUniqueValues()]);
+
+  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 50;
+
   return (
     <div className="flex items-center space-x-1">
       <Button
@@ -32,12 +48,25 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-2" align="start">
-          <Input
-            placeholder={`Filter ${title}...`}
-            value={(column.getFilterValue() ?? "") as string}
-            onChange={(e) => column.setFilterValue(e.target.value)}
-            className="h-8 text-sm"
-          />
+          {isDropdown ? (
+            <select
+              value={(column.getFilterValue() ?? "") as string}
+              onChange={(e) => column.setFilterValue(e.target.value || undefined)}
+              className="w-full h-9 text-sm border border-input rounded-md px-3 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">All {title}s</option>
+              {uniqueValues.map(val => (
+                <option key={val} value={val}>{val}</option>
+              ))}
+            </select>
+          ) : (
+            <Input
+              placeholder={`Filter ${title}...`}
+              value={(column.getFilterValue() ?? "") as string}
+              onChange={(e) => column.setFilterValue(e.target.value)}
+              className="h-8 text-sm"
+            />
+          )}
         </PopoverContent>
       </Popover>
     </div>
@@ -52,6 +81,24 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
   const { mutate: removeTask } = useDeleteTask();
 
   const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
+    { 
+      accessorKey: "analyst_name", 
+      header: ({ column }) => <ColumnHeader column={column} title="Analyst" />,
+      cell: ({ row }) => {
+        const analyst = row.original.analyst_name;
+        if (!analyst) return <span className="text-muted-foreground">-</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-[10px] bg-muted text-muted-foreground font-medium">
+                {getInitials(analyst)}
+              </AvatarFallback>
+            </Avatar>
+            <span>{analyst}</span>
+          </div>
+        );
+      }
+    },
     { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company" /> },
     { accessorKey: "name", header: ({ column }) => <ColumnHeader column={column} title="Contact Name" /> },
     { accessorKey: "industry_name", header: ({ column }) => <ColumnHeader column={column} title="Industry" /> },
@@ -97,6 +144,7 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
   return (

@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePositions, usePriorities, useCountries } from "@/hooks/usePipeline";
+import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePositions, usePriorities, useCountries, useUsers } from "@/hooks/usePipeline";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
   const { data: positions } = usePositions();
   const { data: priorities } = usePriorities();
   const { data: countries } = useCountries();
+  const { data: users } = useUsers();
 
   const { mutateAsync: createTask } = useCreateTask();
   const { mutateAsync: updateTask } = useUpdateTask();
@@ -19,7 +20,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const [formData, setFormData] = useState<any>({
     company_name: "", name: "", email: "", priority_id: "", industry_id: "", position_id: "", 
     country_id: "", location: "", phone: "", first_poc: "", nda: "", p_and_l: "", 
-    revenue: "", team_size: "", no_of_calls: 0, notes: ""
+    revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned"
   });
 
   useEffect(() => {
@@ -30,13 +31,14 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         position_id: task.position_id?.toString() || "", country_id: task.country_id?.toString() || "",
         location: task.location || "", phone: task.phone || "", first_poc: task.first_poc || "", 
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
-        team_size: task.team_size || "", no_of_calls: task.no_of_calls || 0, notes: ""
+        team_size: task.team_size || "", no_of_calls: task.no_of_calls || "", notes: "",
+        analyst_id: task.analyst_id || "unassigned"
       });
     } else {
       setFormData({
-        company_name: "", name: "", email: "", priority_id: priorities?.[0]?.id?.toString() || "", 
+        company_name: "", name: "", email: "", priority_id: priorities?.find(p => p.name.toLowerCase() === "new")?.id?.toString() || priorities?.[0]?.id?.toString() || "", 
         industry_id: "", position_id: "", country_id: "", location: "", phone: "", first_poc: "", 
-        nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: 0, notes: ""
+        nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned"
       });
     }
   }, [task, open, priorities]);
@@ -50,6 +52,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         industry_id: formData.industry_id ? parseInt(formData.industry_id) : undefined,
         position_id: formData.position_id ? parseInt(formData.position_id) : undefined,
         country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
+        analyst_id: formData.analyst_id === "unassigned" ? null : formData.analyst_id,
       };
 
       if (task) {
@@ -87,8 +90,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
             
             <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <Label>Email</Label>
+              <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>
@@ -101,6 +104,17 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
                 <SelectContent>
                   {priorities?.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Analyst</Label>
+              <Select value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
+                <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users?.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

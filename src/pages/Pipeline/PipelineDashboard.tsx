@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, List, Upload, Loader2 } from "lucide-react";
+import { Plus, LayoutGrid, List, Upload, Loader2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import PipelineKanbanView from "./PipelineKanbanView";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
@@ -12,15 +13,31 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function PipelineDashboard() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { data: priorities, isLoading: prioritiesLoading } = usePriorities();
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
+
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    if (!searchQuery.trim()) return tasks;
+    
+    const query = searchQuery.toLowerCase();
+    return tasks.filter(t => 
+      (t.company_name?.toLowerCase().includes(query)) ||
+      (t.name?.toLowerCase().includes(query)) ||
+      (t.email?.toLowerCase().includes(query)) ||
+      (t.phone?.toLowerCase().includes(query)) ||
+      (t.location?.toLowerCase().includes(query))
+    );
+  }, [tasks, searchQuery]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: importPipeline, isPending } = useImportPipeline();
@@ -29,14 +46,10 @@ export default function PipelineDashboard() {
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      importPipeline(file, {
-        onSuccess: (res) => toast.success(res.message || "Imported successfully"),
-        onError: (err: any) => toast.error(err.response?.data?.detail || "Failed to import"),
-        onSettled: () => {
-          if (fileInputRef.current) fileInputRef.current.value = "";
-        }
-      });
+      setImportFile(file);
     }
+    // reset input so the same file can be selected again if needed
+    e.target.value = '';
   };
 
   const handleEdit = (task: PipelineTask) => {
@@ -54,13 +67,23 @@ export default function PipelineDashboard() {
   };
 
   return (
-    <div className="h-[calc(100vh-5rem)] flex flex-col w-full animate-in fade-in duration-500">
+    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
       <div className="px-8 py-6 border-b bg-card flex justify-between items-center shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pipeline</h1>
           <p className="text-muted-foreground mt-1">Manage and track your pipeline tasks.</p>
         </div>
         <div className="flex items-center gap-4">
+          <div className="relative w-64 hidden md:block">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          
           <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
             <TabsList>
               <TabsTrigger value="kanban" className="gap-2"><LayoutGrid className="h-4 w-4" /> Board</TabsTrigger>
@@ -88,7 +111,7 @@ export default function PipelineDashboard() {
           <>
             {view === "kanban" ? (
               <PipelineKanbanView 
-                tasks={tasks || []} 
+                tasks={filteredTasks} 
                 priorities={priorities || []} 
                 onTaskClick={setSelectedTask} 
                 onEdit={handleEdit}
@@ -97,7 +120,7 @@ export default function PipelineDashboard() {
               />
             ) : (
               <PipelineListView 
-                tasks={tasks || []} 
+                tasks={filteredTasks} 
                 onTaskClick={setSelectedTask} 
                 onEdit={handleEdit}
               />
@@ -128,6 +151,28 @@ export default function PipelineDashboard() {
             await deleteTask(taskToDelete);
             if (selectedTask?.id === taskToDelete) setSelectedTask(null);
             setTaskToDelete(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog 
+        open={importFile !== null} 
+        onOpenChange={(open) => !open && setImportFile(null)}
+        title="Confirm Import"
+        description="Are you sure you want to import this spreadsheet? This action will permanently erase all current tasks, notes, and history on the pipeline board, and replace them entirely with the data from the imported spreadsheet."
+        onConfirm={() => {
+          if (importFile) {
+            const toastId = toast.loading("Importing tasks from spreadsheet...");
+            importPipeline(importFile, {
+              onSuccess: (res) => {
+                toast.success(res.message || "Imported successfully!", { id: toastId });
+                setImportFile(null);
+              },
+              onError: (err: any) => {
+                toast.error(err.response?.data?.detail || "Failed to import", { id: toastId });
+                setImportFile(null);
+              }
+            });
           }
         }}
       />
