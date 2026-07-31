@@ -5,7 +5,7 @@ import { AuthProvider } from "./lib/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const AppShell = lazy(() => import("./components/AppShell/AppShell"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+
 const Users = lazy(() => import("./pages/Configurations/Users"));
 const Roles = lazy(() => import("./pages/Configurations/Roles"));
 const UserRoleAssignment = lazy(() => import("./pages/Configurations/UserRoleAssignment"));

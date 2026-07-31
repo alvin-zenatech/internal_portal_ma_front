@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, LayoutGrid, List, Upload, Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import PipelineKanbanView from "./PipelineKanbanView";
@@ -98,7 +98,7 @@ export default function PipelineDashboard() {
             Import XLSX
           </Button>
 
-          <Button onClick={handleCreate} className="gap-2">
+          <Button onClick={() => handleCreate()} className="gap-2">
             <Plus className="h-4 w-4" /> New Task
           </Button>
         </div>
@@ -164,7 +164,7 @@ export default function PipelineDashboard() {
           if (importFile) {
             const toastId = toast.loading("Importing tasks from spreadsheet...");
             importPipeline(importFile, {
-              onSuccess: (res) => {
+              onSuccess: (res: any) => {
                 toast.success(res.message || "Imported successfully!", { id: toastId });
                 setImportFile(null);
               },

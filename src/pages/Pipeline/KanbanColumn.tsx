@@ -38,7 +38,7 @@ export default function KanbanColumn({
 
   const colors = getPriorityColors({ priority_name: column.title, priority_color: column.color });
 
-  const chunkedTasks = [];
+  const chunkedTasks: PipelineTask[][] = [];
   for (let i = 0; i < column.tasks.length; i += 10) {
     chunkedTasks.push(column.tasks.slice(i, i + 10));
   }

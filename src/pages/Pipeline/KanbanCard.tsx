@@ -3,7 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useUpdateTask, useUsers, type PipelineTask } from "@/hooks/usePipeline";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, User, Phone, Mail, Edit, Trash2, UserPlus } from "lucide-react";
+import { Building2, User, Edit, Trash2, UserPlus } from "lucide-react";
 import { 
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
   ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent,
@@ -18,7 +18,7 @@ const getInitials = (name: string) => {
 };
 
 export const getPriorityColors = (taskOrName: Partial<PipelineTask> | string) => {
-  const name = typeof taskOrName === 'string' ? taskOrName : taskOrName?.priority_name || "";
+
   const color = typeof taskOrName === 'string' ? null : taskOrName?.priority_color;
 
   if (color && color.startsWith('#')) {
@@ -68,7 +68,7 @@ export default function KanbanCard({
       style={style} 
       {...attributes} 
       {...listeners}
-      onClick={(e) => {
+      onClick={() => {
         if (!isDragging && !isUpdating) {
           onClick();
         }

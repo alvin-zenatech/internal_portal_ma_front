@@ -130,7 +130,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                               <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)}>Cancel</Button>
                               <Button size="sm" onClick={async () => {
                                 if (task) {
-                                  await updateNote({ taskId: task.id, noteId: note.id, note: editContent });
+                                  await updateNote({ noteId: note.id, note: editContent });
                                   setEditingNoteId(null);
                                 }
                               }}>Save</Button>
@@ -157,7 +157,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   <div className="relative border-l ml-3 pl-4 space-y-6">
-                    {history?.map((h, i) => (
+                    {history?.map((h, _i) => (
                       <div key={h.id} className="relative">
                         <div className="absolute -left-6 bg-background border rounded-full h-4 w-4 mt-0.5"></div>
                         <div className="text-sm">
@@ -190,7 +190,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
         description="Are you sure you want to delete this note? This action cannot be undone."
         onConfirm={() => {
           if (noteToDelete && task) {
-            deleteNote({ taskId: task.id, noteId: noteToDelete });
+            deleteNote({ noteId: noteToDelete });
             setNoteToDelete(null);
           }
         }}

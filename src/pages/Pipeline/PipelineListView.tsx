@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getPriorityColors } from "./KanbanCard";
 
 const getInitials = (name: string) => {
   if (!name) return "";
@@ -74,7 +75,10 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 }
 
 export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks: PipelineTask[], onTaskClick: (task: PipelineTask) => void, onEdit: (task: PipelineTask) => void }) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "analyst_name", desc: false },
+    { id: "priority_name", desc: false }
+  ]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
@@ -97,12 +101,44 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
             <span>{analyst}</span>
           </div>
         );
+      },
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.analyst_name || "";
+        const b = rowB.original.analyst_name || "";
+        if (!a && b) return 1;
+        if (a && !b) return -1;
+        return a.localeCompare(b);
       }
     },
     { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company" /> },
     { accessorKey: "name", header: ({ column }) => <ColumnHeader column={column} title="Contact Name" /> },
     { accessorKey: "industry_name", header: ({ column }) => <ColumnHeader column={column} title="Industry" /> },
-    { accessorKey: "priority_name", header: ({ column }) => <ColumnHeader column={column} title="Priority" /> },
+    { 
+      accessorKey: "priority_name", 
+      header: ({ column }) => <ColumnHeader column={column} title="Priority" />,
+      cell: ({ row }) => {
+        const priority = row.original.priority_name;
+        if (!priority) return <span className="text-muted-foreground">-</span>;
+        const colors = getPriorityColors(row.original);
+        return (
+          <span 
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap"
+            style={colors.badgeStyle}
+          >
+            {priority}
+          </span>
+        );
+      },
+      sortingFn: (rowA, rowB) => {
+        const p1 = rowA.original.priority_name || "";
+        const p2 = rowB.original.priority_name || "";
+        const isHigh1 = p1.toLowerCase().includes("high value") || p1.toLowerCase().includes("high");
+        const isHigh2 = p2.toLowerCase().includes("high value") || p2.toLowerCase().includes("high");
+        if (isHigh1 && !isHigh2) return -1;
+        if (!isHigh1 && isHigh2) return 1;
+        return p1.localeCompare(p2);
+      }
+    },
     { accessorKey: "email", header: ({ column }) => <ColumnHeader column={column} title="Email" /> },
     {
       id: "actions",
@@ -131,7 +167,7 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, columnId, filterValue) => {
+    globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       const company = (row.original.company_name || "").toLowerCase();
       const name = (row.original.name || "").toLowerCase();

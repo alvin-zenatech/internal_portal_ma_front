@@ -9,11 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { type DateRange } from "react-day-picker";
 
-type DateRange = {
-  from?: Date;
-  to?: Date;
-};
 
 export default function Statistics() {
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
@@ -37,7 +34,7 @@ export default function Statistics() {
   const { data, isLoading } = usePipelineStatistics(currentStartDate, currentEndDate);
 
   const monthOptions = useMemo(() => {
-    const options = [];
+    const options: Date[] = [];
     const now = new Date();
     for (let i = 0; i < 12; i++) {
       options.push(startOfMonth(subMonths(now, i)));
@@ -109,7 +106,7 @@ export default function Statistics() {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
-                    initialFocus
+
                     mode="range"
                     defaultMonth={dateRange?.from}
                     selected={dateRange}

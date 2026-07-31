@@ -183,9 +183,8 @@ export const useDeleteTask = () => { const qc = useQueryClient(); return useMuta
 export const useTaskHistory = (taskId: number | null) => useQuery({ queryKey: ["tasks", taskId, "history"], queryFn: () => api.get<PipelineTaskHistory[]>(`/api/pipeline/tasks/${taskId}/history`), enabled: !!taskId });
 export const useTaskNotes = (taskId: number | null) => useQuery({ queryKey: ["tasks", taskId, "notes"], queryFn: () => api.get<PipelineNote[]>(`/api/pipeline/tasks/${taskId}/notes`), enabled: !!taskId });
 export const useCreateTaskNote = () => { const queryClient = useQueryClient();  return useMutation({
-    mutationFn: async ({ taskId, ...data }: { taskId: number, note: string }) => {
-      const res = await api.post(`/api/pipeline/tasks/${taskId}/notes`, data);
-      return res.data;
+    mutationFn: async ({ taskId, note }: { taskId: number, note: string }) => {
+      return await api.post(`/api/pipeline/tasks/${taskId}/notes`, { note });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });
@@ -194,20 +193,20 @@ export const useCreateTaskNote = () => { const queryClient = useQueryClient();  
 }
 
 export const useUpdateTaskNote = () => { const queryClient = useQueryClient(); return useMutation({
-  mutationFn: async ({ taskId, noteId, note }: { taskId: number, noteId: number, note: string }) => {
+  mutationFn: async ({ noteId, note }: { noteId: number, note: string }) => {
     return await api.put(`/api/pipeline/tasks/notes/${noteId}`, { note });
   },
-  onSuccess: (_, variables) => {
-    queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
   },
 }); }
 
 export const useDeleteTaskNote = () => { const queryClient = useQueryClient(); return useMutation({
-  mutationFn: async ({ taskId, noteId }: { taskId: number, noteId: number }) => {
+  mutationFn: async ({ noteId }: { noteId: number }) => {
     return await api.delete(`/api/pipeline/tasks/notes/${noteId}`);
   },
-  onSuccess: (_, variables) => {
-    queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
   },
 }); }
 

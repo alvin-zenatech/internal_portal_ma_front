@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Shield, Power, Ban, ChevronRight, ChevronDown, FolderOpen, Folder, Key, Loader2, Save, X } from "lucide-react";
+import { Plus, Edit, Trash2, Shield, Ban, ChevronRight, ChevronDown, FolderOpen, Folder, Key, Loader2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import type { Role } from "@/lib/AuthContext";

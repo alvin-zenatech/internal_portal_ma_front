@@ -26,7 +26,7 @@ import type {
 } from "@tanstack/react-table";
 
 export default function AuditLog() {
-  const { data: auditLogs = [], isLoading: isAuditLoading } = useQuery({
+  const { data: auditLogs = [] } = useQuery({
     queryKey: ["auditLogs"],
     queryFn: () => apiClient.get<any[]>("/api/audit-logs"),
   });
@@ -118,7 +118,7 @@ export default function AuditLog() {
     },
   ], []);
 
-  const auditTable = useReactTable({
+  useReactTable({
     data: auditLogs,
     columns: auditColumns,
     onSortingChange: setAuditSorting,
