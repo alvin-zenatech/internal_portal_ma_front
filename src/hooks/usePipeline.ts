@@ -198,6 +198,8 @@ export const useCreateTaskNote = () => { const queryClient = useQueryClient();  
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId] });
     },
   });
 }
@@ -231,6 +233,21 @@ export function useImportPipeline() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     }
+  });
+}
+
+export function useBackfillFollowUpDates() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      return await api.post<{
+        updated_count: number;
+        updated: { task_id: number; company_name: string; follow_up_date: string }[];
+      }>("/api/pipeline/follow-ups/backfill-from-notes");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 }
 

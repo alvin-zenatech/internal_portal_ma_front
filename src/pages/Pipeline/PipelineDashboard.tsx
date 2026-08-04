@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect, useDeferredValue, useCallback } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X } from "lucide-react";
+import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X, CalendarClock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,6 +13,8 @@ import TaskDetailPanel from "./TaskDetailPanel";
 import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask, useUsers } from "@/hooks/usePipeline";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Link } from "react-router-dom";
+import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
 export default function PipelineDashboard() {
   const [view, setView] = useState<"kanban" | "list">("list");
@@ -39,8 +41,6 @@ export default function PipelineDashboard() {
   const { data: priorities, isLoading: prioritiesLoading } = usePriorities();
   const { data: users } = useUsers();
 
-  const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
-
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
     
@@ -66,6 +66,18 @@ export default function PipelineDashboard() {
     
     return result;
   }, [tasks, deferredSearchQuery, analystFilter]);
+
+  const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
+
+  const dueFollowUpCount = useMemo(() => {
+    if (!tasks) return 0;
+    const tomorrow = startOfDay(addDays(new Date(), 1));
+    return tasks.filter(task => {
+      if (!task.follow_up_date) return false;
+      const date = parseISO(task.follow_up_date);
+      return isValid(date) && isBefore(date, tomorrow);
+    }).length;
+  }, [tasks]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: importPipeline, isPending } = useImportPipeline();
@@ -188,6 +200,20 @@ export default function PipelineDashboard() {
             </>
           )}
           
+          <div className="h-8 w-px bg-border mx-1 hidden md:block" />
+          
+          <Button variant="outline" asChild className="hidden md:flex gap-2">
+            <Link to="/pipeline/follow-ups">
+              <CalendarClock className="h-4 w-4 text-blue-500" />
+              Follow-ups
+              {dueFollowUpCount > 0 && (
+                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  {dueFollowUpCount}
+                </span>
+              )}
+            </Link>
+          </Button>
+
           <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
           <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
           <Tooltip>

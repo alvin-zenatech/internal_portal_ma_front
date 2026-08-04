@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarCheck,
   PhoneCall,
+  CalendarClock,
 } from "lucide-react";
 
 export const navigation = [
@@ -13,6 +14,13 @@ export const navigation = [
     label: "Dashboard",
     path: "/",
     icon: LayoutDashboard,
+    section: "MAIN",
+    navigationCode: "PIPELINE",
+  },
+  {
+    label: "Follow-ups",
+    path: "/pipeline/follow-ups",
+    icon: CalendarClock,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },
