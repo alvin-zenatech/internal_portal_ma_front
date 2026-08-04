@@ -23,6 +23,7 @@ const MasterDataIndustry = lazy(() => import("./pages/Pipeline/MasterDataIndustr
 const MasterDataPosition = lazy(() => import("./pages/Pipeline/MasterDataPosition"));
 const MasterDataPriority = lazy(() => import("./pages/Pipeline/MasterDataPriority"));
 const MasterDataCountry = lazy(() => import("./pages/Pipeline/MasterDataCountry"));
+const WeeklyCheckIn = lazy(() => import("./pages/Pipeline/WeeklyCheckIn"));
 function App() {
   return (
     <AuthProvider>
@@ -51,6 +52,7 @@ function App() {
 
             {/* Pipeline */}
             <Route path="/pipeline/statistics" element={<ProtectedRoute navigationCode="PIPELINE"><Statistics /></ProtectedRoute>} />
+            <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE"><WeeklyCheckIn /></ProtectedRoute>} />
             <Route path="/pipeline" element={<Navigate to="/pipeline/master-data/industry" replace />} />
             <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataIndustry /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/position" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPosition /></ProtectedRoute>} />

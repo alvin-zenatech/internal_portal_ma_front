@@ -6,5 +6,5 @@ export default function MasterDataPriority() {
   const { mutateAsync: create } = useCreatePriority();
   const { mutateAsync: remove } = useDeletePriority();
   const { mutateAsync: update } = useUpdatePriority();
-  return <MasterDataTemplate title="Priority" data={data} isLoading={isLoading} onCreate={create} onDelete={remove} onUpdate={update} hasSortOrder hasColor />;
+  return <MasterDataTemplate title="Next Steps" data={data} isLoading={isLoading} onCreate={create} onDelete={remove} onUpdate={update} hasSortOrder hasColor />;
 }

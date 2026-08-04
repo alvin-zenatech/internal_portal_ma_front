@@ -4,7 +4,7 @@ import {
   FileClock,
   Briefcase,
   BarChart3,
-  CalendarClock,
+  CalendarCheck,
 } from "lucide-react";
 
 export const navigation = [
@@ -16,9 +16,9 @@ export const navigation = [
     navigationCode: "PIPELINE",
   },
   {
-    label: "Follow-ups",
-    path: "/pipeline/follow-ups",
-    icon: CalendarClock,
+    label: "Weekly Check-In",
+    path: "/pipeline/weekly-check-in",
+    icon: CalendarCheck,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },

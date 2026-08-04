@@ -105,7 +105,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
-              <Label>Priority (Status) *</Label>
+              <Label>Next Steps *</Label>
               <Select value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
                 <SelectContent>
@@ -120,7 +120,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users?.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                  {users?.filter(u => !u.is_super_admin).map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -163,6 +163,35 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             <div className="space-y-2">
               <Label>Revenue</Label>
               <Input value={formData.revenue} onChange={e => setFormData({...formData, revenue: e.target.value})} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Team Size</Label>
+              <Input value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>NDA Status</Label>
+              <Select value={formData.nda} onValueChange={v => setFormData({...formData, nda: v === "none" ? "" : v})}>
+                <SelectTrigger><SelectValue placeholder="Select NDA status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="Signed">Signed</SelectItem>
+                  <SelectItem value="Not Signed">Not Signed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>P&L Status</Label>
+              <Select value={formData.p_and_l} onValueChange={v => setFormData({...formData, p_and_l: v === "none" ? "" : v})}>
+                <SelectTrigger><SelectValue placeholder="Select P&L status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="Received">Received</SelectItem>
+                  <SelectItem value="Requested">Requested</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

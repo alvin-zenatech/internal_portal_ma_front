@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskHistory, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Building2, User, Mail, Phone, Edit, MessageSquare, History, Edit2, Trash2 } from "lucide-react";
+import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X } from "lucide-react";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
-  const { data: history } = useTaskHistory(task?.id || null);
+
   const { data: notes } = useTaskNotes(task?.id || null);
   const { mutateAsync: createNote } = useCreateTaskNote();
   const { mutateAsync: updateNote } = useUpdateTaskNote();
@@ -15,15 +15,19 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const { mutateAsync: deleteTask } = useDeleteTask();
 
   const [newNote, setNewNote] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
 
   const handleAddNote = async () => {
-    if (!newNote.trim() || !task) return;
-    await createNote({ taskId: task.id, note: newNote });
+    if ((!newNote.trim() && !selectedFile) || !task) return;
+    const finalNote = newNote.trim() || (selectedFile ? `Attached file: ${selectedFile.name}` : "");
+    await createNote({ taskId: task.id, note: finalNote, file: selectedFile });
     setNewNote("");
+    setSelectedFile(null);
   };
 
   return (
@@ -53,14 +57,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
+            <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
               
               {/* Left Column: Details */}
               <div className="h-full min-h-0 p-6 bg-card overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <h3 className="font-semibold text-lg mb-4">Task Details</h3>
                 <dl className="space-y-4 text-sm">
                   <div>
-                    <dt className="text-muted-foreground">Priority / Status</dt>
+                    <dt className="text-muted-foreground">Next Steps</dt>
                     <dd className="font-medium">{task.priority_name}</dd>
                   </div>
                   <div>
@@ -92,6 +96,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     <dd className="font-medium">{task.team_size || '-'}</dd>
                   </div>
                   <div>
+                    <dt className="text-muted-foreground">NDA Status</dt>
+                    <dd className="font-medium">{task.nda || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">P&L Status</dt>
+                    <dd className="font-medium">{task.p_and_l || '-'}</dd>
+                  </div>
+                  <div>
                     <dt className="text-muted-foreground">Created At</dt>
                     <dd className="font-medium">{new Date(task.created_at).toLocaleString()}</dd>
                   </div>
@@ -99,7 +111,26 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
               </div>
 
               {/* Middle Column: Threaded Notes */}
-              <div className="flex flex-col h-full min-h-0 bg-muted/10">
+              <div 
+                className={`flex flex-col h-full min-h-0 relative ${isDragging ? 'bg-primary/5' : 'bg-muted/10'}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    setSelectedFile(e.dataTransfer.files[0]);
+                  }
+                }}
+              >
+                {isDragging && (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-primary border-dashed m-4 rounded-lg pointer-events-none">
+                    <div className="flex flex-col items-center gap-2 text-primary">
+                      <Paperclip className="h-8 w-8" />
+                      <span className="font-semibold text-lg">Drop file to attach</span>
+                    </div>
+                  </div>
+                )}
                 <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
                   <MessageSquare className="h-4 w-4" /> Notes Thread
                 </div>
@@ -145,47 +176,38 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                             </div>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap break-all">{note.note}</p>
+                          <div className="space-y-2">
+                            <p className="whitespace-pre-wrap break-all">{note.note}</p>
+                            {note.attachment_url && (
+                              <a href={`http://localhost:8000${note.attachment_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit">
+                                <Paperclip className="h-4 w-4" />
+                                {note.attachment_name}
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
                     {!notes?.length && <div className="text-center text-muted-foreground py-8">No notes yet.</div>}
                   </div>
                 </div>
-                <div className="p-4 border-t bg-card flex gap-2 shrink-0">
-                  <Input placeholder="Type a note..." value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNote()} />
-                  <Button onClick={handleAddNote} disabled={!newNote.trim()}>Send</Button>
-                </div>
-              </div>
-
-              {/* Right Column: History */}
-              <div className="flex flex-col h-full min-h-0">
-                <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
-                  <History className="h-4 w-4" /> Activity History
-                </div>
-                <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  <div className="relative border-l ml-3 pl-4 space-y-6">
-                    {history?.map((h, _i) => (
-                      <div key={h.id} className="relative">
-                        <div className="absolute -left-6 bg-background border rounded-full h-4 w-4 mt-0.5"></div>
-                        <div className="text-sm">
-                          <div className="text-muted-foreground text-xs">{new Date(h.created_at).toLocaleString()}</div>
-                          <div className="mt-1">
-                            <span className="font-semibold">{h.changed_by_name}</span> 
-                            {h.old_priority_id !== h.new_priority_id ? (
-                              <> changed status from <span className="font-medium line-through">{h.old_priority_name || 'None'}</span> to <span className="font-medium">{h.new_priority_name}</span></>
-                            ) : (
-                              <> updated the task</>
-                            )}
-                          </div>
-                          {h.note && <div className="mt-1 text-muted-foreground bg-muted p-2 rounded text-xs">{h.note}</div>}
-                        </div>
-                      </div>
-                    ))}
-                    {!history?.length && <div className="text-muted-foreground">No history available.</div>}
+                <div className="p-4 border-t bg-card shrink-0 flex flex-col gap-2 transition-colors">
+                  {selectedFile && (
+                    <div className="flex items-center gap-2 text-sm bg-muted p-2 rounded-md">
+                      <Paperclip className="h-4 w-4" />
+                      <span className="flex-1 truncate">{selectedFile.name}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedFile(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input placeholder="Type a note or drag a file here..." value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNote()} />
+                    <Button onClick={handleAddNote} disabled={!newNote.trim() && !selectedFile}>Send</Button>
                   </div>
                 </div>
               </div>
+
             </div>
           </>
         )}

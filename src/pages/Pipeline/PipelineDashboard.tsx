@@ -1,9 +1,11 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useDeferredValue, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, List, Upload, Loader2, Search, CalendarClock } from "lucide-react";
+import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PipelineKanbanView from "./PipelineKanbanView";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
@@ -15,8 +17,19 @@ import { Link } from "react-router-dom";
 import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
 export default function PipelineDashboard() {
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list">("list");
+  const [isCompact, setIsCompact] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(() => {
+    const saved = localStorage.getItem("pipelineKanbanZoom");
+    return saved ? parseFloat(saved) : 0.75;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("pipelineKanbanZoom", zoomLevel.toString());
+  }, [zoomLevel]);
+
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
@@ -40,8 +53,8 @@ export default function PipelineDashboard() {
       }
     }
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (deferredSearchQuery.trim()) {
+      const query = deferredSearchQuery.toLowerCase();
       result = result.filter(t => 
         (t.company_name?.toLowerCase().includes(query)) ||
         (t.name?.toLowerCase().includes(query)) ||
@@ -52,7 +65,7 @@ export default function PipelineDashboard() {
     }
     
     return result;
-  }, [tasks, searchQuery, analystFilter]);
+  }, [tasks, deferredSearchQuery, analystFilter]);
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -79,27 +92,23 @@ export default function PipelineDashboard() {
     e.target.value = '';
   };
 
-  const handleEdit = (task: PipelineTask) => {
+  const handleEdit = useCallback((task: PipelineTask) => {
     setEditingTask(task);
     setIsFormOpen(true);
-  };
+  }, []);
 
-  const handleCreate = (priorityId?: number) => {
+  const handleCreate = useCallback((priorityId?: number) => {
     setEditingTask(priorityId ? { priority_id: priorityId } as unknown as PipelineTask : null);
     setIsFormOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (taskId: number) => {
+  const handleDelete = useCallback((taskId: number) => {
     setTaskToDelete(taskId);
-  };
+  }, []);
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
-      <div className="px-8 py-6 border-b bg-card flex justify-between items-center shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pipeline</h1>
-          <p className="text-muted-foreground mt-1">Manage and track your pipeline tasks.</p>
-        </div>
+      <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
           <div className="hidden sm:block">
             <Select value={analystFilter} onValueChange={setAnalystFilter}>
@@ -124,13 +133,72 @@ export default function PipelineDashboard() {
               className="pl-9 h-9"
             />
           </div>
+          {(searchQuery || analystFilter !== 'all') && (
+            <div className="flex items-center gap-2 hidden lg:flex">
+              {searchQuery && (
+                <Badge variant="secondary" className="h-6 font-normal">
+                  Search: {searchQuery}
+                </Badge>
+              )}
+              {analystFilter !== 'all' && (
+                <Badge variant="secondary" className="h-6 font-normal">
+                  Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : users?.find(u => u.id === analystFilter)?.full_name || 'Selected'}
+                </Badge>
+              )}
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setAnalystFilter("all");
+                }}
+                className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+              >
+                Reset Filters
+                <X className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
           
-          <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
-            <TabsList>
-              <TabsTrigger value="kanban" className="gap-2"><LayoutGrid className="h-4 w-4" /> Board</TabsTrigger>
-              <TabsTrigger value="list" className="gap-2"><List className="h-4 w-4" /> List</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <TooltipProvider delayDuration={300}>
+            <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
+              <TabsList>
+                <TabsTrigger value="kanban" className="px-3" title="Board View"><LayoutGrid className="h-4 w-4" /></TabsTrigger>
+                <TabsTrigger value="list" className="px-3" title="List View"><List className="h-4 w-4" /></TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+          {view === "kanban" && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setIsCompact(!isCompact)} 
+                  >
+                    {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isCompact ? "Expand view" : "Compact view"}</TooltipContent>
+              </Tooltip>
+              
+              <Select value={zoomLevel.toString()} onValueChange={(val) => setZoomLevel(parseFloat(val))}>
+                <SelectTrigger className="h-9 w-24">
+                  <SelectValue placeholder="Zoom" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.5">50%</SelectItem>
+                  <SelectItem value="0.75">75%</SelectItem>
+                  <SelectItem value="0.9">90%</SelectItem>
+                  <SelectItem value="1">100%</SelectItem>
+                  <SelectItem value="1.1">110%</SelectItem>
+                  <SelectItem value="1.25">125%</SelectItem>
+                  <SelectItem value="1.5">150%</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
           
           <div className="h-8 w-px bg-border mx-1 hidden md:block" />
           
@@ -148,14 +216,24 @@ export default function PipelineDashboard() {
 
           <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
           <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
-          <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Import XLSX
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Import XLSX</TooltipContent>
+          </Tooltip>
 
-          <Button onClick={() => handleCreate()} className="gap-2">
-            <Plus className="h-4 w-4" /> New Task
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" onClick={() => handleCreate()}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>New Task</TooltipContent>
+          </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -172,6 +250,8 @@ export default function PipelineDashboard() {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onCreate={handleCreate}
+                isCompact={isCompact}
+                zoomLevel={zoomLevel}
               />
             ) : (
               <PipelineListView 
