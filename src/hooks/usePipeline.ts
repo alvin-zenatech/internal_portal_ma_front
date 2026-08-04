@@ -45,6 +45,7 @@ export interface PipelineTask {
   analyst_id: string | null;
   analyst_name: string | null;
   analyst_email: string | null;
+  analyst_is_super_admin?: boolean | null;
   revenue: string | null;
   team_size: string | null;
   country_id: number | null;
@@ -247,16 +248,6 @@ export function useBackfillFollowUpDates() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
-  });
-}
-
-export function usePipelineStatistics(startDate: Date, endDate: Date) {
-  return useQuery({
-    queryKey: ["pipeline-statistics", startDate.toISOString(), endDate.toISOString()],
-    queryFn: async () => {
-      const data = await api.get(`/api/pipeline/statistics?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`);
-      return data as { analyst_id: string, analyst_name: string, priority_id: number, priority_name: string, priority_color: string, task_count: number }[];
     },
   });
 }

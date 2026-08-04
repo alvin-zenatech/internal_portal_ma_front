@@ -41,6 +41,9 @@ export default function PipelineDashboard() {
   const { data: priorities, isLoading: prioritiesLoading } = usePriorities();
   const { data: users } = useUsers();
 
+  /** Super admins are never selectable as analysts. */
+  const analystOptions = useMemo(() => (users ?? []).filter(u => !u.is_super_admin), [users]);
+
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
     
@@ -118,7 +121,7 @@ export default function PipelineDashboard() {
               <SelectContent>
                 <SelectItem value="all">All Analysts</SelectItem>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
-                {users?.map(u => (
+                {analystOptions.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                 ))}
               </SelectContent>

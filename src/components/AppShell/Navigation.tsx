@@ -3,7 +3,6 @@ import {
   ShieldCheck,
   FileClock,
   Briefcase,
-  BarChart3,
   CalendarCheck,
   CalendarClock,
 } from "lucide-react";
@@ -27,13 +26,6 @@ export const navigation = [
     label: "Weekly Check-In",
     path: "/pipeline/weekly-check-in",
     icon: CalendarCheck,
-    section: "MAIN",
-    navigationCode: "PIPELINE",
-  },
-  {
-    label: "Statistics",
-    path: "/pipeline/statistics",
-    icon: BarChart3,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },

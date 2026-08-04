@@ -18,7 +18,6 @@ const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 // Pipeline
 const PipelineDashboard = lazy(() => import("./pages/Pipeline/PipelineDashboard"));
 const FollowUps = lazy(() => import("./pages/Pipeline/FollowUps"));
-const Statistics = lazy(() => import("./pages/Pipeline/Statistics"));
 const MasterDataIndustry = lazy(() => import("./pages/Pipeline/MasterDataIndustry"));
 const MasterDataPosition = lazy(() => import("./pages/Pipeline/MasterDataPosition"));
 const MasterDataPriority = lazy(() => import("./pages/Pipeline/MasterDataPriority"));
@@ -51,7 +50,6 @@ function App() {
 
 
             {/* Pipeline */}
-            <Route path="/pipeline/statistics" element={<ProtectedRoute navigationCode="PIPELINE"><Statistics /></ProtectedRoute>} />
             <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE"><WeeklyCheckIn /></ProtectedRoute>} />
             <Route path="/pipeline" element={<Navigate to="/pipeline/master-data/industry" replace />} />
             <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataIndustry /></ProtectedRoute>} />
