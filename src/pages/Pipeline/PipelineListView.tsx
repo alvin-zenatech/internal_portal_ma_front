@@ -3,13 +3,15 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type ColumnDef, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask } from "@/hooks/usePipeline";
+import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, Filter, X } from "lucide-react";
+import { ArrowUpDown, Filter, X, Edit, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getPriorityColors } from "./KanbanCard";
 
@@ -19,6 +21,23 @@ const getInitials = (name: string) => {
   if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 };
+
+function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
+  if (!dateStr) return <span className="text-muted-foreground">-</span>;
+  const date = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000);
+  let tone = "text-muted-foreground";
+  if (diffDays < 0) tone = "text-red-600 dark:text-red-400 font-medium";
+  else if (diffDays <= 1) tone = "text-amber-600 dark:text-amber-400 font-medium";
+
+  return (
+    <span className={tone}>
+      {date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+    </span>
+  );
+}
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
   const uniqueValues = React.useMemo(() => {
@@ -76,17 +95,21 @@ const PipelineListView = React.memo(function PipelineListView({
   tasks, 
   onTaskClick, 
   onEdit,
+  showFollowUpDate = false,
   defaultSorting = [{ id: "priority_name", desc: false }]
-}: { 
-  tasks: PipelineTask[], 
-  onTaskClick: (task: PipelineTask) => void, 
+}: {
+  tasks: PipelineTask[],
+  onTaskClick: (task: PipelineTask) => void,
   onEdit: (task: PipelineTask) => void,
+  showFollowUpDate?: boolean,
   defaultSorting?: SortingState
 }) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredGlobalFilter = useDeferredValue(globalFilter);
+  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const { mutate: removeTask } = useDeleteTask();
 
   const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
     { 
@@ -184,8 +207,38 @@ const PipelineListView = React.memo(function PipelineListView({
       }
     },
     { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" /> },
-    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> }
-  ], []);
+    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> },
+    ...(showFollowUpDate
+      ? [{
+          accessorKey: "follow_up_date" as const,
+          header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up" />,
+          cell: ({ row }: { row: { original: PipelineTask } }) => (
+            <FollowUpDateCell dateStr={row.original.follow_up_date} />
+          ),
+          sortingFn: (rowA: { original: PipelineTask }, rowB: { original: PipelineTask }) => {
+            const a = rowA.original.follow_up_date || "";
+            const b = rowB.original.follow_up_date || "";
+            return a.localeCompare(b);
+          },
+        }]
+      : []),
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const task = row.original;
+        return (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(task)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => setTaskToDelete(task.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      }
+    }
+  ], [onEdit, showFollowUpDate]);
 
   const table = useReactTable({
     data: tasks,
@@ -279,6 +332,19 @@ const PipelineListView = React.memo(function PipelineListView({
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={taskToDelete !== null}
+        onOpenChange={(open) => !open && setTaskToDelete(null)}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? All history and notes will be permanently lost."
+        onConfirm={() => {
+          if (taskToDelete) {
+            removeTask(taskToDelete, { onSuccess: () => toast.success("Task deleted") });
+            setTaskToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 });

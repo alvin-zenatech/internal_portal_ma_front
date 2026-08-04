@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect, useDeferredValue, useCallback } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X } from "lucide-react";
+import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X, CalendarClock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
