@@ -74,7 +74,34 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
   );
 }
 
-export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks: PipelineTask[], onTaskClick: (task: PipelineTask) => void, onEdit: (task: PipelineTask) => void }) {
+function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
+  if (!dateStr) return <span className="text-muted-foreground">-</span>;
+  const date = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000);
+  let tone = "text-muted-foreground";
+  if (diffDays < 0) tone = "text-red-600 dark:text-red-400 font-medium";
+  else if (diffDays <= 1) tone = "text-amber-600 dark:text-amber-400 font-medium";
+
+  return (
+    <span className={tone}>
+      {date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+    </span>
+  );
+}
+
+export default function PipelineListView({
+  tasks,
+  onTaskClick,
+  onEdit,
+  showFollowUpDate = false,
+}: {
+  tasks: PipelineTask[];
+  onTaskClick: (task: PipelineTask) => void;
+  onEdit: (task: PipelineTask) => void;
+  showFollowUpDate?: boolean;
+}) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "analyst_name", desc: false },
     { id: "priority_name", desc: false }
@@ -140,6 +167,20 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
       }
     },
     { accessorKey: "email", header: ({ column }) => <ColumnHeader column={column} title="Email" /> },
+    ...(showFollowUpDate
+      ? [{
+          accessorKey: "follow_up_date" as const,
+          header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up" />,
+          cell: ({ row }: { row: { original: PipelineTask } }) => (
+            <FollowUpDateCell dateStr={row.original.follow_up_date} />
+          ),
+          sortingFn: (rowA: { original: PipelineTask }, rowB: { original: PipelineTask }) => {
+            const a = rowA.original.follow_up_date || "";
+            const b = rowB.original.follow_up_date || "";
+            return a.localeCompare(b);
+          },
+        }]
+      : []),
     {
       id: "actions",
       cell: ({ row }) => {
@@ -158,7 +199,7 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
         )
       }
     }
-  ], [onEdit, removeTask]);
+  ], [onEdit, removeTask, showFollowUpDate]);
 
   const table = useReactTable({
     data: tasks,

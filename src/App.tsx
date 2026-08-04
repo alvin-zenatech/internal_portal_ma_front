@@ -17,6 +17,7 @@ const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
 // Pipeline
 const PipelineDashboard = lazy(() => import("./pages/Pipeline/PipelineDashboard"));
+const FollowUps = lazy(() => import("./pages/Pipeline/FollowUps"));
 const Statistics = lazy(() => import("./pages/Pipeline/Statistics"));
 const MasterDataIndustry = lazy(() => import("./pages/Pipeline/MasterDataIndustry"));
 const MasterDataPosition = lazy(() => import("./pages/Pipeline/MasterDataPosition"));
@@ -34,6 +35,7 @@ function App() {
           {/* Main app layout routes */}
           <Route element={<ProtectedRoute><AppShell><Outlet /></AppShell></ProtectedRoute>}>
             <Route path="/" element={<ProtectedRoute navigationCode="PIPELINE"><PipelineDashboard /></ProtectedRoute>} />
+            <Route path="/pipeline/follow-ups" element={<ProtectedRoute navigationCode="PIPELINE"><FollowUps /></ProtectedRoute>} />
 
             <Route path="/configurations" element={<Navigate to="/configurations/users" replace />} />
 
