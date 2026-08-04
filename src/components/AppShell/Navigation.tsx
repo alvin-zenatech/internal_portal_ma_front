@@ -5,6 +5,7 @@ import {
   Briefcase,
   BarChart3,
   CalendarCheck,
+  PhoneCall,
 } from "lucide-react";
 
 export const navigation = [
@@ -26,6 +27,13 @@ export const navigation = [
     label: "Statistics",
     path: "/pipeline/statistics",
     icon: BarChart3,
+    section: "MAIN",
+    navigationCode: "PIPELINE",
+  },
+  {
+    label: "Call Tracking",
+    path: "/pipeline/crm",
+    icon: PhoneCall,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },

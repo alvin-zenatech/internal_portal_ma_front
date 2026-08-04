@@ -33,6 +33,14 @@ export default function Breadcrumbs() {
     return null;
   }
 
+  const breadcrumbItems = pathnames.map((value, index) => {
+    return {
+      value,
+      to: `/${pathnames.slice(0, index + 1).join("/")}`,
+      isLast: index === pathnames.length - 1,
+    };
+  }).filter(item => item.value.toLowerCase() !== 'pipeline');
+
   return (
     <nav className="flex items-center text-sm text-muted-foreground mb-6 overflow-x-auto whitespace-nowrap pt-1 pb-2 scrollbar-none min-h-[36px]">
       <Link 
@@ -43,23 +51,27 @@ export default function Breadcrumbs() {
         <Home className="h-4 w-4" />
       </Link>
       
-      {pathnames.map((value, index) => {
-        const to = `/${pathnames.slice(0, index + 1).join("/")}`;
-        const isLast = index === pathnames.length - 1;
+      {breadcrumbItems.map((item) => {
+        let displayName = customTitles[item.to] || formatName(item.value);
+        if (item.value.toLowerCase() === 'master-data') {
+          displayName = 'Configurations';
+        } else if (item.value.toLowerCase() === 'crm') {
+          displayName = 'Call Tracking';
+        }
 
         return (
-          <div key={to} className="flex items-center">
+          <div key={item.to} className="flex items-center">
             <ChevronRight className="h-4 w-4 mx-1 opacity-50 shrink-0" />
-            {isLast ? (
+            {item.isLast ? (
               <span className="font-semibold text-foreground" aria-current="page">
-                {customTitles[to] || formatName(value)}
+                {displayName}
               </span>
             ) : (
               <Link 
-                to={to} 
+                to={item.to} 
                 className="hover:text-foreground hover:underline underline-offset-4 transition-colors"
               >
-                {customTitles[to] || formatName(value)}
+                {displayName}
               </Link>
             )}
           </div>
