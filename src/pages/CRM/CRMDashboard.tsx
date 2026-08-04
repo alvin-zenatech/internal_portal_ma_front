@@ -8,6 +8,12 @@ import { Search, Phone, Calendar, Users, TrendingUp, ChevronRight, PhoneCall, Ar
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, getFacetedUniqueValues, useReactTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const getInitials = (name?: string) => {
+  if (!name) return "U";
+  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+};
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
   const uniqueValues = React.useMemo(() => {
@@ -77,6 +83,23 @@ export default function CRMDashboard() {
 
   const columns = [
     {
+      accessorKey: "analyst_name",
+      header: ({ column }: any) => <ColumnHeader column={column} title="Assigned To" />,
+      cell: ({ row }: any) => {
+        const name = row.original.analyst_name;
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                {getInitials(name)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium text-slate-900">{name || 'Unassigned'}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "company_name",
       header: ({ column }: any) => <ColumnHeader column={column} title="Company Name" />,
       cell: ({ row }: any) => <span className="font-medium text-slate-900">{row.original.company_name}</span>,
@@ -107,22 +130,39 @@ export default function CRMDashboard() {
         <Badge variant="outline" style={{ backgroundColor: row.original.priority_color + '20', color: row.original.priority_color, borderColor: row.original.priority_color + '40' }}>
           {row.original.priority_name || 'New Lead'}
         </Badge>
-      )
+      ),
+      sortingFn: (rowA: any, rowB: any) => {
+        const p1 = (rowA.original.priority_name || "").toLowerCase();
+        const p2 = (rowB.original.priority_name || "").toLowerCase();
+        
+        const PRIORITY_ORDER = [
+          "high value",
+          "good fit",
+          "50/50",
+          "new",
+          "loi-sent",
+          "loi-accepted",
+          "loi-declined",
+          "not a fit",
+          "not ready to sell",
+          "closed"
+        ];
+        
+        const idx1 = PRIORITY_ORDER.indexOf(p1);
+        const idx2 = PRIORITY_ORDER.indexOf(p2);
+        
+        if (idx1 !== -1 && idx2 !== -1) return idx1 - idx2;
+        if (idx1 !== -1) return -1;
+        if (idx2 !== -1) return 1;
+        return p1.localeCompare(p2);
+      }
     },
     {
       accessorKey: "updated_at",
       header: ({ column }: any) => <ColumnHeader column={column} title="Last Updated" />,
       cell: ({ row }: any) => row.original.updated_at ? new Date(row.original.updated_at).toLocaleDateString() : '-',
     },
-    {
-      accessorKey: "analyst_name",
-      header: ({ column }: any) => <ColumnHeader column={column} title="Assigned To" />,
-      cell: ({ row }: any) => row.original.analyst_name || 'Unassigned',
-    },
-    {
-      id: "actions",
-      cell: () => <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto" />
-    }
+
   ];
 
   const table = useReactTable({
@@ -141,6 +181,9 @@ export default function CRMDashboard() {
       pagination: {
         pageSize: 15,
       },
+      sorting: [
+        { id: "priority_name", desc: false }
+      ],
     },
   });
 
