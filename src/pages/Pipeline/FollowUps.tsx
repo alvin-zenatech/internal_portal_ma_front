@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { usePipelineTasks, useBackfillFollowUpDates, type PipelineTask } from "@/hooks/usePipeline";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { usePipelineTasks, useBackfillFollowUpDates, useAnalysts, type PipelineTask } from "@/hooks/usePipeline";
 import TaskDetailPanel from "./TaskDetailPanel";
 import TaskFormModal from "./TaskFormModal";
 import FollowUpCalendar from "./FollowUpCalendar";
@@ -59,6 +59,7 @@ export default function FollowUps() {
   const [dayInPopup, setDayInPopup] = useState<Date | null>(null);
 
   const { data: tasks, isLoading } = usePipelineTasks();
+  const { data: analysts } = useAnalysts();
   const { mutate: backfillFromNotes, isPending: isBackfilling } = useBackfillFollowUpDates();
   const hasAutoBackfilled = useRef(false);
 
@@ -86,16 +87,46 @@ export default function FollowUps() {
     });
   }, [backfillFromNotes, isLoading, tasks, tasksWithFollowUp]);
 
-  /** Analysts that actually own a follow-up. Super admins are never listed as analysts. */
+  /** Analysts offered as filters, keyed by id. The endpoint already excludes super
+   *  admins and inactive users, so this is exactly the set of real, current analysts. */
+  const selectableAnalysts = useMemo(
+    () => new Map(
+      (analysts ?? []).map(a => [a.id, a.full_name || a.email || "Unnamed analyst"])
+    ),
+    [analysts]
+  );
+
+  /** Which filter bucket a follow-up belongs to.
+   *
+   *  A task counts as unassigned when nobody selectable owns it - either analyst_id is
+   *  empty, or it points at someone the analysts endpoint leaves out (a super admin, or
+   *  a user since deactivated). Admins are not analysts, so a follow-up parked on one
+   *  has nobody actionable on it and belongs with the unassigned work.
+   *
+   *  Both the dropdown and the filter derive from this one function on purpose: when
+   *  they each decided ownership separately, an owner missing from the endpoint produced
+   *  no option and was counted in no bucket, leaving those follow-ups reachable only
+   *  through "All analysts". */
+  const ownerKey = useCallback(
+    (task: PipelineTask) =>
+      task.analyst_id && selectableAnalysts.has(task.analyst_id)
+        ? task.analyst_id
+        : UNASSIGNED,
+    [selectableAnalysts]
+  );
+
   const analystOptions = useMemo(() => {
     const seen = new Map<string, string>();
     let unassigned = 0;
 
     (tasks ?? []).forEach(task => {
       if (!task.follow_up_date) return;
-      if (task.analyst_is_super_admin) return;
-      if (task.analyst_id) seen.set(task.analyst_id, task.analyst_name || "Unnamed analyst");
-      else unassigned += 1;
+      const key = ownerKey(task);
+      if (key === UNASSIGNED) {
+        unassigned += 1;
+        return;
+      }
+      seen.set(key, selectableAnalysts.get(key)!);
     });
 
     const options = Array.from(seen, ([value, label]) => ({ value, label })).sort((a, b) =>
@@ -103,7 +134,7 @@ export default function FollowUps() {
     );
     if (unassigned > 0) options.push({ value: UNASSIGNED, label: "Unassigned" });
     return options;
-  }, [tasks]);
+  }, [ownerKey, selectableAnalysts, tasks]);
 
   const term = search.trim().toLowerCase();
 
@@ -112,10 +143,7 @@ export default function FollowUps() {
     return (tasks ?? []).filter(task => {
       if (!task.follow_up_date) return false;
 
-      if (analystId !== ALL_ANALYSTS) {
-        const owner = task.analyst_id ?? UNASSIGNED;
-        if (owner !== analystId) return false;
-      }
+      if (analystId !== ALL_ANALYSTS && ownerKey(task) !== analystId) return false;
 
       if (!term) return true;
       return [
@@ -127,7 +155,7 @@ export default function FollowUps() {
         task.country_name,
       ].some(field => field?.toLowerCase().includes(term));
     });
-  }, [analystId, tasks, term]);
+  }, [analystId, ownerKey, tasks, term]);
 
   // Bucket the in-scope follow-ups by how urgent they are.
   const buckets = useMemo(() => {

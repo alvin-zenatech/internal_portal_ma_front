@@ -45,7 +45,6 @@ export interface PipelineTask {
   analyst_id: string | null;
   analyst_name: string | null;
   analyst_email: string | null;
-  analyst_is_super_admin?: boolean | null;
   revenue: string | null;
   team_size: string | null;
   country_id: number | null;
@@ -89,7 +88,20 @@ export interface UserData {
   is_super_admin?: boolean;
 }
 
+export interface AnalystData {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 export const useUsers = () => useQuery({ queryKey: ["users"], queryFn: () => api.get<UserData[]>("/api/configuration/users") });
+
+/** Users selectable as analysts. Super admins are excluded server-side, and unlike
+ *  useUsers this needs no CONFIG_USERS_READ permission. */
+export const useAnalysts = () => useQuery({
+  queryKey: ["pipeline-analysts"],
+  queryFn: () => api.get<AnalystData[]>("/api/pipeline/analysts"),
+});
 
 // Master Data Hooks
 export const useIndustries = () => useQuery({ queryKey: ["industries"], queryFn: () => api.get<MasterData[]>("/api/pipeline/industries") });

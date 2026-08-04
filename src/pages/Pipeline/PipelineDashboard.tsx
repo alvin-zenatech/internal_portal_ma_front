@@ -10,7 +10,7 @@ import PipelineKanbanView from "./PipelineKanbanView";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
-import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask, useUsers } from "@/hooks/usePipeline";
+import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask, useAnalysts } from "@/hooks/usePipeline";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Link } from "react-router-dom";
@@ -39,10 +39,9 @@ export default function PipelineDashboard() {
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { data: priorities, isLoading: prioritiesLoading } = usePriorities();
-  const { data: users } = useUsers();
-
-  /** Super admins are never selectable as analysts. */
-  const analystOptions = useMemo(() => (users ?? []).filter(u => !u.is_super_admin), [users]);
+  /** Selectable analysts. The endpoint already excludes super admins and, unlike the
+   *  users endpoint, does not require the CONFIG_USERS_READ permission. */
+  const { data: analystOptions } = useAnalysts();
 
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
@@ -123,7 +122,7 @@ export default function PipelineDashboard() {
                   <SelectContent>
                     <SelectItem value="all">All Analysts</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {analystOptions.map(u => (
+                    {(analystOptions ?? []).map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -147,7 +146,7 @@ export default function PipelineDashboard() {
                   )}
                   {analystFilter !== 'all' && (
                     <Badge variant="secondary" className="h-6 font-normal">
-                      Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : analystOptions.find(u => u.id === analystFilter)?.full_name || 'Selected'}
+                      Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : analystOptions?.find(u => u.id === analystFilter)?.full_name || 'Selected'}
                     </Badge>
                   )}
                   <Button 
