@@ -6,11 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { useCreateActivity } from "@/hooks/usePipeline";
+import { useCreateActivity, usePositions } from "@/hooks/usePipeline";
 import { format } from "date-fns";
 
 export default function LogCallModal({ open, onOpenChange, taskId, defaultContactName, defaultPosition, defaultPhone }: { open: boolean, onOpenChange: (o: boolean) => void, taskId: number, defaultContactName?: string, defaultPosition?: string, defaultPhone?: string }) {
   const { mutateAsync: createActivity } = useCreateActivity();
+  const { data: positions = [] } = usePositions();
 
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
@@ -38,7 +39,7 @@ export default function LogCallModal({ open, onOpenChange, taskId, defaultContac
           type: "Call",
           activity_date: new Date(formData.date).toISOString(),
           contact_name: formData.contact_name,
-          position: formData.position,
+          position: formData.position === "none" ? "" : formData.position,
           phone_number: formData.phone_number,
           picked_up: formData.picked_up === "yes",
           emailed: formData.emailed === "yes",
@@ -86,7 +87,15 @@ export default function LogCallModal({ open, onOpenChange, taskId, defaultContac
             
             <div className="space-y-2">
               <Label>Position</Label>
-              <Input value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} />
+              <Select value={formData.position} onValueChange={v => setFormData({...formData, position: v})}>
+                <SelectTrigger><SelectValue placeholder="Select a position" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Position Selected</SelectItem>
+                  {positions.map(p => (
+                    <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Phone Number</Label>

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { usePipelineTasks, useActivities } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,15 @@ export default function CompanyDetails() {
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const companyId = parseInt(id || "0");
   const company = tasks?.find(t => t.id === companyId);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (company?.company_name) {
+      document.dispatchEvent(new CustomEvent("set-breadcrumb-title", {
+        detail: { path: location.pathname, title: company.company_name }
+      }));
+    }
+  }, [company?.company_name, location.pathname]);
   
   const { data: activities, isLoading: activitiesLoading } = useActivities(companyId);
 

@@ -110,56 +110,62 @@ export default function PipelineDashboard() {
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
       <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
-          <div className="hidden sm:block">
-            <Select value={analystFilter} onValueChange={setAnalystFilter}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="All Analysts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Analysts</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {users?.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="relative w-64 hidden md:block">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
-          {(searchQuery || analystFilter !== 'all') && (
-            <div className="flex items-center gap-2 hidden lg:flex">
-              {searchQuery && (
-                <Badge variant="secondary" className="h-6 font-normal">
-                  Search: {searchQuery}
-                </Badge>
+          {view === "kanban" && (
+            <>
+              <div className="hidden sm:block">
+                <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                  <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue placeholder="All Analysts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Analysts</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {users?.filter(u => !u.is_super_admin).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="relative w-64 hidden md:block">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+              {(searchQuery || analystFilter !== 'all') && (
+                <div className="flex items-center gap-2 hidden lg:flex">
+                  {searchQuery && (
+                    <Badge variant="secondary" className="h-6 font-normal">
+                      Search: {searchQuery}
+                    </Badge>
+                  )}
+                  {analystFilter !== 'all' && (
+                    <Badge variant="secondary" className="h-6 font-normal">
+                      Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : users?.find(u => u.id === analystFilter)?.full_name || 'Selected'}
+                    </Badge>
+                  )}
+                  <Button 
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setAnalystFilter("all");
+                    }}
+                    className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+                  >
+                    Reset Filters
+                    <X className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               )}
-              {analystFilter !== 'all' && (
-                <Badge variant="secondary" className="h-6 font-normal">
-                  Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : users?.find(u => u.id === analystFilter)?.full_name || 'Selected'}
-                </Badge>
-              )}
-              <Button 
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("");
-                  setAnalystFilter("all");
-                }}
-                className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
-              >
-                Reset Filters
-                <X className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
+            </>
           )}
-          
+
+          <div className="h-8 border-l hidden sm:block"></div>
+
           <TooltipProvider delayDuration={300}>
             <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
               <TabsList>

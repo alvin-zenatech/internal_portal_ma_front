@@ -31,13 +31,7 @@ export const navigation = [
     section: "MAIN",
     navigationCode: "PIPELINE",
   },
-  {
-    label: "Statistics",
-    path: "/pipeline/statistics",
-    icon: BarChart3,
-    section: "MAIN",
-    navigationCode: "PIPELINE",
-  },
+
   {
     label: "Call Tracking",
     path: "/pipeline/crm",

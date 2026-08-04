@@ -39,7 +39,10 @@ export default function Breadcrumbs() {
       to: `/${pathnames.slice(0, index + 1).join("/")}`,
       isLast: index === pathnames.length - 1,
     };
-  }).filter(item => item.value.toLowerCase() !== 'pipeline');
+  }).filter(item => {
+    const val = item.value.toLowerCase();
+    return val !== 'pipeline' && val !== 'companies';
+  });
 
   return (
     <nav className="flex items-center text-sm text-muted-foreground mb-6 overflow-x-auto whitespace-nowrap pt-1 pb-2 scrollbar-none min-h-[36px]">

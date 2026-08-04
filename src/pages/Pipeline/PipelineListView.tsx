@@ -208,37 +208,19 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" /> },
     { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> },
-    ...(showFollowUpDate
-      ? [{
-          accessorKey: "follow_up_date" as const,
-          header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up" />,
-          cell: ({ row }: { row: { original: PipelineTask } }) => (
-            <FollowUpDateCell dateStr={row.original.follow_up_date} />
-          ),
-          sortingFn: (rowA: { original: PipelineTask }, rowB: { original: PipelineTask }) => {
-            const a = rowA.original.follow_up_date || "";
-            const b = rowB.original.follow_up_date || "";
-            return a.localeCompare(b);
-          },
-        }]
-      : []),
     {
-      id: "actions",
-      cell: ({ row }) => {
-        const task = row.original;
-        return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(task)}>
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => setTaskToDelete(task.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      }
+      accessorKey: "follow_up_date" as const,
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up" />,
+      cell: ({ row }: { row: { original: PipelineTask } }) => (
+        <FollowUpDateCell dateStr={row.original.follow_up_date} />
+      ),
+      sortingFn: (rowA: { original: PipelineTask }, rowB: { original: PipelineTask }) => {
+        const a = rowA.original.follow_up_date || "";
+        const b = rowB.original.follow_up_date || "";
+        return a.localeCompare(b);
+      },
     }
-  ], [onEdit, showFollowUpDate]);
+  ], [onEdit]);
 
   const table = useReactTable({
     data: tasks,
@@ -249,12 +231,9 @@ const PipelineListView = React.memo(function PipelineListView({
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
-      const company = (row.original.company_name || "").toLowerCase();
-      const name = (row.original.name || "").toLowerCase();
-      const ind = (row.original.industry_name || "").toLowerCase();
-      const pri = (row.original.priority_name || "").toLowerCase();
-      const em = (row.original.email || "").toLowerCase();
-      return company.includes(search) || name.includes(search) || ind.includes(search) || pri.includes(search) || em.includes(search);
+      return Object.values(row.original).some(val => 
+        typeof val === 'string' && val.toLowerCase().includes(search)
+      );
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
