@@ -1,7 +1,8 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useDeferredValue, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2 } from "lucide-react";
+import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,6 +27,7 @@ export default function PipelineDashboard() {
   }, [zoomLevel]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
@@ -51,8 +53,8 @@ export default function PipelineDashboard() {
       }
     }
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (deferredSearchQuery.trim()) {
+      const query = deferredSearchQuery.toLowerCase();
       result = result.filter(t => 
         (t.company_name?.toLowerCase().includes(query)) ||
         (t.name?.toLowerCase().includes(query)) ||
@@ -63,7 +65,7 @@ export default function PipelineDashboard() {
     }
     
     return result;
-  }, [tasks, searchQuery, analystFilter]);
+  }, [tasks, deferredSearchQuery, analystFilter]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: importPipeline, isPending } = useImportPipeline();
@@ -78,19 +80,19 @@ export default function PipelineDashboard() {
     e.target.value = '';
   };
 
-  const handleEdit = (task: PipelineTask) => {
+  const handleEdit = useCallback((task: PipelineTask) => {
     setEditingTask(task);
     setIsFormOpen(true);
-  };
+  }, []);
 
-  const handleCreate = (priorityId?: number) => {
+  const handleCreate = useCallback((priorityId?: number) => {
     setEditingTask(priorityId ? { priority_id: priorityId } as unknown as PipelineTask : null);
     setIsFormOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (taskId: number) => {
+  const handleDelete = useCallback((taskId: number) => {
     setTaskToDelete(taskId);
-  };
+  }, []);
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
@@ -119,6 +121,32 @@ export default function PipelineDashboard() {
               className="pl-9 h-9"
             />
           </div>
+          {(searchQuery || analystFilter !== 'all') && (
+            <div className="flex items-center gap-2 hidden lg:flex">
+              {searchQuery && (
+                <Badge variant="secondary" className="h-6 font-normal">
+                  Search: {searchQuery}
+                </Badge>
+              )}
+              {analystFilter !== 'all' && (
+                <Badge variant="secondary" className="h-6 font-normal">
+                  Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : users?.find(u => u.id === analystFilter)?.full_name || 'Selected'}
+                </Badge>
+              )}
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setAnalystFilter("all");
+                }}
+                className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+              >
+                Reset Filters
+                <X className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
           
           <TooltipProvider delayDuration={300}>
             <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">

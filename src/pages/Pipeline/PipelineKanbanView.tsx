@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent, DragOverlay, MeasuringStrategy } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { type PipelineTask, type PriorityData, useUpdateTaskStatus, useUpdatePriorityOrder } from "@/hooks/usePipeline";
@@ -6,7 +6,7 @@ import KanbanColumn from "./KanbanColumn";
 import KanbanCard from "./KanbanCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function PipelineKanbanView({ 
+const PipelineKanbanView = React.memo(function PipelineKanbanView({ 
   tasks, priorities, onTaskClick, onEdit, onDelete, onCreate, isCompact, zoomLevel = 1
 }: { 
   tasks: PipelineTask[], priorities: PriorityData[], onTaskClick: (task: PipelineTask) => void,
@@ -252,4 +252,6 @@ export default function PipelineKanbanView({
       </div>
     </div>
   );
-}
+});
+
+export default PipelineKanbanView;

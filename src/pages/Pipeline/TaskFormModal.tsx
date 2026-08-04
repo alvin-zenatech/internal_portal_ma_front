@@ -171,6 +171,30 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
+              <Label>NDA Status</Label>
+              <Select value={formData.nda} onValueChange={v => setFormData({...formData, nda: v === "none" ? "" : v})}>
+                <SelectTrigger><SelectValue placeholder="Select NDA status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="Signed">Signed</SelectItem>
+                  <SelectItem value="Not Signed">Not Signed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>P&L Status</Label>
+              <Select value={formData.p_and_l} onValueChange={v => setFormData({...formData, p_and_l: v === "none" ? "" : v})}>
+                <SelectTrigger><SelectValue placeholder="Select P&L status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="Received">Received</SelectItem>
+                  <SelectItem value="Requested">Requested</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Follow-up Date</Label>
               <div className="flex items-center gap-2">
                 <Popover>

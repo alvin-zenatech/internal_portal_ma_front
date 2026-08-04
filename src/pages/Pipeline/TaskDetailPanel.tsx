@@ -24,7 +24,8 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
 
   const handleAddNote = async () => {
     if ((!newNote.trim() && !selectedFile) || !task) return;
-    await createNote({ taskId: task.id, note: newNote, file: selectedFile });
+    const finalNote = newNote.trim() || (selectedFile ? `Attached file: ${selectedFile.name}` : "");
+    await createNote({ taskId: task.id, note: finalNote, file: selectedFile });
     setNewNote("");
     setSelectedFile(null);
   };
@@ -95,6 +96,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     <dd className="font-medium">{task.team_size || '-'}</dd>
                   </div>
                   <div>
+                    <dt className="text-muted-foreground">NDA Status</dt>
+                    <dd className="font-medium">{task.nda || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">P&L Status</dt>
+                    <dd className="font-medium">{task.p_and_l || '-'}</dd>
+                  </div>
+                  <div>
                     <dt className="text-muted-foreground">Created At</dt>
                     <dd className="font-medium">{new Date(task.created_at).toLocaleString()}</dd>
                   </div>
@@ -102,7 +111,26 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
               </div>
 
               {/* Middle Column: Threaded Notes */}
-              <div className="flex flex-col h-full min-h-0 bg-muted/10">
+              <div 
+                className={`flex flex-col h-full min-h-0 relative ${isDragging ? 'bg-primary/5' : 'bg-muted/10'}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    setSelectedFile(e.dataTransfer.files[0]);
+                  }
+                }}
+              >
+                {isDragging && (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-primary border-dashed m-4 rounded-lg pointer-events-none">
+                    <div className="flex flex-col items-center gap-2 text-primary">
+                      <Paperclip className="h-8 w-8" />
+                      <span className="font-semibold text-lg">Drop file to attach</span>
+                    </div>
+                  </div>
+                )}
                 <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
                   <MessageSquare className="h-4 w-4" /> Notes Thread
                 </div>
@@ -163,18 +191,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     {!notes?.length && <div className="text-center text-muted-foreground py-8">No notes yet.</div>}
                   </div>
                 </div>
-                <div 
-                  className={`p-4 border-t bg-card shrink-0 flex flex-col gap-2 transition-colors ${isDragging ? 'border-dashed border-2 border-primary bg-primary/5' : ''}`}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                      setSelectedFile(e.dataTransfer.files[0]);
-                    }
-                  }}
-                >
+                <div className="p-4 border-t bg-card shrink-0 flex flex-col gap-2 transition-colors">
                   {selectedFile && (
                     <div className="flex items-center gap-2 text-sm bg-muted p-2 rounded-md">
                       <Paperclip className="h-4 w-4" />

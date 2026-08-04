@@ -4,6 +4,7 @@ import {
   FileClock,
   Briefcase,
   BarChart3,
+  CalendarCheck,
 } from "lucide-react";
 
 export const navigation = [
@@ -11,6 +12,13 @@ export const navigation = [
     label: "Dashboard",
     path: "/",
     icon: LayoutDashboard,
+    section: "MAIN",
+    navigationCode: "PIPELINE",
+  },
+  {
+    label: "Weekly Check-In",
+    path: "/pipeline/weekly-check-in",
+    icon: CalendarCheck,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },

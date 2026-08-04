@@ -1,16 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useDeferredValue } from "react";
 import { 
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type ColumnDef, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
+import { type PipelineTask } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowUpDown, Filter } from "lucide-react";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { ArrowUpDown, Filter, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getPriorityColors } from "./KanbanCard";
 
@@ -73,14 +72,21 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
   );
 }
 
-export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks: PipelineTask[], onTaskClick: (task: PipelineTask) => void, onEdit: (task: PipelineTask) => void }) {
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "priority_name", desc: false }
-  ]);
+const PipelineListView = React.memo(function PipelineListView({ 
+  tasks, 
+  onTaskClick, 
+  onEdit,
+  defaultSorting = [{ id: "priority_name", desc: false }]
+}: { 
+  tasks: PipelineTask[], 
+  onTaskClick: (task: PipelineTask) => void, 
+  onEdit: (task: PipelineTask) => void,
+  defaultSorting?: SortingState
+}) {
+  const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
-  const { mutate: removeTask } = useDeleteTask();
+  const deferredGlobalFilter = useDeferredValue(globalFilter);
 
   const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
     { 
@@ -110,7 +116,22 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
     },
     { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company Name" /> },
     { accessorKey: "location", header: ({ column }) => <ColumnHeader column={column} title="Location" /> },
-    { accessorKey: "revenue", header: ({ column }) => <ColumnHeader column={column} title="Revenue" /> },
+    { 
+      accessorKey: "revenue", 
+      header: ({ column }) => <ColumnHeader column={column} title="Revenue" />,
+      sortingFn: (rowA, rowB) => {
+        const parseRevenue = (rev: string | null) => {
+          if (!rev) return 0;
+          const normalized = rev.replace(/,/g, "");
+          const matches = normalized.match(/\d+/g);
+          if (!matches) return 0;
+          return Math.max(...matches.map(m => parseInt(m, 10)));
+        };
+        const revA = parseRevenue(rowA.original.revenue);
+        const revB = parseRevenue(rowB.original.revenue);
+        return revA - revB;
+      }
+    },
     { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" /> },
     { 
       accessorKey: "latest_note", 
@@ -149,7 +170,8 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
           "loi-accepted",
           "loi-declined",
           "not a fit",
-          "not ready to sell"
+          "not ready to sell",
+          "closed"
         ];
         
         const idx1 = PRIORITY_ORDER.indexOf(p1);
@@ -162,28 +184,13 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
       }
     },
     { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" /> },
-    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const task = row.original;
-        return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
-              setTaskToDelete(task.id);
-            }}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        )
-      }
-    }
-  ], [onEdit, removeTask]);
+    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> }
+  ], []);
 
   const table = useReactTable({
     data: tasks,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting, columnFilters, globalFilter: deferredGlobalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
@@ -205,12 +212,40 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
   return (
     <div className="h-full flex flex-col p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <Input 
-          placeholder="Search everything..." 
-          value={globalFilter} 
-          onChange={(event) => setGlobalFilter(event.target.value)} 
-          className="max-w-sm" 
-        />
+        <div className="flex items-center gap-2 flex-1">
+          <Input 
+            placeholder="Search everything..." 
+            value={globalFilter} 
+            onChange={(event) => setGlobalFilter(event.target.value)} 
+            className="w-64 max-w-sm" 
+          />
+          {(globalFilter || columnFilters.length > 0) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {globalFilter && (
+                <Badge variant="secondary" className="h-6 font-normal">
+                  Search: {globalFilter}
+                </Badge>
+              )}
+              {columnFilters.map((filter) => (
+                <Badge key={filter.id} variant="secondary" className="h-6 font-normal capitalize">
+                  {filter.id.replace(/_/g, " ")}: {filter.value as string}
+                </Badge>
+              ))}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setGlobalFilter("");
+                  setColumnFilters([]);
+                }}
+                className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+              >
+                Reset
+                <X className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="rounded-md border bg-card flex-1 overflow-auto shadow-sm">
         <Table>
@@ -244,19 +279,8 @@ export default function PipelineListView({ tasks, onTaskClick, onEdit }: { tasks
           </TableBody>
         </Table>
       </div>
-
-      <ConfirmDialog 
-        open={taskToDelete !== null} 
-        onOpenChange={(open) => !open && setTaskToDelete(null)}
-        title="Delete Task"
-        description="Are you sure you want to delete this task? All history and notes will be permanently lost."
-        onConfirm={() => {
-          if (taskToDelete) {
-            removeTask(taskToDelete, { onSuccess: () => toast.success("Task deleted") });
-            setTaskToDelete(null);
-          }
-        }}
-      />
     </div>
   );
-}
+});
+
+export default PipelineListView;
