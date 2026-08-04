@@ -4,6 +4,7 @@ import {
   FileClock,
   Briefcase,
   CalendarCheck,
+  PhoneCall,
   CalendarClock,
 } from "lucide-react";
 
@@ -26,6 +27,13 @@ export const navigation = [
     label: "Weekly Check-In",
     path: "/pipeline/weekly-check-in",
     icon: CalendarCheck,
+    section: "MAIN",
+    navigationCode: "PIPELINE",
+  },
+  {
+    label: "Call Tracking",
+    path: "/pipeline/crm",
+    icon: PhoneCall,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },

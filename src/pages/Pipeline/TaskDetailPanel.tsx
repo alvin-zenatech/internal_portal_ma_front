@@ -32,7 +32,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
 
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="!w-[90vw] sm:!max-w-[85vw] sm:!w-[85vw] p-0 flex flex-col h-full max-h-screen overflow-hidden">
+      <SheetContent aria-describedby={undefined} className="!w-[90vw] sm:!max-w-[85vw] sm:!w-[85vw] p-0 flex flex-col h-full max-h-screen overflow-hidden">
         {task && (
           <>
             <div className="p-6 border-b flex justify-between items-start bg-muted/20">

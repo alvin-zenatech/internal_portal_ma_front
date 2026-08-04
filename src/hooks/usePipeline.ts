@@ -251,3 +251,67 @@ export function useBackfillFollowUpDates() {
     },
   });
 }
+
+export interface PipelineActivity {
+  id: number;
+  task_id: number;
+  type: string;
+  activity_date: string;
+  contact_name?: string;
+  position?: string;
+  phone_number?: string;
+  picked_up?: boolean;
+  emailed?: boolean;
+  duration?: string;
+  outcome?: string;
+  notes?: string;
+  analyst_id?: string;
+  analyst_name?: string;
+  created_at: string;
+}
+
+export interface CRMStats {
+  total_companies: number;
+  calls_today: number;
+  calls_this_week: number;
+  interested_leads: number;
+  follow_ups_due: number;
+  meetings_scheduled: number;
+  avg_call_length: string;
+}
+
+export function useActivities(taskId: number | null) {
+  return useQuery({
+    queryKey: ["tasks", taskId, "activities"],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const data = await api.get(`/api/pipeline/tasks/${taskId}/activities`);
+      return data as PipelineActivity[];
+    },
+    enabled: !!taskId,
+  });
+}
+
+export function useCreateActivity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, data }: { taskId: number, data: Partial<PipelineActivity> }) => {
+      return await api.post(`/api/pipeline/tasks/${taskId}/activities`, data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "activities"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] }); // also refresh tasks because follow up date or priority might have changed
+      queryClient.invalidateQueries({ queryKey: ["crm-stats"] });
+    }
+  });
+}
+
+export function useCRMStats() {
+  return useQuery({
+    queryKey: ["crm-stats"],
+    queryFn: async () => {
+      const data = await api.get('/api/pipeline/crm-stats');
+      return data as CRMStats;
+    },
+  });
+}

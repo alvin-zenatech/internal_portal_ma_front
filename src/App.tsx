@@ -23,6 +23,11 @@ const MasterDataPosition = lazy(() => import("./pages/Pipeline/MasterDataPositio
 const MasterDataPriority = lazy(() => import("./pages/Pipeline/MasterDataPriority"));
 const MasterDataCountry = lazy(() => import("./pages/Pipeline/MasterDataCountry"));
 const WeeklyCheckIn = lazy(() => import("./pages/Pipeline/WeeklyCheckIn"));
+
+// CRM
+const CRMDashboard = lazy(() => import("./pages/CRM/CRMDashboard"));
+const CompanyDetails = lazy(() => import("./pages/CRM/CompanyDetails"));
+
 function App() {
   return (
     <AuthProvider>
@@ -56,6 +61,10 @@ function App() {
             <Route path="/pipeline/master-data/position" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPosition /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPriority /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/country" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataCountry /></ProtectedRoute>} />
+
+            {/* CRM */}
+            <Route path="/pipeline/crm" element={<ProtectedRoute navigationCode="PIPELINE"><CRMDashboard /></ProtectedRoute>} />
+            <Route path="/pipeline/crm/companies/:id" element={<ProtectedRoute navigationCode="PIPELINE"><CompanyDetails /></ProtectedRoute>} />
 
             {/* Logs */}
             <Route path="/log" element={<Navigate to="/log/audit-log" replace />} />
