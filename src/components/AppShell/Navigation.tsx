@@ -3,7 +3,6 @@ import {
   ShieldCheck,
   FileClock,
   Briefcase,
-  BarChart3,
   CalendarCheck,
   PhoneCall,
   CalendarClock,

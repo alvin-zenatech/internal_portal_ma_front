@@ -86,13 +86,14 @@ export default function FollowUps() {
     });
   }, [backfillFromNotes, isLoading, tasks, tasksWithFollowUp]);
 
-  /** Analysts that actually own a follow-up, for the owner filter. */
+  /** Analysts that actually own a follow-up. Super admins are never listed as analysts. */
   const analystOptions = useMemo(() => {
     const seen = new Map<string, string>();
     let unassigned = 0;
 
     (tasks ?? []).forEach(task => {
       if (!task.follow_up_date) return;
+      if (task.analyst_is_super_admin) return;
       if (task.analyst_id) seen.set(task.analyst_id, task.analyst_name || "Unnamed analyst");
       else unassigned += 1;
     });
