@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X } from "lucide-react";
+import { BASE_URL } from "@/services/apiClient";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
 
@@ -179,7 +180,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                           <div className="space-y-2">
                             <p className="whitespace-pre-wrap break-all">{note.note}</p>
                             {note.attachment_url && (
-                              <a href={`http://localhost:8000${note.attachment_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit">
+                              <a href={`${BASE_URL}${note.attachment_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit">
                                 <Paperclip className="h-4 w-4" />
                                 {note.attachment_name}
                               </a>
