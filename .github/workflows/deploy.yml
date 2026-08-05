@@ -18,7 +18,7 @@ env:
   CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.DISTRIBUTION_ID || secrets.DISTRIBUTION_NAME }}
   VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || secrets.API_BASE_URL }}
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-
+ 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
