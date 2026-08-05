@@ -51,8 +51,8 @@ export default function CompanyDetails() {
             <div>
               <div className="flex items-start justify-between">
                 <h1 className="text-2xl font-bold tracking-tight">{company.company_name}</h1>
-                <Badge variant="outline" style={{ backgroundColor: company.priority_color + '20', color: company.priority_color, borderColor: company.priority_color + '40' }}>
-                  {company.priority_name || 'New Lead'}
+                <Badge variant="outline" style={{ backgroundColor: (company.outcome_color || company.priority_color || '#e2e8f0') + '20', color: company.outcome_color || company.priority_color || '#64748b', borderColor: (company.outcome_color || company.priority_color || '#e2e8f0') + '40' }}>
+                  {company.outcome_name || company.priority_name || 'New Lead'}
                 </Badge>
               </div>
               <p className="text-muted-foreground flex items-center gap-2 mt-2">

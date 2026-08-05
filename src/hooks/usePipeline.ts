@@ -40,6 +40,9 @@ export interface PipelineTask {
   priority_id?: number;
   priority_name?: string;
   priority_color?: string;
+  outcome_id?: number;
+  outcome_name?: string;
+  outcome_color?: string;
   no_of_calls?: string | null;
   p_and_l: string | null;
   analyst_id: string | null;

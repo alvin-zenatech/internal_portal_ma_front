@@ -6,7 +6,6 @@ import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import PipelineKanbanView from "./PipelineKanbanView";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
@@ -17,20 +16,6 @@ import { Link } from "react-router-dom";
 import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
 export default function PipelineDashboard() {
-  const [view, setView] = useState<"kanban" | "list">("list");
-  const [isCompact, setIsCompact] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(() => {
-    const saved = localStorage.getItem("pipelineKanbanZoom");
-    return saved ? parseFloat(saved) : 0.75;
-  });
-
-  useEffect(() => {
-    localStorage.setItem("pipelineKanbanZoom", zoomLevel.toString());
-  }, [zoomLevel]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
@@ -43,31 +28,7 @@ export default function PipelineDashboard() {
    *  users endpoint, does not require the CONFIG_USERS_READ permission. */
   const { data: analystOptions } = useAnalysts();
 
-  const filteredTasks = useMemo(() => {
-    if (!tasks) return [];
-    
-    let result = tasks;
-    if (analystFilter !== "all") {
-      if (analystFilter === "unassigned") {
-        result = result.filter(t => !t.analyst_id);
-      } else {
-        result = result.filter(t => t.analyst_id === analystFilter);
-      }
-    }
-
-    if (deferredSearchQuery.trim()) {
-      const query = deferredSearchQuery.toLowerCase();
-      result = result.filter(t => 
-        (t.company_name?.toLowerCase().includes(query)) ||
-        (t.name?.toLowerCase().includes(query)) ||
-        (t.email?.toLowerCase().includes(query)) ||
-        (t.phone?.toLowerCase().includes(query)) ||
-        (t.location?.toLowerCase().includes(query))
-      );
-    }
-    
-    return result;
-  }, [tasks, deferredSearchQuery, analystFilter]);
+  const filteredTasks = tasks || [];
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -112,103 +73,7 @@ export default function PipelineDashboard() {
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
       <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
-          {view === "kanban" && (
-            <>
-              <div className="hidden sm:block">
-                <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue placeholder="All Analysts" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Analysts</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {(analystOptions ?? []).map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="relative w-64 hidden md:block">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search tasks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
-              {(searchQuery || analystFilter !== 'all') && (
-                <div className="flex items-center gap-2 hidden lg:flex">
-                  {searchQuery && (
-                    <Badge variant="secondary" className="h-6 font-normal">
-                      Search: {searchQuery}
-                    </Badge>
-                  )}
-                  {analystFilter !== 'all' && (
-                    <Badge variant="secondary" className="h-6 font-normal">
-                      Analyst: {analystFilter === 'unassigned' ? 'Unassigned' : analystOptions?.find(u => u.id === analystFilter)?.full_name || 'Selected'}
-                    </Badge>
-                  )}
-                  <Button 
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setAnalystFilter("all");
-                    }}
-                    className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
-                  >
-                    Reset Filters
-                    <X className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="h-8 border-l hidden sm:block"></div>
-
           <TooltipProvider delayDuration={300}>
-            <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")} className="w-auto">
-              <TabsList>
-                <TabsTrigger value="kanban" className="px-3" title="Board View"><LayoutGrid className="h-4 w-4" /></TabsTrigger>
-                <TabsTrigger value="list" className="px-3" title="List View"><List className="h-4 w-4" /></TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-          {view === "kanban" && (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => setIsCompact(!isCompact)} 
-                  >
-                    {isCompact ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{isCompact ? "Expand view" : "Compact view"}</TooltipContent>
-              </Tooltip>
-              
-              <Select value={zoomLevel.toString()} onValueChange={(val) => setZoomLevel(parseFloat(val))}>
-                <SelectTrigger className="h-9 w-24">
-                  <SelectValue placeholder="Zoom" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0.5">50%</SelectItem>
-                  <SelectItem value="0.75">75%</SelectItem>
-                  <SelectItem value="0.9">90%</SelectItem>
-                  <SelectItem value="1">100%</SelectItem>
-                  <SelectItem value="1.1">110%</SelectItem>
-                  <SelectItem value="1.25">125%</SelectItem>
-                  <SelectItem value="1.5">150%</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
-          )}
-          
-          <div className="h-8 w-px bg-border mx-1 hidden md:block" />
           
           <Button variant="outline" asChild className="hidden md:flex gap-2">
             <Link to="/pipeline/follow-ups">
@@ -249,26 +114,11 @@ export default function PipelineDashboard() {
         {tasksLoading || prioritiesLoading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
         ) : (
-          <>
-            {view === "kanban" ? (
-              <PipelineKanbanView 
-                tasks={filteredTasks} 
-                priorities={priorities || []} 
-                onTaskClick={setSelectedTask} 
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onCreate={handleCreate}
-                isCompact={isCompact}
-                zoomLevel={zoomLevel}
-              />
-            ) : (
-              <PipelineListView 
-                tasks={filteredTasks} 
-                onTaskClick={setSelectedTask} 
-                onEdit={handleEdit}
-              />
-            )}
-          </>
+            <PipelineListView 
+              tasks={filteredTasks} 
+              onTaskClick={setSelectedTask} 
+              onEdit={handleEdit}
+            />
         )}
       </div>
 

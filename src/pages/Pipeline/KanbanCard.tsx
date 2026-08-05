@@ -117,12 +117,12 @@ const PureKanbanCard = memo(({
             )}
             {task.analyst_name && <span className="text-xs text-muted-foreground font-medium">{task.analyst_name}</span>}
           </div>
-          {task.priority_name && (
+          {(task.outcome_name || task.priority_name) && (
             <span 
               className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
               style={colors.badgeStyle}
             >
-              {task.priority_name}
+              {task.outcome_name || task.priority_name}
             </span>
           )}
         </div>

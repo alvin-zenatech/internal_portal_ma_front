@@ -166,7 +166,7 @@ const PipelineListView = React.memo(function PipelineListView({
       accessorKey: "priority_name", 
       header: ({ column }) => <ColumnHeader column={column} title="Next Steps" />,
       cell: ({ row }) => {
-        const priority = row.original.priority_name;
+        const priority = row.original.outcome_name || row.original.priority_name;
         if (!priority) return <span className="text-muted-foreground">-</span>;
         const colors = getPriorityColors(row.original);
         return (
@@ -183,16 +183,10 @@ const PipelineListView = React.memo(function PipelineListView({
         const p2 = (rowB.original.priority_name || "").toLowerCase();
         
         const PRIORITY_ORDER = [
-          "new",
           "high value",
           "good fit",
           "50/50",
-          "loi-sent",
-          "loi-accepted",
-          "loi-declined",
-          "not a fit",
-          "not ready to sell",
-          "closed"
+          "new"
         ];
         
         const idx1 = PRIORITY_ORDER.indexOf(p1);

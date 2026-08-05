@@ -77,8 +77,7 @@ export default function CRMDashboard() {
 
   const tableData = useMemo(() => {
     if (!tasks) return [];
-    const allowedPriorities = ["high value", "good fit", "50/50", "new"];
-    return tasks.filter(t => t.priority_name && allowedPriorities.includes(t.priority_name.toLowerCase()));
+    return tasks;
   }, [tasks]);
 
   const columns = [
@@ -124,37 +123,38 @@ export default function CRMDashboard() {
       )
     },
     {
-      accessorKey: "priority_name",
+      accessorKey: "outcome_name",
       header: ({ column }: any) => <ColumnHeader column={column} title="Current Status" />,
       cell: ({ row }: any) => (
-        <Badge variant="outline" style={{ backgroundColor: row.original.priority_color + '20', color: row.original.priority_color, borderColor: row.original.priority_color + '40' }}>
-          {row.original.priority_name || 'New Lead'}
+        <Badge variant="outline" style={{ backgroundColor: (row.original.outcome_color || '#e2e8f0') + '20', color: row.original.outcome_color || '#64748b', borderColor: (row.original.outcome_color || '#e2e8f0') + '40' }}>
+          {row.original.outcome_name || 'No Activity'}
         </Badge>
       ),
       sortingFn: (rowA: any, rowB: any) => {
-        const p1 = (rowA.original.priority_name || "").toLowerCase();
-        const p2 = (rowB.original.priority_name || "").toLowerCase();
+        const o1 = (rowA.original.outcome_name || "").toLowerCase();
+        const o2 = (rowB.original.outcome_name || "").toLowerCase();
         
-        const PRIORITY_ORDER = [
-          "high value",
-          "good fit",
-          "50/50",
-          "new",
+        const OUTCOME_ORDER = [
+          "interested",
+          "meeting scheduled",
+          "callback requested",
+          "no answer",
           "loi-sent",
           "loi-accepted",
           "loi-declined",
+          "not interested",
           "not a fit",
           "not ready to sell",
           "closed"
         ];
         
-        const idx1 = PRIORITY_ORDER.indexOf(p1);
-        const idx2 = PRIORITY_ORDER.indexOf(p2);
+        const idx1 = OUTCOME_ORDER.indexOf(o1);
+        const idx2 = OUTCOME_ORDER.indexOf(o2);
         
         if (idx1 !== -1 && idx2 !== -1) return idx1 - idx2;
         if (idx1 !== -1) return -1;
         if (idx2 !== -1) return 1;
-        return p1.localeCompare(p2);
+        return o1.localeCompare(o2);
       }
     },
     {
@@ -182,7 +182,7 @@ export default function CRMDashboard() {
         pageSize: 15,
       },
       sorting: [
-        { id: "priority_name", desc: false }
+        { id: "outcome_name", desc: false }
       ],
     },
   });
