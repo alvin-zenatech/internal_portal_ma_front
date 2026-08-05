@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
 export default function PipelineDashboard() {
+  const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
@@ -28,7 +29,18 @@ export default function PipelineDashboard() {
    *  users endpoint, does not require the CONFIG_USERS_READ permission. */
   const { data: analystOptions } = useAnalysts();
 
-  const filteredTasks = tasks || [];
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    let result = tasks;
+    if (analystFilter !== "all") {
+      if (analystFilter === "unassigned") {
+        result = result.filter(t => !t.analyst_id);
+      } else {
+        result = result.filter(t => t.analyst_id === analystFilter);
+      }
+    }
+    return result;
+  }, [tasks, analystFilter]);
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -73,6 +85,21 @@ export default function PipelineDashboard() {
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
       <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
+          <div className="flex items-center">
+            <Select value={analystFilter} onValueChange={setAnalystFilter}>
+              <SelectTrigger className="w-[180px] h-9 bg-white">
+                <User className="h-4 w-4 text-muted-foreground mr-2" />
+                <SelectValue placeholder="All Analysts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Analysts</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {(analystOptions ?? []).map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <TooltipProvider delayDuration={300}>
           
