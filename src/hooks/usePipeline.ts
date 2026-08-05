@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient as api } from "@/services/apiClient";
+import { toast } from "sonner";
 
 export interface MasterData {
   id: number;
@@ -260,6 +261,25 @@ export function useImportPipeline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    }
+  });
+}
+
+export function useImportCallLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return await api.post("/api/pipeline/import-call-log", formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-stats"] });
+      toast.success("Call log imported successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to import call log. Please try again.");
     }
   });
 }

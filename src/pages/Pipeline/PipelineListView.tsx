@@ -109,6 +109,28 @@ const PipelineListView = React.memo(function PipelineListView({
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const { mutate: removeTask } = useDeleteTask();
 
+  const [visibleCount, setVisibleCount] = useState(50);
+
+  React.useEffect(() => {
+    setVisibleCount(50);
+  }, [globalFilter, columnFilters, sorting]);
+
+  const observer = React.useRef<IntersectionObserver | null>(null);
+  const lastRowRef = React.useCallback(
+    (node: HTMLTableRowElement | null) => {
+      if (observer.current) observer.current.disconnect();
+      if (node) {
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            setVisibleCount((prev) => prev + 50);
+          }
+        }, { rootMargin: "400px" });
+        observer.current.observe(node);
+      }
+    },
+    []
+  );
+
   const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
     { 
       accessorKey: "analyst_name", 
@@ -233,6 +255,10 @@ const PipelineListView = React.memo(function PipelineListView({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  const allRows = table.getRowModel().rows;
+  const isSearching = globalFilter.length > 0;
+  const visibleRows = allRows.slice(0, visibleCount);
+
   return (
     <div className="h-full flex flex-col p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -285,8 +311,8 @@ const PipelineListView = React.memo(function PipelineListView({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map(row => (
+            {visibleRows.length ? (
+              visibleRows.map(row => (
                 <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onTaskClick(row.original)}>
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
@@ -297,7 +323,14 @@ const PipelineListView = React.memo(function PipelineListView({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">No tasks found.</TableCell>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No tasks found.
+                </TableCell>
+              </TableRow>
+            )}
+            {!isSearching && visibleRows.length < allRows.length && (
+              <TableRow ref={lastRowRef}>
+                <TableCell colSpan={columns.length} className="h-1 p-0 border-0" />
               </TableRow>
             )}
           </TableBody>

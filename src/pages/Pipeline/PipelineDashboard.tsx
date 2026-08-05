@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect, useDeferredValue, useCallback } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X, CalendarClock } from "lucide-react";
+import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X, CalendarClock, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -73,6 +73,7 @@ export default function PipelineDashboard() {
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
       <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
         <div className="flex items-center gap-4">
+
           <TooltipProvider delayDuration={300}>
           
           <Button variant="outline" asChild className="hidden md:flex gap-2">

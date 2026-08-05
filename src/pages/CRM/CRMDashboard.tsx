@@ -1,10 +1,11 @@
 import React, { useState, useDeferredValue, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePipelineTasks, useCRMStats } from "@/hooks/usePipeline";
+import { usePipelineTasks, useCRMStats, useImportCallLog, useAnalysts } from "@/hooks/usePipeline";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, TrendingUp, PhoneCall, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Calendar, TrendingUp, PhoneCall, ArrowUpDown, Filter, Download, Upload, Loader2, User } from "lucide-react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, getFacetedUniqueValues, useReactTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -71,14 +72,32 @@ export default function CRMDashboard() {
   const navigate = useNavigate();
   const { data: tasks } = usePipelineTasks();
   const { data: stats, isLoading: statsLoading } = useCRMStats();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { mutate: importCallLog, isPending: isImporting } = useImportCallLog();
 
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importCallLog(file, {
+        onSettled: () => {
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      });
+    }
+  };
+
+  const { data: analystOptions } = useAnalysts();
   const [searchQuery, setSearchQuery] = useState("");
+  const [analystFilter, setAnalystFilter] = useState<string>("all");
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const tableData = useMemo(() => {
-    if (!tasks) return [];
-    return tasks;
-  }, [tasks]);
+    let result = tasks || [];
+    if (analystFilter !== "all") {
+      result = result.filter(t => t.analyst_id === analystFilter);
+    }
+    return result;
+  }, [tasks, analystFilter]);
 
   const columns = [
     {
@@ -171,29 +190,60 @@ export default function CRMDashboard() {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    onGlobalFilterChange: setSearchQuery,
     state: {
       globalFilter: deferredSearchQuery,
     },
-    onGlobalFilterChange: setSearchQuery,
     initialState: {
-      pagination: {
-        pageSize: 15,
-      },
       sorting: [
         { id: "outcome_name", desc: false }
       ],
     },
   });
 
+  const [visibleCount, setVisibleCount] = useState(50);
+
+  React.useEffect(() => {
+    setVisibleCount(50);
+  }, [deferredSearchQuery]);
+
+  const observer = React.useRef<IntersectionObserver | null>(null);
+  const lastRowRef = React.useCallback(
+    (node: HTMLTableRowElement | null) => {
+      if (observer.current) observer.current.disconnect();
+      if (node) {
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            setVisibleCount((prev) => prev + 50);
+          }
+        }, { rootMargin: "400px" });
+        observer.current.observe(node);
+      }
+    },
+    []
+  );
+
+  const allRows = table.getRowModel().rows;
+  const isSearching = deferredSearchQuery.length > 0;
+  const visibleRows = allRows.slice(0, visibleCount);
+
   return (
-    <div className="flex flex-col h-full bg-muted/50">
+    <div className="flex flex-col h-full bg-muted/50 overflow-auto">
       <div className="p-4 sm:p-8 flex-1 w-full max-w-7xl mx-auto space-y-8">
         
         {/* Header & Stats Cards */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-6">Call Tracking</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold tracking-tight">Call Tracking</h1>
+            <div className="flex items-center space-x-2">
+              <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleImport} />
+              <Button onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Import Call Log
+              </Button>
+            </div>
+          </div>
           
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6 flex flex-col justify-between">
@@ -229,17 +279,31 @@ export default function CRMDashboard() {
 
         {/* Company List */}
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col">
-          <div className="p-4 border-b flex items-center justify-between bg-muted/50">
+          <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between bg-muted/50 gap-4">
             <h2 className="text-lg font-semibold">Company List</h2>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search companies..."
-                className="pl-8 bg-white"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search companies..."
+                  className="pl-8 bg-white"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                <SelectTrigger className="w-full sm:w-[220px] bg-white">
+                  <User className="h-4 w-4 text-muted-foreground mr-2" />
+                  <SelectValue placeholder="All analysts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All analysts</SelectItem>
+                  {analystOptions?.map((a: any) => (
+                    <SelectItem key={a.id} value={a.id}>{a.full_name || a.email || "Unnamed analyst"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -257,20 +321,27 @@ export default function CRMDashboard() {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="cursor-pointer hover:bg-muted transition-colors"
-                      onClick={() => navigate(`/pipeline/crm/companies/${row.original.id}`)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="py-3">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                {visibleRows.length ? (
+                  <>
+                    {visibleRows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className="cursor-pointer hover:bg-muted transition-colors"
+                        onClick={() => navigate(`/pipeline/crm/companies/${row.original.id}`)}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} className="py-3 whitespace-nowrap">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                    {!isSearching && visibleRows.length < allRows.length && (
+                      <TableRow ref={lastRowRef}>
+                        <TableCell colSpan={columns.length} className="h-1 p-0 border-0" />
+                      </TableRow>
+                    )}
+                  </>
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
@@ -280,26 +351,6 @@ export default function CRMDashboard() {
                 )}
               </TableBody>
             </Table>
-          </div>
-          
-          {/* Pagination */}
-          <div className="flex items-center justify-end space-x-2 p-4 border-t bg-muted/50">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
           </div>
         </div>
         
