@@ -230,7 +230,7 @@ export default function CRMDashboard() {
 
   return (
     <div className="flex flex-col h-full bg-muted/50 overflow-auto">
-      <div className="p-4 sm:p-8 flex-1 w-full max-w-7xl mx-auto space-y-8">
+      <div className="p-4 sm:p-8 flex-1 w-full space-y-8">
         
         {/* Header & Stats Cards */}
         <div>
