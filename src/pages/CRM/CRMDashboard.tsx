@@ -188,7 +188,7 @@ export default function CRMDashboard() {
   });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
+    <div className="flex flex-col h-full bg-muted/50">
       <div className="p-4 sm:p-8 flex-1 w-full max-w-7xl mx-auto space-y-8">
         
         {/* Header & Stats Cards */}
@@ -229,7 +229,7 @@ export default function CRMDashboard() {
 
         {/* Company List */}
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col">
-          <div className="p-4 border-b flex items-center justify-between bg-slate-50/50">
+          <div className="p-4 border-b flex items-center justify-between bg-muted/50">
             <h2 className="text-lg font-semibold">Company List</h2>
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -245,7 +245,7 @@ export default function CRMDashboard() {
 
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+              <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
@@ -261,7 +261,7 @@ export default function CRMDashboard() {
                   table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      className="cursor-pointer hover:bg-slate-50 transition-colors"
+                      className="cursor-pointer hover:bg-muted transition-colors"
                       onClick={() => navigate(`/pipeline/crm/companies/${row.original.id}`)}
                     >
                       {row.getVisibleCells().map((cell) => (
@@ -283,7 +283,7 @@ export default function CRMDashboard() {
           </div>
           
           {/* Pagination */}
-          <div className="flex items-center justify-end space-x-2 p-4 border-t bg-slate-50/50">
+          <div className="flex items-center justify-end space-x-2 p-4 border-t bg-muted/50">
             <Button
               variant="outline"
               size="sm"
