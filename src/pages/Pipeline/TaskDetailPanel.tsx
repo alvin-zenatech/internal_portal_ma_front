@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useActivities, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X } from "lucide-react";
+import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, ChevronDown } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
 
   const { data: notes } = useTaskNotes(task?.id || null);
+  const { data: activities } = useActivities(task?.id || null);
   const { mutateAsync: createNote } = useCreateTaskNote();
   const { mutateAsync: updateNote } = useUpdateTaskNote();
   const { mutateAsync: deleteNote } = useDeleteTaskNote();
@@ -109,6 +110,49 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     <dd className="font-medium">{new Date(task.created_at).toLocaleString()}</dd>
                   </div>
                 </dl>
+
+                {/* Call Log / Activities Section */}
+                {activities && activities.length > 0 && (
+                  <div className="mt-8 pt-6 border-t border-border">
+                    <details className="group [&_summary::-webkit-details-marker]:hidden">
+                      <summary className="font-semibold text-md flex items-center justify-between cursor-pointer hover:text-primary transition-colors">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" /> Call Log ({activities.length})
+                        </div>
+                        <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <div className="space-y-3 mt-4 max-h-[400px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
+                      {activities.map(activity => (
+                        <div key={activity.id} className="bg-muted/30 p-3 rounded-md text-sm border">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-semibold text-primary">{activity.type}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(activity.activity_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-xs">
+                            {activity.outcome && (
+                              <div className="flex flex-col"><span className="text-muted-foreground">Outcome</span><span className="font-medium">{activity.outcome}</span></div>
+                            )}
+                            {activity.duration && (
+                              <div className="flex flex-col"><span className="text-muted-foreground">Duration</span><span className="font-medium">{activity.duration}</span></div>
+                            )}
+                            {activity.contact_name && (
+                              <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{activity.contact_name} {activity.position ? `(${activity.position})` : ''}</span></div>
+                            )}
+                            {activity.analyst_name && (
+                              <div className="flex flex-col"><span className="text-muted-foreground">Analyst</span><span className="font-medium">{activity.analyst_name}</span></div>
+                            )}
+                          </div>
+                          {activity.notes && (
+                            <p className="mt-2 text-muted-foreground text-xs border-t pt-2 whitespace-pre-wrap break-all">{activity.notes}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+                )}
               </div>
 
               {/* Middle Column: Threaded Notes */}
