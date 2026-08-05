@@ -119,6 +119,12 @@ jobs:
           echo "Build output:"
           find dist -maxdepth 2 -type f | head -100
 
+      - name: Debug OIDC Token
+        shell: bash
+        run: |
+          ID_TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo $ID_TOKEN | base64
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
