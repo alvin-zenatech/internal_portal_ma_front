@@ -4,7 +4,7 @@ import { usePipelineTasks, useCRMStats } from "@/hooks/usePipeline";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Phone, Calendar, Users, TrendingUp, ChevronRight, PhoneCall, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Calendar, TrendingUp, PhoneCall, ArrowUpDown, Filter } from "lucide-react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, getFacetedUniqueValues, useReactTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -69,7 +69,7 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 
 export default function CRMDashboard() {
   const navigate = useNavigate();
-  const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
+  const { data: tasks } = usePipelineTasks();
   const { data: stats, isLoading: statsLoading } = useCRMStats();
 
   const [searchQuery, setSearchQuery] = useState("");

@@ -204,9 +204,9 @@ export default function CompanyDetails() {
         open={isLogCallOpen} 
         onOpenChange={setIsLogCallOpen} 
         taskId={companyId} 
-        defaultContactName={company.name}
-        defaultPosition={company.position_name}
-        defaultPhone={company.phone}
+        defaultContactName={company.name || undefined}
+        defaultPosition={company.position_name || undefined}
+        defaultPhone={company.phone || undefined}
       />
     </div>
   );

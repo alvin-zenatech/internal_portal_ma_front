@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, Filter, X, Edit, Trash2 } from "lucide-react";
+import { ArrowUpDown, Filter, X } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -93,15 +93,13 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 
 const PipelineListView = React.memo(function PipelineListView({ 
   tasks, 
-  onTaskClick, 
-  onEdit,
-  showFollowUpDate = false,
+  onTaskClick,
+  onEdit, 
   defaultSorting = [{ id: "priority_name", desc: false }]
 }: {
   tasks: PipelineTask[],
   onTaskClick: (task: PipelineTask) => void,
   onEdit: (task: PipelineTask) => void,
-  showFollowUpDate?: boolean,
   defaultSorting?: SortingState
 }) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
