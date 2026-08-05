@@ -45,7 +45,23 @@ jobs:
           if [ -z "${AWS_ACCOUNT_ID:-}" ]; then
             echo "::error title=Missing AWS account ID::The ACCOUNT_ID repository secret is missing or empty."
             missing=1
+          else
+            echo "AWS_ACCOUNT_ID length is ${#AWS_ACCOUNT_ID} characters."
+            if [ "${AWS_ACCOUNT_ID}" != "506155053417" ]; then
+              echo "::warning title=Account ID Mismatch::The ACCOUNT_ID secret is not 506155053417. It is currently set to an ID of length ${#AWS_ACCOUNT_ID}."
+            else
+              echo "AWS_ACCOUNT_ID matches expected value."
+            fi
           fi
+
+          echo "--- OIDC DIAGNOSTICS ---"
+          echo "GitHub Repository: ${{ github.repository }}"
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "GitHub Environment: Zenatech"
+          echo "Expected OIDC 'sub' claims to match one of:"
+          echo "  repo:${{ github.repository }}:environment:Zenatech"
+          echo "  repo:${{ github.repository }}:ref:${{ github.ref }}"
+          echo "------------------------"
 
           if [ -z "${S3_BUCKET_NAME:-}" ]; then
             echo "::error title=Missing S3 bucket::The BUCKET_NAME repository secret is missing or empty."
