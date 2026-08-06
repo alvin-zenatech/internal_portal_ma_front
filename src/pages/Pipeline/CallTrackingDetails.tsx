@@ -68,6 +68,20 @@ export default function CallTrackingDetails({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<CallLog>>({});
 
+  const currentOutcome = formData.outcome || '';
+  const currentPosition = React.useMemo(() => {
+    if (!formData.position) return '';
+    const match = positionsData?.find(p => p.name.toLowerCase() === formData.position?.toLowerCase());
+    return match ? match.name : formData.position;
+  }, [formData.position, positionsData]);
+  
+  const currentIndustry = React.useMemo(() => {
+    if (!formData.industry) return '';
+    const match = industriesData?.find(ind => ind.name.toLowerCase() === formData.industry?.toLowerCase());
+    return match ? match.name : formData.industry;
+  }, [formData.industry, industriesData]);
+
+
   useEffect(() => {
     if (!normalizedName) {
       setFormData({ company_name: companyName });
@@ -156,10 +170,13 @@ export default function CallTrackingDetails({
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Outcome / Status</label>
-                    <Select value={formData.outcome || ''} onValueChange={val => setFormData({...formData, outcome: val})}>
+                    <Select value={currentOutcome} onValueChange={val => setFormData({...formData, outcome: val})}>
                       <SelectTrigger><SelectValue placeholder="Select outcome..." /></SelectTrigger>
                       <SelectContent>
                         {existingOutcomes.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        {currentOutcome && !existingOutcomes.includes(currentOutcome) && (
+                          <SelectItem value={currentOutcome}>{currentOutcome}</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -172,19 +189,25 @@ export default function CallTrackingDetails({
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Position</label>
-                    <Select value={formData.position || ''} onValueChange={val => setFormData({...formData, position: val})}>
+                    <Select value={currentPosition} onValueChange={val => setFormData({...formData, position: val})}>
                       <SelectTrigger><SelectValue placeholder="Select position..." /></SelectTrigger>
                       <SelectContent>
                         {positionsData?.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                        {currentPosition && !positionsData?.find(p => p.name === currentPosition) && (
+                          <SelectItem value={currentPosition}>{currentPosition}</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Industry</label>
-                    <Select value={formData.industry || ''} onValueChange={val => setFormData({...formData, industry: val})}>
+                    <Select value={currentIndustry} onValueChange={val => setFormData({...formData, industry: val})}>
                       <SelectTrigger><SelectValue placeholder="Select industry..." /></SelectTrigger>
                       <SelectContent>
                         {industriesData?.map(ind => <SelectItem key={ind.id} value={ind.name}>{ind.name}</SelectItem>)}
+                        {currentIndustry && !industriesData?.find(i => i.name === currentIndustry) && (
+                          <SelectItem value={currentIndustry}>{currentIndustry}</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
