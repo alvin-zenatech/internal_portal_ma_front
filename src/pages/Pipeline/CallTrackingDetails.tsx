@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { useIndustries, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog } from '@/hooks/usePipeline';
+import { useIndustries, usePositions, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useUsers } from '@/hooks/usePipeline';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,9 +23,46 @@ export default function CallTrackingDetails({
   const { mutateAsync: deleteLog } = useDeleteCallLog();
 
   const { data: industriesData } = useIndustries();
-  const { data: summaries } = useCallTrackingSummary();
-  const existingOutcomes = Array.from(new Set(summaries?.map(s => s.current_status).filter(Boolean))) as string[];
+  const { data: positionsData } = usePositions();
+  const { data: users } = useUsers();
+  
+  const getAnalystName = (initials?: string | null) => {
+    if (!initials) return '-';
+    const upperInit = initials.toUpperCase();
+    if (!users) return upperInit;
+    const user = users.find(u => {
+      const parts = u.full_name.trim().split(/\s+/);
+      const computed = parts.length >= 2 
+        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+        : u.full_name[0].toUpperCase();
+      return computed === upperInit;
+    });
+    return user ? user.full_name : upperInit;
+  };
 
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    const match = dateStr.match(/(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [m, d, y] = parts;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return dateStr.split(/[T ]/)[0];
+  };
+  const { data: summaries } = useCallTrackingSummary();
+  const existingOutcomes = [
+    "Follow Up",
+    "Voicemail",
+    "Not Interested",
+    "Meeting Scheduled",
+    "Call Invalid",
+    "Receptionist took message",
+    "Wrong Number",
+    "No Answer",
+    "Sent Information",
+  ];
 
   const [editingId, setEditingId] = useState<number | 'NEW' | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -115,7 +152,7 @@ export default function CallTrackingDetails({
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Date of Call</label>
-                    <Input type="date" value={formData.date_of_call ? formData.date_of_call.split("T")[0] : ''} onChange={e => setFormData({...formData, date_of_call: e.target.value})} />
+                    <Input type="date" value={formatDate(formData.date_of_call)} onChange={e => setFormData({...formData, date_of_call: e.target.value})} />
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Outcome / Status</label>
@@ -135,10 +172,12 @@ export default function CallTrackingDetails({
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Position</label>
-                    <Input 
-                      value={formData.position || ''} 
-                      onChange={e => setFormData({...formData, position: e.target.value})}
-                    />
+                    <Select value={formData.position || ''} onValueChange={val => setFormData({...formData, position: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select position..." /></SelectTrigger>
+                      <SelectContent>
+                        {positionsData?.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Industry</label>
@@ -171,7 +210,7 @@ export default function CallTrackingDetails({
               <div key={log.id} className="bg-white border p-4 rounded-lg shadow-sm space-y-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-sm text-slate-500 font-medium">{log.date_of_call || 'No Date'}</span>
+                    <span className="text-sm text-slate-500 font-medium">{formatDate(log.date_of_call) || 'No Date'}{log.call_length ? ` • ${log.call_length}` : ''}</span>
                     <h4 className="font-semibold">{log.outcome || 'No Outcome specified'}</h4>
                   </div>
                   <div className="flex gap-2">
@@ -188,7 +227,7 @@ export default function CallTrackingDetails({
                   <div>Contact: {log.contact_name} {log.position ? `(${log.position})` : ''}</div>
                   <div>Phone: {log.phone_number}</div>
                   <div>Emailed: {log.emailed} | Picked up: {log.picked_up}</div>
-                  <div>Analyst: {log.analyst}</div>
+                  <div>Analyst: {getAnalystName(log.analyst)}</div>
                 </div>
               </div>
             ))}

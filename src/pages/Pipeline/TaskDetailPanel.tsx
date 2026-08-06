@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskNotes, useActivities, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useActivities, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs, useUsers } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -24,6 +24,34 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const [editContent, setEditContent] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
+
+  const { data: users } = useUsers();
+  
+  const getAnalystName = (initials?: string | null) => {
+    if (!initials) return '-';
+    const upperInit = initials.toUpperCase();
+    if (!users) return upperInit;
+    const user = users.find(u => {
+      const parts = u.full_name.trim().split(/\s+/);
+      const computed = parts.length >= 2 
+        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+        : u.full_name[0].toUpperCase();
+      return computed === upperInit;
+    });
+    return user ? user.full_name : upperInit;
+  };
+
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    const match = dateStr.match(/(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [m, d, y] = parts;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return dateStr.split(/[T ]/)[0];
+  };
 
   const normalizedCompanyName = task?.company_name ? task.company_name.replace(/\s+/g, '').toLowerCase() : null;
   const { data: callLogs } = useCompanyCallLogs(normalizedCompanyName);
@@ -115,69 +143,48 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   </div>
                 </dl>
 
-                {/* Call Log / Activities Section */}
-                {activities && activities.length > 0 && (
-                  <div className="mt-8 pt-6 border-t border-border">
-                    <details className="group [&_summary::-webkit-details-marker]:hidden">
-                      <summary className="font-semibold text-md flex items-center justify-between cursor-pointer hover:text-primary transition-colors">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" /> Call Log ({activities.length})
-                        </div>
-                        <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                      </summary>
-                      <div className="space-y-3 mt-4 max-h-[400px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
-                      {activities.map(activity => (
-                        <div key={activity.id} className="bg-muted/30 p-3 rounded-md text-sm border">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-semibold text-primary">{activity.type}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(activity.activity_date).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-xs">
-                            {activity.outcome && (
-                              <div className="flex flex-col"><span className="text-muted-foreground">Outcome</span><span className="font-medium">{activity.outcome}</span></div>
-                            )}
-                            {activity.duration && (
-                              <div className="flex flex-col"><span className="text-muted-foreground">Duration</span><span className="font-medium">{activity.duration}</span></div>
-                            )}
-                            {activity.contact_name && (
-                              <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{activity.contact_name} {activity.position ? `(${activity.position})` : ''}</span></div>
-                            )}
-                            {activity.analyst_name && (
-                              <div className="flex flex-col"><span className="text-muted-foreground">Analyst</span><span className="font-medium">{activity.analyst_name}</span></div>
-                            )}
-                          </div>
-                          {activity.notes && (
-                            <p className="mt-2 text-muted-foreground text-xs border-t pt-2 whitespace-pre-wrap break-all">{activity.notes}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                </div>
-                )}
-                
                 {/* Call Logs Accordion */}
-                <Accordion type="single" collapsible className="w-full mt-4">
+                <Accordion type="single" collapsible defaultValue="call-logs" className="w-full mt-4 border-t border-border pt-2">
                   <AccordionItem value="call-logs" className="border-none">
-                    <AccordionTrigger className="font-semibold text-base py-3 hover:no-underline">Call Logs</AccordionTrigger>
+                    <AccordionTrigger className="font-semibold text-base py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" /> Call Logs {callLogs && `(${callLogs.length})`}
+                      </div>
+                    </AccordionTrigger>
                     <AccordionContent>
-                      {callLogs && callLogs.length > 0 ? (
-                        <div className="space-y-3 pt-2">
-                          {callLogs.map(log => (
-                            <div key={log.id} className="bg-muted/30 border p-3 rounded-lg shadow-sm text-sm">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="text-slate-500 font-medium text-xs">{log.date_of_call || 'No Date'}</span>
-                                <span className="font-semibold">{log.outcome}</span>
+                      <div className="space-y-3 pt-2 max-h-[400px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
+                        {callLogs && callLogs.length > 0 ? (
+                          callLogs.map(log => (
+                            <div key={log.id} className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="font-semibold text-primary">Call</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDate(log.date_of_call) || 'No Date'}
+                                </span>
                               </div>
-                              <p className="text-slate-700 whitespace-pre-wrap mt-1">{log.notes}</p>
+                              <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-xs">
+                                {log.outcome && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Outcome</span><span className="font-medium">{log.outcome}</span></div>
+                                )}
+                                {log.call_length && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Duration</span><span className="font-medium">{log.call_length}</span></div>
+                                )}
+                                {log.contact_name && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{log.contact_name} {log.position ? `(${log.position})` : ''}</span></div>
+                                )}
+                                {log.analyst && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Analyst</span><span className="font-medium">{getAnalystName(log.analyst)}</span></div>
+                                )}
+                              </div>
+                              {log.notes && (
+                                <p className="mt-2 text-muted-foreground text-xs border-t pt-2 whitespace-pre-wrap break-all">{log.notes}</p>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-slate-500 text-sm italic py-2">No call logs found.</div>
-                      )}
+                          ))
+                        ) : (
+                          <div className="text-slate-500 text-sm italic py-2">No call logs found.</div>
+                        )}
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useCallTrackingSummary, type CallTrackingSummary } from '@/hooks/usePipeline';
+import { useCallTrackingSummary, type CallTrackingSummary, useUsers } from '@/hooks/usePipeline';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   useReactTable,
   getCoreRowModel,
@@ -72,6 +73,22 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 
 export default function CallTracking() {
   const { data: summaries, isLoading } = useCallTrackingSummary();
+  const { data: users } = useUsers();
+  
+  const getAnalystDetails = React.useCallback((initials: string | null) => {
+    if (!initials) return { name: '-', avatar: '?' };
+    const upperInit = initials.toUpperCase();
+    if (!users) return { name: upperInit, avatar: upperInit };
+    const user = users.find(u => {
+      const parts = u.full_name.trim().split(/\s+/);
+      const computed = parts.length >= 2 
+        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+        : u.full_name[0].toUpperCase();
+      return computed === upperInit;
+    });
+    return user ? { name: user.full_name, avatar: upperInit } : { name: upperInit, avatar: upperInit };
+  }, [users]);
+
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
@@ -81,7 +98,18 @@ export default function CallTracking() {
     () => [
       { 
         accessorKey: 'latest_analyst', 
-        header: ({ column }) => <ColumnHeader column={column} title="Analyst" />
+        header: ({ column }) => <ColumnHeader column={column} title="Analyst" />,
+        cell: ({ row }) => {
+          const { name, avatar } = getAnalystDetails(row.original.latest_analyst);
+          return (
+             <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                   <AvatarFallback className="text-[10px] bg-slate-200 text-slate-700">{avatar}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">{name}</span>
+             </div>
+          );
+        }
       },
       { 
         accessorKey: 'company_name', 
@@ -142,8 +170,8 @@ export default function CallTracking() {
         <Button onClick={() => setSelectedCompany('__NEW__')}>Add Call Log</Button>
       </div>
 
-      <div className="flex-1 overflow-hidden p-6">
-        <div className="bg-white rounded-lg border shadow-sm h-full flex flex-col">
+      <div className="flex-1 overflow-hidden">
+        <div className="bg-white rounded-md border shadow-sm h-full flex flex-col">
           <div className="overflow-auto flex-1" onScroll={handleScroll}>
             <Table containerClassName="overflow-visible h-auto">
               <TableHeader className="bg-slate-50/80 sticky top-0 z-10 shadow-sm">
@@ -165,7 +193,7 @@ export default function CallTracking() {
                     onClick={() => setSelectedCompany(row.original.normalized_company_name)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3 text-slate-600 whitespace-normal break-words min-w-[120px]">
+                      <TableCell key={cell.id} className="py-3 text-slate-600 whitespace-nowrap truncate max-w-[250px]">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
