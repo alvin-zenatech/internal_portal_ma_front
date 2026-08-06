@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskNotes, useActivities, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useActivities, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, ChevronDown } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 
@@ -23,6 +24,9 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const [editContent, setEditContent] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
+
+  const normalizedCompanyName = task?.company_name ? task.company_name.replace(/\s+/g, '').toLowerCase() : null;
+  const { data: callLogs } = useCompanyCallLogs(normalizedCompanyName);
 
   const handleAddNote = async () => {
     if ((!newNote.trim() && !selectedFile) || !task) return;
@@ -153,6 +157,30 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   </details>
                 </div>
                 )}
+                
+                {/* Call Logs Accordion */}
+                <Accordion type="single" collapsible className="w-full mt-4">
+                  <AccordionItem value="call-logs" className="border-none">
+                    <AccordionTrigger className="font-semibold text-base py-3 hover:no-underline">Call Logs</AccordionTrigger>
+                    <AccordionContent>
+                      {callLogs && callLogs.length > 0 ? (
+                        <div className="space-y-3 pt-2">
+                          {callLogs.map(log => (
+                            <div key={log.id} className="bg-muted/30 border p-3 rounded-lg shadow-sm text-sm">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="text-slate-500 font-medium text-xs">{log.date_of_call || 'No Date'}</span>
+                                <span className="font-semibold">{log.outcome}</span>
+                              </div>
+                              <p className="text-slate-700 whitespace-pre-wrap mt-1">{log.notes}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-slate-500 text-sm italic py-2">No call logs found.</div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
 
               {/* Middle Column: Threaded Notes */}
@@ -181,7 +209,10 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                 </div>
                 <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   <div className="space-y-4">
-                    {[...(notes || [])].reverse().map(note => (
+                    {[...(notes || [])]
+                      .filter(n => !n.note.startsWith('Call logged on ') && !n.note.startsWith('Email logged on '))
+                      .reverse()
+                      .map(note => (
                       <div key={note.id} className="bg-card border rounded-lg p-3 text-sm shadow-sm group">
                         <div className="flex justify-between items-center mb-2">
                           <span className="font-semibold">{note.author_name}</span>

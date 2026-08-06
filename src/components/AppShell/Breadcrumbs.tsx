@@ -40,8 +40,9 @@ export default function Breadcrumbs() {
       isLast: index === pathnames.length - 1,
     };
   }).filter(item => {
-    const val = item.value.toLowerCase();
-    return val !== 'pipeline' && val !== 'companies';
+    if (item.value.toLowerCase() === 'pipeline') return false;
+
+    return true;
   });
 
   return (
@@ -58,8 +59,6 @@ export default function Breadcrumbs() {
         let displayName = customTitles[item.to] || formatName(item.value);
         if (item.value.toLowerCase() === 'master-data') {
           displayName = 'Configurations';
-        } else if (item.value.toLowerCase() === 'crm') {
-          displayName = 'Call Tracking';
         }
 
         return (

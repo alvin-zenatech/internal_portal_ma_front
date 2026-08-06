@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect, useDeferredValue, useCallback } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +39,19 @@ export default function PipelineDashboard() {
         result = result.filter(t => t.analyst_id === analystFilter);
       }
     }
+
+    const validStatuses = [
+      "high value", "good fit", "50/50", 
+      "loi-sent", "loi sent", 
+      "loi-accepted", "loi sent - accepted", 
+      "loi-declined", "loi sent - declined",
+      "not a fit", "not ready to sell"
+    ];
+    result = result.filter(t => {
+      const p = (t.priority_name || "").toLowerCase();
+      return validStatuses.includes(p);
+    });
+
     return result;
   }, [tasks, analystFilter]);
 
@@ -55,7 +68,21 @@ export default function PipelineDashboard() {
   }, [tasks]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { mutate: importPipeline, isPending } = useImportPipeline();
+  const loadingToastRef = useRef<string | number | null>(null);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importMessage, setImportMessage] = useState("");
+  
+  const { mutate: importPipeline, isPending } = useImportPipeline((p, m) => {
+    setImportProgress(p);
+    setImportMessage(m);
+  });
+  
+  useEffect(() => {
+    if (loadingToastRef.current && isPending) {
+      toast.loading(importMessage || "Importing tasks from spreadsheet...", { id: loadingToastRef.current });
+    }
+  }, [importMessage, isPending]);
+  
   const { mutateAsync: deleteTask } = useDeleteTask();
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,11 +146,18 @@ export default function PipelineDashboard() {
           <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
-                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={isPending}>
+                {isPending ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-xs font-medium">{importProgress}%</span>
+                  </div>
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Import XLSX</TooltipContent>
+            <TooltipContent>{isPending ? importMessage || "Importing..." : "Import XLSX"}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -143,10 +177,11 @@ export default function PipelineDashboard() {
           <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
         ) : (
             <PipelineListView 
-              tasks={filteredTasks} 
-              onTaskClick={setSelectedTask} 
-              onEdit={handleEdit}
-            />
+                tasks={filteredTasks} 
+                onTaskClick={setSelectedTask} 
+                onEdit={handleEdit}
+                defaultSorting={[{ id: "priority_name", desc: false }]}
+              />
         )}
       </div>
 
@@ -183,14 +218,16 @@ export default function PipelineDashboard() {
         description="Are you sure you want to import this spreadsheet? This action will permanently erase all current tasks, notes, and history on the pipeline board, and replace them entirely with the data from the imported spreadsheet."
         onConfirm={() => {
           if (importFile) {
-            const toastId = toast.loading("Importing tasks from spreadsheet...");
+            loadingToastRef.current = toast.loading("Importing tasks from spreadsheet...");
             importPipeline(importFile, {
               onSuccess: (res: any) => {
-                toast.success(res.message || "Imported successfully!", { id: toastId });
+                toast.success(res.message || "Imported successfully!", { id: loadingToastRef.current! });
+                loadingToastRef.current = null;
                 setImportFile(null);
               },
               onError: (err: any) => {
-                toast.error(err.response?.data?.detail || "Failed to import", { id: toastId });
+                toast.error(err.message || err.response?.data?.detail || "Failed to import", { id: loadingToastRef.current! });
+                loadingToastRef.current = null;
                 setImportFile(null);
               }
             });
@@ -200,3 +237,5 @@ export default function PipelineDashboard() {
     </div>
   );
 }
+
+

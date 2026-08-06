@@ -8,6 +8,18 @@ export interface MasterData {
   created_at: string;
 }
 
+export interface CompanyData {
+  id: number;
+  name: string;
+  phone?: string | null;
+  location?: string | null;
+  country_id?: number | null;
+  country_name?: string | null;
+  contact_name?: string | null;
+  email?: string | null;
+  created_at: string;
+}
+
 export interface PipelinePriority {
   id: number;
   name: string;
@@ -251,38 +263,37 @@ export const useDeleteTaskNote = () => { const queryClient = useQueryClient(); r
   },
 }); }
 
-export function useImportPipeline() {
+export function useImportPipeline(onProgress?: (progress: number, message: string) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return await api.post("/api/pipeline/import", formData);
+      const res = await api.post<{task_id: string}>("/api/pipeline/import", formData);
+      const taskId = res.task_id;
+      
+      while (true) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const statusRes = await api.get<{status: string, progress: number, message: string}>(`/api/pipeline/import/status/${taskId}`);
+        
+        if (onProgress) {
+            onProgress(statusRes.progress, statusRes.message);
+        }
+        
+        if (statusRes.status === "completed") {
+            return statusRes;
+        } else if (statusRes.status === "error") {
+            throw new Error(statusRes.message);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
     }
   });
 }
 
-export function useImportCallLog() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      return await api.post("/api/pipeline/import-call-log", formData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["crm-stats"] });
-      toast.success("Call log imported successfully!");
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || "Failed to import call log. Please try again.");
-    }
-  });
-}
 
 export function useBackfillFollowUpDates() {
   const queryClient = useQueryClient();
@@ -317,15 +328,6 @@ export interface PipelineActivity {
   created_at: string;
 }
 
-export interface CRMStats {
-  total_companies: number;
-  calls_today: number;
-  calls_this_week: number;
-  interested_leads: number;
-  follow_ups_due: number;
-  meetings_scheduled: number;
-  avg_call_length: string;
-}
 
 export function useActivities(taskId: number | null) {
   return useQuery({
@@ -348,17 +350,162 @@ export function useCreateActivity() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "activities"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] }); // also refresh tasks because follow up date or priority might have changed
-      queryClient.invalidateQueries({ queryKey: ["crm-stats"] });
     }
   });
 }
 
-export function useCRMStats() {
+export function useCompanies() {
   return useQuery({
-    queryKey: ["crm-stats"],
+    queryKey: ["companies"],
     queryFn: async () => {
-      const data = await api.get('/api/pipeline/crm-stats');
-      return data as CRMStats;
+      const data = await api.get("/api/pipeline/companies");
+      return data as CompanyData[];
     },
   });
 }
+
+export function useCreateCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Omit<CompanyData, "id" | "created_at" | "country_name">) => {
+      return await api.post("/api/pipeline/companies", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Company created successfully");
+    },
+  });
+}
+
+export function useUpdateCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Omit<CompanyData, "id" | "created_at" | "country_name"> }) => {
+      return await api.put(`/api/pipeline/companies/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] }); // task.company_name updates
+      toast.success("Company updated successfully");
+    },
+  });
+}
+
+export function useDeleteCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      return await api.delete(`/api/pipeline/companies/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Company deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to delete company");
+    }
+  });
+}
+
+export interface CallTrackingSummary {
+  normalized_company_name: string;
+  company_name: string;
+  industry: string | null;
+  full_location: string | null;
+  contact_name: string | null;
+  position: string | null;
+  current_status: string | null;
+  latest_analyst: string | null;
+}
+export type CallLog = {
+  id: number;
+  call_number?: string;
+  company_name?: string;
+  industry?: string;
+  state_province?: string;
+  location?: string;
+  contact_name?: string;
+  position?: string;
+  phone_number?: string;
+  date_of_call?: string;
+  emailed?: string;
+  picked_up?: string;
+  outcome?: string;
+  analyst?: string;
+  call_length?: string;
+  notes?: string;
+  created_at: string;
+};
+
+export function useCallLogs() {
+  return useQuery({
+    queryKey: ["call-logs"],
+    queryFn: async () => {
+      return await api.get<CallLog[]>("/api/pipeline/call-logs");
+    }
+  });
+}
+
+
+export function useCallTrackingSummary() {
+  return useQuery({
+    queryKey: ["call-tracking-summary"],
+    queryFn: async () => {
+      return await api.get<CallTrackingSummary[]>("/api/pipeline/call-tracking/summary");
+    }
+  });
+}
+
+export function useCompanyCallLogs(norm_name: string | null) {
+  return useQuery({
+    queryKey: ["call-logs", norm_name],
+    queryFn: async () => {
+      if (!norm_name) return [];
+      return await api.get<CallLog[]>(`/api/pipeline/call-logs/${encodeURIComponent(norm_name)}`);
+    },
+    enabled: !!norm_name
+  });
+}
+
+export function useCreateCallLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<CallLog>) => {
+      return await api.post<CallLog>("/api/pipeline/call-logs", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+    }
+  });
+}
+
+export function useUpdateCallLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { id: number; payload: Partial<CallLog> }) => {
+      return await api.put<CallLog>(`/api/pipeline/call-logs/${data.id}`, data.payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+    }
+  });
+}
+
+export function useDeleteCallLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      return await api.delete(`/api/pipeline/call-logs/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+    }
+  });
+}
+
+
+
+

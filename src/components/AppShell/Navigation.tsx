@@ -4,8 +4,8 @@ import {
   FileClock,
   Briefcase,
   CalendarCheck,
-  PhoneCall,
   CalendarClock,
+  Phone,
 } from "lucide-react";
 
 export const navigation = [
@@ -30,19 +30,21 @@ export const navigation = [
     section: "MAIN",
     navigationCode: "PIPELINE",
   },
-
   {
     label: "Call Tracking",
-    path: "/pipeline/crm",
-    icon: PhoneCall,
+    path: "/pipeline/call-tracking",
+    icon: Phone,
     section: "MAIN",
     navigationCode: "PIPELINE",
   },
+
+
   {
     label: "Configurations",
     icon: Briefcase,
     section: "MAIN",
     subItems: [
+      { label: "Companies", path: "/pipeline/companies", navigationCode: "PIPELINE_CONFIG" },
       { label: "Industries", path: "/pipeline/master-data/industry", navigationCode: "PIPELINE_CONFIG" },
       { label: "Positions", path: "/pipeline/master-data/position", navigationCode: "PIPELINE_CONFIG" },
       { label: "Priorities", path: "/pipeline/master-data/priority", navigationCode: "PIPELINE_CONFIG" },

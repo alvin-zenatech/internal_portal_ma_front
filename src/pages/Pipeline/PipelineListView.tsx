@@ -95,14 +95,14 @@ const PipelineListView = React.memo(function PipelineListView({
   tasks, 
   onTaskClick,
   onEdit, 
-  defaultSorting = [{ id: "priority_name", desc: false }]
+  defaultSorting = []
 }: {
   tasks: PipelineTask[],
   onTaskClick: (task: PipelineTask) => void,
   onEdit: (task: PipelineTask) => void,
   defaultSorting?: SortingState
 }) {
-  const [sorting, setSorting] = useState<SortingState>(defaultSorting);
+  const [sorting, setSorting] = useState<SortingState>(defaultSorting || []);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredGlobalFilter = useDeferredValue(globalFilter);
@@ -186,9 +186,9 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "priority_name", 
-      header: ({ column }) => <ColumnHeader column={column} title="Next Steps" />,
+      header: ({ column }) => <ColumnHeader column={column} title="Priority" />,
       cell: ({ row }) => {
-        const priority = row.original.outcome_name || row.original.priority_name;
+        const priority = row.original.priority_name;
         if (!priority) return <span className="text-muted-foreground">-</span>;
         const colors = getPriorityColors(row.original);
         return (
@@ -208,7 +208,13 @@ const PipelineListView = React.memo(function PipelineListView({
           "high value",
           "good fit",
           "50/50",
-          "new"
+          "new",
+          "loi sent",
+          "loi-sent",
+          "loi sent - accepted",
+          "loi-accepted",
+          "loi sent - declined",
+          "loi-declined"
         ];
         
         const idx1 = PRIORITY_ORDER.indexOf(p1);
@@ -224,7 +230,7 @@ const PipelineListView = React.memo(function PipelineListView({
     { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> },
     {
       accessorKey: "follow_up_date" as const,
-      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up" />,
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up Date" />,
       cell: ({ row }: { row: { original: PipelineTask } }) => (
         <FollowUpDateCell dateStr={row.original.follow_up_date} />
       ),
@@ -297,8 +303,8 @@ const PipelineListView = React.memo(function PipelineListView({
           )}
         </div>
       </div>
-      <div className="rounded-md border bg-card flex-1 overflow-auto shadow-sm">
-        <Table>
+      <div className="rounded-md border bg-card flex-1 overflow-auto shadow-sm" id="pipeline-list-scroll">
+        <Table containerClassName="overflow-visible h-auto">
           <TableHeader>
             {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id} className="bg-muted/50">

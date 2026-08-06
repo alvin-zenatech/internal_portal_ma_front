@@ -23,11 +23,10 @@ const MasterDataIndustry = lazy(() => import("./pages/Pipeline/MasterDataIndustr
 const MasterDataPosition = lazy(() => import("./pages/Pipeline/MasterDataPosition"));
 const MasterDataPriority = lazy(() => import("./pages/Pipeline/MasterDataPriority"));
 const MasterDataCountry = lazy(() => import("./pages/Pipeline/MasterDataCountry"));
+const CompaniesListView = lazy(() => import("./pages/Pipeline/CompaniesListView"));
 const WeeklyCheckIn = lazy(() => import("./pages/Pipeline/WeeklyCheckIn"));
+const CallTracking = lazy(() => import("./pages/Pipeline/CallTracking"));
 
-// CRM
-const CRMDashboard = lazy(() => import("./pages/CRM/CRMDashboard"));
-const CompanyDetails = lazy(() => import("./pages/CRM/CompanyDetails"));
 
 function App() {
   return (
@@ -58,15 +57,14 @@ function App() {
             {/* Pipeline */}
 
             <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE"><WeeklyCheckIn /></ProtectedRoute>} />
+            <Route path="/pipeline/call-tracking" element={<ProtectedRoute navigationCode="PIPELINE"><CallTracking /></ProtectedRoute>} />
             <Route path="/pipeline" element={<Navigate to="/pipeline/master-data/industry" replace />} />
+            <Route path="/pipeline/companies" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><CompaniesListView /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataIndustry /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/position" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPosition /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPriority /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/country" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataCountry /></ProtectedRoute>} />
 
-            {/* CRM */}
-            <Route path="/pipeline/crm" element={<ProtectedRoute navigationCode="PIPELINE"><CRMDashboard /></ProtectedRoute>} />
-            <Route path="/pipeline/crm/companies/:id" element={<ProtectedRoute navigationCode="PIPELINE"><CompanyDetails /></ProtectedRoute>} />
 
             {/* Logs */}
             <Route path="/log" element={<Navigate to="/log/audit-log" replace />} />
