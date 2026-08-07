@@ -4,7 +4,6 @@ import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 import CallTrackingDetails from "./CallTrackingDetails";
