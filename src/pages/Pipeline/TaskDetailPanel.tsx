@@ -96,7 +96,8 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
             <div className="flex-1 min-h-0 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x overflow-hidden">
               
               {/* Left Column: Details */}
-              <div className="flex-1 min-w-0 min-h-0 p-6 bg-card overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
+              <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-card">
+                <div className="flex-1 min-h-0 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
                 <h3 className="font-semibold text-lg mb-4">Task Details</h3>
                 <dl className="space-y-4 text-sm">
                   <div>
@@ -145,23 +146,27 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   </div>
                 </dl>
 
-                {/* Call Logs Accordion */}
-                <Accordion type="single" collapsible defaultValue="call-logs" className="w-full mt-4 border-t border-border pt-2">
-                  <AccordionItem value="call-logs" className="border-none">
-                    <AccordionTrigger className="font-semibold text-base py-3 hover:no-underline">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" /> Call Logs {callLogs && `(${callLogs.length})`}
-                        <span className="inline-flex h-5 w-5 rounded-full shrink-0 z-10 ml-1 bg-primary text-primary-foreground hover:bg-primary/90 items-center justify-center cursor-pointer" onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          setShowCallTracking(true);
-                        }}>
-                          <Plus className="h-3 w-3" />
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3 pt-2">
+                {/* Call Logs */}
+                <div className="w-full mt-4 border-t border-border pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-base flex items-center gap-2">
+                      <Phone className="h-4 w-4" /> Call Logs {callLogs && `(${callLogs.length})`}
+                    </h3>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-7 w-7 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setShowCallTracking(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-3">
                         {callLogs && callLogs.length > 0 ? (
                           callLogs.map(log => (
                             <div key={log.id} className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm">
@@ -193,10 +198,9 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                         ) : (
                           <div className="text-slate-500 text-sm italic py-2">No call logs found.</div>
                         )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                  </div>
+                </div>
+                </div>
               </div>
 
               {/* Middle Column: Threaded Notes */}
