@@ -417,6 +417,10 @@ export interface CallTrackingSummary {
   position: string | null;
   current_status: string | null;
   latest_analyst: string | null;
+  phone_number: string | null;
+  emailed: string | null;
+  picked_up: string | null;
+  call_length: string | null;
 }
 export type CallLog = {
   id: number;

@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 import CallTrackingDetails from "./CallTrackingDetails";
+import { formatYesNo } from "@/lib/utils";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
 
@@ -25,6 +26,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
   const [showCallTracking, setShowCallTracking] = useState(false);
+  const [selectedCallLogId, setSelectedCallLogId] = useState<number | null>(null);
 
   const { data: users } = useUsers();
   
@@ -168,7 +170,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   <div className="space-y-3">
                         {callLogs && callLogs.length > 0 ? (
                           callLogs.map(log => (
-                            <div key={log.id} className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm">
+                            <div 
+                              key={log.id} 
+                              className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => {
+                                setSelectedCallLogId(log.id);
+                                setShowCallTracking(true);
+                              }}
+                            >
                               <div className="flex justify-between items-start mb-2">
                                 <span className="font-semibold text-primary">Call</span>
                                 <span className="text-xs text-muted-foreground">
@@ -184,6 +193,15 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                                 )}
                                 {log.contact_name && (
                                   <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{log.contact_name} {log.position ? `(${log.position})` : ''}</span></div>
+                                )}
+                                {log.phone_number && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Phone</span><span className="font-medium">{log.phone_number}</span></div>
+                                )}
+                                {log.emailed && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Emailed</span><span className="font-medium">{formatYesNo(log.emailed)}</span></div>
+                                )}
+                                {log.picked_up && (
+                                  <div className="flex flex-col"><span className="text-muted-foreground">Picked Up</span><span className="font-medium">{formatYesNo(log.picked_up)}</span></div>
                                 )}
                                 {log.analyst && (
                                   <div className="flex flex-col"><span className="text-muted-foreground">Analyst</span><span className="font-medium">{getAnalystName(log.analyst)}</span></div>
@@ -345,7 +363,11 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
         <CallTrackingDetails 
           companyName={task.company_name || ""} 
           normalizedName={task.company_name?.toLowerCase().replace(/\s+/g, '') || ""}
-          onClose={() => setShowCallTracking(false)} 
+          initialEditId={selectedCallLogId}
+          onClose={() => {
+            setShowCallTracking(false);
+            setSelectedCallLogId(null);
+          }} 
         />
       )}
     </Sheet>

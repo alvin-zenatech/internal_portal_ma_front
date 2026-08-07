@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatYesNo } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2 } from "lucide-react";
@@ -12,10 +13,12 @@ import { Loader2 } from "lucide-react";
 export default function CallTrackingDetails({ 
   companyName, 
   normalizedName, 
+  initialEditId,
   onClose 
 }: { 
   companyName: string, 
   normalizedName: string | null, 
+  initialEditId?: number | null,
   onClose: () => void 
 }) {
   const { data: logs, isLoading } = useCompanyCallLogs(normalizedName);
@@ -100,6 +103,16 @@ export default function CallTrackingDetails({
     }
   }, [normalizedName, companyName]);
 
+  useEffect(() => {
+    if (initialEditId && logs) {
+      const logToEdit = logs.find(l => l.id === initialEditId);
+      if (logToEdit && editingId !== initialEditId) {
+        setFormData(logToEdit);
+        setEditingId(logToEdit.id);
+      }
+    }
+  }, [initialEditId, logs, editingId]);
+
 
   const handleEdit = (log?: CallLog) => {
     if (log) {
@@ -129,7 +142,7 @@ export default function CallTrackingDetails({
         await updateLog({ id: editingId, payload: formData });
         toast.success("Call log updated!");
       }
-      setEditingId(null);
+      onClose();
     } catch (e) {
       toast.error("Failed to save call log.");
     }
@@ -142,6 +155,19 @@ export default function CallTrackingDetails({
     } catch (e) {
       toast.error("Failed to delete call log.");
     }
+  };
+
+  const handleCallLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 6) val = val.slice(0, 6);
+    
+    let formatted = val;
+    if (val.length > 4) {
+      formatted = `${val.slice(0, 2)}:${val.slice(2, 4)}:${val.slice(4)}`;
+    } else if (val.length > 2) {
+      formatted = `${val.slice(0, 2)}:${val.slice(2)}`;
+    }
+    setFormData({ ...formData, call_length: formatted });
   };
 
   return (
@@ -227,6 +253,46 @@ export default function CallTrackingDetails({
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  {/* Row 4: Phone Number, Call Length */}
+                  <div className="space-y-1 text-left w-full">
+                    <label>Phone Number</label>
+                    <Input 
+                      value={formData.phone_number || ''} 
+                      onChange={e => setFormData({...formData, phone_number: e.target.value})}
+                      placeholder="e.g. 555-123-4567"
+                    />
+                  </div>
+                  <div className="space-y-1 text-left w-full">
+                    <label>Call Length</label>
+                    <Input 
+                      value={formData.call_length || ''} 
+                      onChange={handleCallLengthChange}
+                      placeholder="hh:mm:ss"
+                    />
+                  </div>
+
+                  {/* Row 5: Emailed, Picked Up */}
+                  <div className="space-y-1 text-left w-full">
+                    <label>Emailed?</label>
+                    <Select value={formatYesNo(formData.emailed)} onValueChange={val => setFormData({...formData, emailed: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 text-left w-full">
+                    <label>Picked Up?</label>
+                    <Select value={formatYesNo(formData.picked_up)} onValueChange={val => setFormData({...formData, picked_up: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-1 text-left w-full">
@@ -283,7 +349,7 @@ export default function CallTrackingDetails({
                 <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500 bg-slate-50 p-2 rounded">
                   <div>Contact: {log.contact_name} {log.position ? `(${log.position})` : ''}</div>
                   <div>Phone: {log.phone_number}</div>
-                  <div>Emailed: {log.emailed} | Picked up: {log.picked_up}</div>
+                  <div>Emailed: {formatYesNo(log.emailed)} | Picked up: {formatYesNo(log.picked_up)}</div>
                   <div>Analyst: {getAnalystName(log.analyst)}</div>
                 </div>
               </div>

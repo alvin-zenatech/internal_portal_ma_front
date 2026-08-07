@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import CallTrackingDetails from './CallTrackingDetails';
+import { formatYesNo } from "@/lib/utils";
 
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
@@ -137,6 +138,24 @@ export default function CallTracking() {
       { 
         accessorKey: 'current_status', 
         header: ({ column }) => <ColumnHeader column={column} title="Current Status" />
+      },
+      { 
+        accessorKey: 'phone_number', 
+        header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />
+      },
+      { 
+        accessorKey: 'emailed', 
+        header: ({ column }) => <ColumnHeader column={column} title="Emailed" />,
+        cell: ({ row }) => <span>{formatYesNo(row.original.emailed)}</span>
+      },
+      { 
+        accessorKey: 'picked_up', 
+        header: ({ column }) => <ColumnHeader column={column} title="Picked Up" />,
+        cell: ({ row }) => <span>{formatYesNo(row.original.picked_up)}</span>
+      },
+      { 
+        accessorKey: 'call_length', 
+        header: ({ column }) => <ColumnHeader column={column} title="Call Length" />
       },
     ],
     []
