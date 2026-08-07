@@ -40,7 +40,7 @@ export const getPriorityColors = (taskOrName: Partial<PipelineTask> | string) =>
 import { memo, useCallback, useMemo } from "react";
 
 const PureKanbanCard = memo(({ 
-  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isDragging, users, handleAnalystChange, colors, isCompact 
+  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isDragging, analysts, handleAnalystChange, colors, isCompact 
 }: any) => {
   const followUpDate = task.follow_up_date ? new Date(task.follow_up_date + "T00:00:00") : null;
   let followUpTone = "text-muted-foreground";
@@ -201,7 +201,7 @@ export default function KanbanCard({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <PureKanbanCard 
         task={task} onClick={onClick} onEdit={onEdit} onDelete={onDelete} isOverlay={isOverlay} isUpdating={isUpdating}
-        isDragging={isDragging} users={users} handleAnalystChange={handleAnalystChange} colors={colors} isCompact={isCompact}
+        isDragging={isDragging} analysts={analysts} handleAnalystChange={handleAnalystChange} colors={colors} isCompact={isCompact}
       />
     </div>
   );

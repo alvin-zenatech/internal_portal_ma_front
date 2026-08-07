@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Upload, X, CalendarClock, User } from "lucide-react";
+import { Plus, Loader2, Upload, CalendarClock, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,7 +26,7 @@ export default function PipelineDashboard() {
   const [importFile, setImportFile] = useState<File | null>(null);
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
-  const { data: priorities, isLoading: prioritiesLoading } = usePriorities();
+  const { isLoading: prioritiesLoading } = usePriorities();
   /** Selectable analysts. The endpoint already excludes super admins and, unlike the
    *  users endpoint, does not require the CONFIG_USERS_READ permission. */
   const { data: analystOptions } = useAnalysts();
@@ -106,9 +106,7 @@ export default function PipelineDashboard() {
     setIsFormOpen(true);
   }, []);
 
-  const handleDelete = useCallback((taskId: number) => {
-    setTaskToDelete(taskId);
-  }, []);
+
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">

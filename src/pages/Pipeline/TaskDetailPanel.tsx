@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 import CallTrackingDetails from "./CallTrackingDetails";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
 
   const { data: notes } = useTaskNotes(task?.id || null);
-  const { data: activities } = useActivities(task?.id || null);
+
   const { mutateAsync: createNote, isPending: isCreatingNote } = useCreateTaskNote();
   const { mutateAsync: updateNote, isPending: isUpdatingNote } = useUpdateTaskNote();
   const { mutateAsync: deleteNote, isPending: isDeletingNote } = useDeleteTaskNote();
@@ -341,7 +341,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
       {showCallTracking && task && (
         <CallTrackingDetails 
           companyName={task.company_name || ""} 
-          normalizedName={task.normalized_company_name || ""} 
+          normalizedName={task.company_name?.toLowerCase().replace(/\s+/g, '') || ""}
           onClose={() => setShowCallTracking(false)} 
         />
       )}
