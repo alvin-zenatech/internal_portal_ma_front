@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskNotes, useActivities, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs, useUsers } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs, useUsers } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
