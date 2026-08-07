@@ -2,13 +2,13 @@ import React, { useState, useDeferredValue } from "react";
 import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, type CompanyData } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, MapPin, User, Mail, Phone } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, MapPin, User, Mail, Phone, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 
 export default function CompaniesListView() {
   const { data: companies, isLoading } = useCompanies();
@@ -159,30 +159,21 @@ export default function CompaniesListView() {
     }
   });
 
-  const [visibleCount, setVisibleCount] = useState(50);
-
-  React.useEffect(() => {
-    setVisibleCount(50);
-  }, [deferredSearchQuery]);
-
-  const observer = React.useRef<IntersectionObserver | null>(null);
-  const lastRowRef = React.useCallback(
-    (node: HTMLTableRowElement | null) => {
-      if (observer.current) observer.current.disconnect();
-      if (node) {
-        observer.current = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            setVisibleCount((prev) => prev + 50);
-          }
-        }, { rootMargin: "400px" });
-        observer.current.observe(node);
-      }
-    },
-    []
-  );
-
+  const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
-  const visibleRows = allRows.slice(0, visibleCount);
+
+  const rowVirtualizer = useVirtualizer({
+    count: allRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 64, // Approximate height for Companies table rows
+    overscan: 10,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
+  const paddingBottom = virtualRows.length > 0
+    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
+    : 0;
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50">
@@ -211,18 +202,18 @@ export default function CompaniesListView() {
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 p-4 overflow-auto relative" ref={parentRef}>
         <div className="w-full">
           <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">Loading companies...</div>
             ) : (
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 shadow-sm bg-slate-50/80">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-slate-50/80">
+                    <TableRow key={headerGroup.id} className="bg-slate-50/80 hover:bg-slate-50/80">
                       {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
+                        <TableHead key={header.id} className="bg-slate-50/80">
                           {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                         </TableHead>
                       ))}
@@ -230,11 +221,16 @@ export default function CompaniesListView() {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {visibleRows.length ? (
-                    visibleRows.map((row, index) => {
-                      const isLast = index === visibleRows.length - 1;
+                  {paddingTop > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
+                    </TableRow>
+                  )}
+                  {virtualRows.length ? (
+                    virtualRows.map(virtualRow => {
+                      const row = allRows[virtualRow.index];
                       return (
-                      <TableRow key={row.id} ref={isLast ? lastRowRef : null}>
+                      <TableRow key={row.id}>
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -248,6 +244,11 @@ export default function CompaniesListView() {
                       <TableCell colSpan={columns.length} className="h-24 text-center">
                         No companies found.
                       </TableCell>
+                    </TableRow>
+                  )}
+                  {paddingBottom > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
                     </TableRow>
                   )}
                 </TableBody>
@@ -327,9 +328,10 @@ export default function CompaniesListView() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={creating || updating}>Cancel</Button>
             <Button onClick={handleSave} disabled={!companyName.trim() || creating || updating}>
-              Save
+              {(creating || updating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {(creating || updating) ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -340,6 +342,7 @@ export default function CompaniesListView() {
         onOpenChange={(o) => !o && setCompanyToDelete(null)}
         title="Delete Company"
         description="Are you sure you want to delete this company? This action cannot be undone."
+        isLoading={deleting}
         onConfirm={() => {
           if (companyToDelete) {
             deleteCompany(companyToDelete, {

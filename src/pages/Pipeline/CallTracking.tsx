@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDeferredValue } from 'react';
 import { useCallTrackingSummary, type CallTrackingSummary, useUsers } from '@/hooks/usePipeline';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -16,6 +16,7 @@ import { ArrowUpDown, Filter } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import CallTrackingDetails from './CallTrackingDetails';
 
 
@@ -92,7 +93,9 @@ export default function CallTracking() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(50);
+  
+  const [globalFilter, setGlobalFilter] = useState("");
+  const deferredGlobalFilter = useDeferredValue(globalFilter);
   
   const columns = React.useMemo<ColumnDef<CallTrackingSummary>[]>(
     () => [
@@ -142,72 +145,125 @@ export default function CallTracking() {
   const table = useReactTable({
     data: summaries || [],
     columns,
-    state: { sorting, columnFilters },
+    state: { sorting, columnFilters, globalFilter: deferredGlobalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = filterValue.toLowerCase();
+      return Object.values(row.original).some(val => 
+        typeof val === 'string' && val.toLowerCase().includes(search)
+      );
+    },
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
   });
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+  const allRows = table.getRowModel().rows;
   
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
-    if (bottom) {
-      setVisibleCount(prev => Math.min(prev + 50, summaries?.length || 0));
-    }
-  };
+  const rowVirtualizer = useVirtualizer({
+    count: allRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52, // Typical row height for CallTracking
+    overscan: 10,
+  });
 
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
+  const paddingBottom = virtualRows.length > 0
+    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
+    : 0;
   if (isLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
-      <div className="flex-none bg-white border-b px-6 py-4 flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-slate-800">Call Tracking</h1>
-        <Button onClick={() => setSelectedCompany('__NEW__')}>Add Call Log</Button>
+    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
+      <div className="px-8 py-6 border-b bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Call Tracking
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Track and review all client and prospect communication.
+          </p>
+        </div>
+        <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
+          Add Call Log
+        </Button>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="bg-white rounded-md border shadow-sm h-full flex flex-col">
-          <div className="overflow-auto flex-1" onScroll={handleScroll}>
-            <Table containerClassName="overflow-visible h-auto">
-              <TableHeader className="bg-slate-50/80 sticky top-0 z-10 shadow-sm">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className="whitespace-nowrap bg-slate-50/80">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.slice(0, visibleCount).map((row) => (
-                  <TableRow 
-                    key={row.id} 
-                    className="hover:bg-slate-50 cursor-pointer transition-colors"
-                    onClick={() => setSelectedCompany(row.original.normalized_company_name)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3 text-slate-600 whitespace-nowrap truncate max-w-[250px]">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      <div className="flex-1 overflow-hidden relative bg-muted/20">
+        <div className="h-full flex flex-col p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1">
+              <Input 
+                placeholder="Search call logs..." 
+                value={globalFilter} 
+                onChange={(e) => setGlobalFilter(e.target.value)} 
+                className="w-64 max-w-sm" 
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
+            <div className="flex-1 overflow-auto relative" ref={parentRef}>
+              <Table containerClassName="overflow-visible h-auto">
+                <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id} className="whitespace-nowrap bg-muted/50">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {paddingTop > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
+                    </TableRow>
+                  )}
+                  {virtualRows.length ? (
+                    virtualRows.map(virtualRow => {
+                      const row = allRows[virtualRow.index];
+                      return (
+                        <TableRow 
+                          key={row.id} 
+                          className="hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedCompany(row.original.normalized_company_name)}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="py-3 text-muted-foreground whitespace-nowrap truncate max-w-[250px]">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                        No call logs found.
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-                {table.getRowModel().rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="py-8 text-center text-slate-500">
-                      No call logs found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                    </TableRow>
+                  )}
+                  {paddingBottom > 0 && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium">
+              Total rows: {table.getFilteredRowModel().rows.length}
+            </div>
           </div>
         </div>
       </div>

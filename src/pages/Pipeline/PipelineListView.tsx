@@ -3,6 +3,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type ColumnDef, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -95,41 +96,28 @@ const PipelineListView = React.memo(function PipelineListView({
   tasks, 
   onTaskClick,
   onEdit, 
-  defaultSorting = []
+  defaultSorting = [],
+  globalFilter,
+  onGlobalFilterChange,
+  hideSearchBar
 }: {
   tasks: PipelineTask[],
   onTaskClick: (task: PipelineTask) => void,
   onEdit: (task: PipelineTask) => void,
-  defaultSorting?: SortingState
+  defaultSorting?: SortingState,
+  globalFilter?: string,
+  onGlobalFilterChange?: (value: string) => void,
+  hideSearchBar?: boolean
 }) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting || []);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const deferredGlobalFilter = useDeferredValue(globalFilter);
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState("");
+  const actualGlobalFilter = globalFilter !== undefined ? globalFilter : internalGlobalFilter;
+  const setActualGlobalFilter = onGlobalFilterChange || setInternalGlobalFilter;
+  const deferredGlobalFilter = useDeferredValue(actualGlobalFilter);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const { mutate: removeTask } = useDeleteTask();
-
-  const [visibleCount, setVisibleCount] = useState(50);
-
-  React.useEffect(() => {
-    setVisibleCount(50);
-  }, [globalFilter, columnFilters, sorting]);
-
-  const observer = React.useRef<IntersectionObserver | null>(null);
-  const lastRowRef = React.useCallback(
-    (node: HTMLTableRowElement | null) => {
-      if (observer.current) observer.current.disconnect();
-      if (node) {
-        observer.current = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            setVisibleCount((prev) => prev + 50);
-          }
-        }, { rootMargin: "400px" });
-        observer.current.observe(node);
-      }
-    },
-    []
-  );
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
   const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
     { 
@@ -186,7 +174,7 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "priority_name", 
-      header: ({ column }) => <ColumnHeader column={column} title="Priority" />,
+      header: ({ column }) => <ColumnHeader column={column} title="Next Steps" />,
       cell: ({ row }) => {
         const priority = row.original.priority_name;
         if (!priority) return <span className="text-muted-foreground">-</span>;
@@ -248,7 +236,7 @@ const PipelineListView = React.memo(function PipelineListView({
     state: { sorting, columnFilters, globalFilter: deferredGlobalFilter },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: setActualGlobalFilter as any,
     globalFilterFn: (row, _columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       return Object.values(row.original).some(val => 
@@ -262,24 +250,37 @@ const PipelineListView = React.memo(function PipelineListView({
   });
 
   const allRows = table.getRowModel().rows;
-  const isSearching = globalFilter.length > 0;
-  const visibleRows = allRows.slice(0, visibleCount);
+  
+  const rowVirtualizer = useVirtualizer({
+    count: allRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52, // Typical row height for PipelineTask
+    overscan: 10,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
+  const paddingBottom = virtualRows.length > 0
+    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
+    : 0;
 
   return (
     <div className="h-full flex flex-col p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1">
-          <Input 
-            placeholder="Search everything..." 
-            value={globalFilter} 
-            onChange={(event) => setGlobalFilter(event.target.value)} 
-            className="w-64 max-w-sm" 
-          />
-          {(globalFilter || columnFilters.length > 0) && (
+          {!hideSearchBar && (
+            <Input 
+              placeholder="Search everything..." 
+              value={actualGlobalFilter} 
+              onChange={(event) => setActualGlobalFilter(event.target.value)} 
+              className="w-64 max-w-sm" 
+            />
+          )}
+          {(actualGlobalFilter || columnFilters.length > 0) && (
             <div className="flex items-center gap-2 flex-wrap">
-              {globalFilter && (
+              {!hideSearchBar && actualGlobalFilter && (
                 <Badge variant="secondary" className="h-6 font-normal">
-                  Search: {globalFilter}
+                  Search: {actualGlobalFilter}
                 </Badge>
               )}
               {columnFilters.map((filter) => (
@@ -291,7 +292,7 @@ const PipelineListView = React.memo(function PipelineListView({
                 variant="ghost" 
                 size="sm"
                 onClick={() => {
-                  setGlobalFilter("");
+                  if (!hideSearchBar) setActualGlobalFilter("");
                   setColumnFilters([]);
                 }}
                 className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
@@ -303,13 +304,14 @@ const PipelineListView = React.memo(function PipelineListView({
           )}
         </div>
       </div>
-      <div className="rounded-md border bg-card flex-1 overflow-auto shadow-sm" id="pipeline-list-scroll">
+      <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
+        <div className="flex-1 overflow-auto relative" id="pipeline-list-scroll" ref={parentRef}>
         <Table containerClassName="overflow-visible h-auto">
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
             {table.getHeaderGroups().map(hg => (
-              <TableRow key={hg.id} className="bg-muted/50">
+              <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
                 {hg.headers.map(h => (
-                  <TableHead key={h.id}>
+                  <TableHead key={h.id} className="bg-muted/50">
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
@@ -317,16 +319,24 @@ const PipelineListView = React.memo(function PipelineListView({
             ))}
           </TableHeader>
           <TableBody>
-            {visibleRows.length ? (
-              visibleRows.map(row => (
-                <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onTaskClick(row.original)}>
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+            {paddingTop > 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
+              </TableRow>
+            )}
+            {virtualRows.length ? (
+              virtualRows.map(virtualRow => {
+                const row = allRows[virtualRow.index];
+                return (
+                  <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onTaskClick(row.original)}>
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
@@ -334,13 +344,17 @@ const PipelineListView = React.memo(function PipelineListView({
                 </TableCell>
               </TableRow>
             )}
-            {!isSearching && visibleRows.length < allRows.length && (
-              <TableRow ref={lastRowRef}>
-                <TableCell colSpan={columns.length} className="h-1 p-0 border-0" />
+            {paddingBottom > 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
               </TableRow>
             )}
           </TableBody>
         </Table>
+        </div>
+        <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium">
+          Total rows: {allRows.length}
+        </div>
       </div>
 
       <ConfirmDialog

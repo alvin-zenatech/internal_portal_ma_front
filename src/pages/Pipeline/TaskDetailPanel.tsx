@@ -5,17 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, ChevronDown } from "lucide-react";
+import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, ChevronDown, Loader2, Plus } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
+import CallTrackingDetails from "./CallTrackingDetails";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
 
   const { data: notes } = useTaskNotes(task?.id || null);
   const { data: activities } = useActivities(task?.id || null);
-  const { mutateAsync: createNote } = useCreateTaskNote();
-  const { mutateAsync: updateNote } = useUpdateTaskNote();
-  const { mutateAsync: deleteNote } = useDeleteTaskNote();
-  const { mutateAsync: deleteTask } = useDeleteTask();
+  const { mutateAsync: createNote, isPending: isCreatingNote } = useCreateTaskNote();
+  const { mutateAsync: updateNote, isPending: isUpdatingNote } = useUpdateTaskNote();
+  const { mutateAsync: deleteNote, isPending: isDeletingNote } = useDeleteTaskNote();
+  const { mutateAsync: deleteTask, isPending: isDeletingTask } = useDeleteTask();
 
   const [newNote, setNewNote] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -24,6 +25,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const [editContent, setEditContent] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
+  const [showCallTracking, setShowCallTracking] = useState(false);
 
   const { data: users } = useUsers();
   
@@ -91,10 +93,10 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+            <div className="flex-1 min-h-0 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x overflow-hidden">
               
               {/* Left Column: Details */}
-              <div className="h-full min-h-0 p-6 bg-card overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="flex-1 min-w-0 min-h-0 p-6 bg-card overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
                 <h3 className="font-semibold text-lg mb-4">Task Details</h3>
                 <dl className="space-y-4 text-sm">
                   <div>
@@ -149,10 +151,17 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     <AccordionTrigger className="font-semibold text-base py-3 hover:no-underline">
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4" /> Call Logs {callLogs && `(${callLogs.length})`}
+                        <span className="inline-flex h-5 w-5 rounded-full shrink-0 z-10 ml-1 bg-primary text-primary-foreground hover:bg-primary/90 items-center justify-center cursor-pointer" onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setShowCallTracking(true);
+                        }}>
+                          <Plus className="h-3 w-3" />
+                        </span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="space-y-3 pt-2 max-h-[400px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
+                      <div className="space-y-3 pt-2">
                         {callLogs && callLogs.length > 0 ? (
                           callLogs.map(log => (
                             <div key={log.id} className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm">
@@ -192,7 +201,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
 
               {/* Middle Column: Threaded Notes */}
               <div 
-                className={`flex flex-col h-full min-h-0 relative ${isDragging ? 'bg-primary/5' : 'bg-muted/10'}`}
+                className={`flex-1 min-w-0 flex flex-col min-h-0 relative ${isDragging ? 'bg-primary/5' : 'bg-muted/10'}`}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
                 onDrop={(e) => {
@@ -214,7 +223,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                 <div className="p-4 border-b font-semibold flex items-center gap-2 shrink-0">
                   <MessageSquare className="h-4 w-4" /> Notes Thread
                 </div>
-                <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex-1 min-h-0 p-4 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
                   <div className="space-y-4">
                     {[...(notes || [])]
                       .filter(n => !n.note.startsWith('Call logged on ') && !n.note.startsWith('Email logged on '))
@@ -249,13 +258,16 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                               onChange={e => setEditContent(e.target.value)} 
                             />
                             <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)}>Cancel</Button>
-                              <Button size="sm" onClick={async () => {
+                              <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)} disabled={isUpdatingNote}>Cancel</Button>
+                              <Button size="sm" disabled={isUpdatingNote} onClick={async () => {
                                 if (task) {
                                   await updateNote({ noteId: note.id, note: editContent });
                                   setEditingNoteId(null);
                                 }
-                              }}>Save</Button>
+                              }}>
+                                {isUpdatingNote && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                                {isUpdatingNote ? "Saving..." : "Save"}
+                              </Button>
                             </div>
                           </div>
                         ) : (
@@ -285,8 +297,10 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <Input placeholder="Type a note or drag a file here..." value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNote()} />
-                    <Button onClick={handleAddNote} disabled={!newNote.trim() && !selectedFile}>Send</Button>
+                    <Input placeholder="Type a note or drag a file here..." value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNote()} disabled={isCreatingNote} />
+                    <Button onClick={handleAddNote} disabled={(!newNote.trim() && !selectedFile) || isCreatingNote}>
+                      {isCreatingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -301,6 +315,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
         onOpenChange={(open) => !open && setNoteToDelete(null)}
         title="Delete Note"
         description="Are you sure you want to delete this note? This action cannot be undone."
+        isLoading={isDeletingNote}
         onConfirm={() => {
           if (noteToDelete && task) {
             deleteNote({ noteId: noteToDelete });
@@ -313,6 +328,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
         onOpenChange={(open) => !open && setIsConfirmDeleteTask(false)}
         title="Delete Task"
         description="Are you sure you want to delete this task? This action cannot be undone."
+        isLoading={isDeletingTask}
         onConfirm={async () => {
           if (task) {
             await deleteTask(task.id);
@@ -321,6 +337,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
           }
         }}
       />
+
+      {showCallTracking && task && (
+        <CallTrackingDetails 
+          companyName={task.company_name || ""} 
+          normalizedName={task.normalized_company_name || ""} 
+          onClose={() => setShowCallTracking(false)} 
+        />
+      )}
     </Sheet>
   );
 }

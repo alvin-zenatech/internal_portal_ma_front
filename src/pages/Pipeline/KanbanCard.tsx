@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useUpdateTask, useUsers, type PipelineTask } from "@/hooks/usePipeline";
+import { useUpdateTask, useAnalysts, type PipelineTask } from "@/hooks/usePipeline";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Building2, User, Edit, Trash2, UserPlus, CalendarClock } from "lucide-react";
@@ -152,7 +152,7 @@ const PureKanbanCard = memo(({
               onValueChange={handleAnalystChange}
             >
               <ContextMenuRadioItem value="unassigned">Unassigned</ContextMenuRadioItem>
-              {users?.filter(u => !u.is_super_admin).map(u => (
+              {analysts?.map(u => (
                 <ContextMenuRadioItem key={u.id} value={u.id}>
                   {u.full_name}
                 </ContextMenuRadioItem>
@@ -182,7 +182,7 @@ export default function KanbanCard({
     disabled: isOverlay || isUpdating
   });
 
-  const { data: users } = useUsers();
+  const { data: analysts } = useAnalysts();
   const { mutate: updateTask } = useUpdateTask();
 
   const handleAnalystChange = useCallback((analystId: string) => {

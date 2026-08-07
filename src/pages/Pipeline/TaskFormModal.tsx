@@ -7,20 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
-import { CalendarIcon, X } from "lucide-react";
+import { CalendarIcon, X, Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePositions, usePriorities, useCountries, useUsers } from "@/hooks/usePipeline";
+import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePositions, usePriorities, useCountries, useAnalysts } from "@/hooks/usePipeline";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
   const { data: positions } = usePositions();
   const { data: priorities } = usePriorities();
   const { data: countries } = useCountries();
-  const { data: users } = useUsers();
+  const { data: analysts } = useAnalysts();
 
-  const { mutateAsync: createTask } = useCreateTask();
-  const { mutateAsync: updateTask } = useUpdateTask();
+  const { mutateAsync: createTask, isPending: isCreating } = useCreateTask();
+  const { mutateAsync: updateTask, isPending: isUpdating } = useUpdateTask();
+  const isPending = isCreating || isUpdating;
 
   const [formData, setFormData] = useState<any>({
     company_name: "", name: "", email: "", priority_id: "", industry_id: "", position_id: "",
@@ -120,7 +121,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users?.filter(u => !u.is_super_admin).map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                  {analysts?.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -247,8 +248,11 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
           )}
 
           <DialogFooter className="pt-4 border-t mt-6">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit">Save Task</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isPending ? "Saving..." : "Save Task"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

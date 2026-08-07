@@ -1,8 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutGrid, List, Search, Plus, Loader2, Upload, Minimize2, Maximize2, X, CalendarClock, User } from "lucide-react";
+import { Plus, Loader2, Upload, X, CalendarClock, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,13 +8,17 @@ import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask, useAnalysts } from "@/hooks/usePipeline";
+
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Link } from "react-router-dom";
 import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
+const DEFAULT_SORT = [{ id: "priority_name", desc: false }];
+
 export default function PipelineDashboard() {
   const [analystFilter, setAnalystFilter] = useState<string>("all");
+  const [globalFilter, setGlobalFilter] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
@@ -127,6 +129,15 @@ export default function PipelineDashboard() {
               </SelectContent>
             </Select>
           </div>
+          
+          <div className="flex items-center">
+             <Input 
+                placeholder="Search pipeline..." 
+                value={globalFilter} 
+                onChange={(event) => setGlobalFilter(event.target.value)} 
+                className="w-64 max-w-sm h-9" 
+              />
+          </div>
 
           <TooltipProvider delayDuration={300}>
           
@@ -180,7 +191,10 @@ export default function PipelineDashboard() {
                 tasks={filteredTasks} 
                 onTaskClick={setSelectedTask} 
                 onEdit={handleEdit}
-                defaultSorting={[{ id: "priority_name", desc: false }]}
+                globalFilter={globalFilter}
+                onGlobalFilterChange={setGlobalFilter}
+                hideSearchBar={true}
+                defaultSorting={DEFAULT_SORT}
               />
         )}
       </div>

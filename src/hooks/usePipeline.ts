@@ -290,6 +290,7 @@ export function useImportPipeline(onProgress?: (progress: number, message: strin
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
     }
   });
 }

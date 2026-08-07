@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { type PipelineTask } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -23,7 +23,7 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEK_OPTS = { weekStartsOn: 1 } as const;
 const MAX_PILLS = 3;
 
-export default function FollowUpCalendar({
+const FollowUpCalendar = memo(function FollowUpCalendar({
   tasks,
   month,
   onMonthChange,
@@ -172,4 +172,6 @@ export default function FollowUpCalendar({
       </div>
     </div>
   );
-}
+});
+
+export default FollowUpCalendar;

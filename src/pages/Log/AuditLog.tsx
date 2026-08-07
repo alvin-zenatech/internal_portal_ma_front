@@ -118,7 +118,7 @@ export default function AuditLog() {
     },
   ], []);
 
-  useReactTable({
+  const auditTable = useReactTable({
     data: auditLogs,
     columns: auditColumns,
     onSortingChange: setAuditSorting,
@@ -273,13 +273,98 @@ export default function AuditLog() {
         </div>
       </div>
 
-      <Tabs defaultValue="logins" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-[200px] grid-cols-1 mb-4" variant="line">
+      <Tabs defaultValue="logs" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="grid w-[400px] grid-cols-2 mb-4" variant="line">
+          <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="logins">Login Activities</TabsTrigger>
         </TabsList>
         
+        <TabsContent value="logs" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex">
+          <div className="space-y-4 flex-1 flex flex-col min-h-0">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Input 
+                  type="text" 
+                  placeholder="Search logs..." 
+                  value={auditGlobalFilter}
+                  onChange={(e) => setAuditGlobalFilter(e.target.value)}
+                  className="pl-10 w-[280px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+                />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="ml-auto">
+                    Columns <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {auditTable
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                        >
+                          {column.id.replace(/_/g, " ")}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
+            <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
+              <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
+                <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 shadow-sm border-b">
+                  {auditTable.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className="border-t-0">
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id} className="h-12">
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {auditTable.getRowModel().rows?.length ? (
+                    auditTable.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={auditColumns.length} className="text-center py-8 text-slate-500">No logs found.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
 
-        
+            <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3">
+              <DataTablePagination table={auditTable} noun="log(s)" />
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="logins" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex">
           <div className="space-y-4 flex-1 flex flex-col min-h-0">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">

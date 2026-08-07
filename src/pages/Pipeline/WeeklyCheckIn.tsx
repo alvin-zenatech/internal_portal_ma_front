@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { usePipelineTasks, type PipelineTask } from "@/hooks/usePipeline";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { Loader2 } from "lucide-react";
+
+const DEFAULT_SORT = [{ id: "revenue", desc: true }];
 
 export default function WeeklyCheckIn() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -43,10 +45,10 @@ export default function WeeklyCheckIn() {
     return result;
   }, [tasks]);
 
-  const handleEdit = (task: PipelineTask) => {
+  const handleEdit = useCallback((task: PipelineTask) => {
     setEditingTask(task);
     setIsFormOpen(true);
-  };
+  }, []);
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
@@ -70,7 +72,7 @@ export default function WeeklyCheckIn() {
             tasks={filteredAndSortedTasks} 
             onTaskClick={setSelectedTask} 
             onEdit={handleEdit}
-            defaultSorting={[{ id: "revenue", desc: true }]}
+            defaultSorting={DEFAULT_SORT}
           />
         )}
       </div>

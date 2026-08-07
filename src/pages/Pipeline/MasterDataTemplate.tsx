@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Edit2, Check, X } from "lucide-react";
+import { Trash2, Edit2, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -18,9 +18,14 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
   const [editCode, setEditCode] = useState("");
   const [editColor, setEditColor] = useState("#64748b");
 
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
+    setIsCreating(true);
     try {
       const payload: any = { name: newName.trim() };
       if (hasSortOrder) {
@@ -37,6 +42,8 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       toast.success(`${title} created successfully.`);
     } catch (error) {
       toast.error(`Failed to create ${title}.`);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -50,6 +57,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
 
   const handleUpdate = async () => {
     if (!editingId || !editName.trim()) return;
+    setIsUpdating(true);
     try {
       const payload: any = { name: editName.trim() };
       if (hasSortOrder) payload.sort_order = editSortOrder;
@@ -61,6 +69,8 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       toast.success(`${title} updated successfully.`);
     } catch (error) {
       toast.error(`Failed to update ${title}.`);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -70,11 +80,14 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
 
   const confirmDelete = async () => {
     if (itemToDelete !== null) {
+      setIsDeleting(true);
       try {
         await onDelete(itemToDelete);
         toast.success(`${title} deleted successfully.`);
       } catch (error) {
         toast.error(`Failed to delete ${title}.`);
+      } finally {
+        setIsDeleting(false);
       }
       setItemToDelete(null);
     }
@@ -114,7 +127,10 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
               {hasCode && (
                 <Input placeholder="Code (e.g. AUS)" value={code} onChange={(e) => setCode(e.target.value)} className="w-32" required />
               )}
-              <Button type="submit" disabled={!newName.trim()}>Add {title}</Button>
+              <Button type="submit" disabled={!newName.trim() || isCreating}>
+                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add {title}
+              </Button>
             </div>
             {hasColor && (
               <div className="flex items-center gap-4 pt-2">
@@ -178,10 +194,10 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
                     <TableCell>
                       {isEditing ? (
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleUpdate(); }} className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50">
-                            <Check className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" disabled={isUpdating} onClick={(e) => { e.stopPropagation(); handleUpdate(); }} className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50">
+                            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="h-8 w-8 text-slate-500 hover:text-slate-700 hover:bg-slate-100">
+                          <Button variant="ghost" size="icon" disabled={isUpdating} onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="h-8 w-8 text-slate-500 hover:text-slate-700 hover:bg-slate-100">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
@@ -209,6 +225,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
         onOpenChange={(open) => !open && setItemToDelete(null)}
         title={`Delete ${title}`}
         description={`Are you sure you want to delete this ${title}? This action cannot be undone.`}
+        isLoading={isDeleting}
         onConfirm={confirmDelete}
       />
     </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { useIndustries, usePositions, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useUsers } from '@/hooks/usePipeline';
+import { useIndustries, usePositions, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useUsers, useAnalysts } from '@/hooks/usePipeline';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Loader2 } from "lucide-react";
 
 export default function CallTrackingDetails({ 
   companyName, 
@@ -18,18 +19,23 @@ export default function CallTrackingDetails({
   onClose: () => void 
 }) {
   const { data: logs, isLoading } = useCompanyCallLogs(normalizedName);
-  const { mutateAsync: createLog } = useCreateCallLog();
-  const { mutateAsync: updateLog } = useUpdateCallLog();
-  const { mutateAsync: deleteLog } = useDeleteCallLog();
+  const { mutateAsync: createLog, isPending: isCreatingLog } = useCreateCallLog();
+  const { mutateAsync: updateLog, isPending: isUpdatingLog } = useUpdateCallLog();
+  const { mutateAsync: deleteLog, isPending: isDeletingLog } = useDeleteCallLog();
+  const isPending = isCreatingLog || isUpdatingLog;
 
   const { data: industriesData } = useIndustries();
   const { data: positionsData } = usePositions();
   const { data: users } = useUsers();
+  const { data: analysts } = useAnalysts();
   
   const getAnalystName = (initials?: string | null) => {
     if (!initials) return '-';
+    if (!users) return initials;
+    const exactUser = users.find(u => u.full_name.toLowerCase() === initials.toLowerCase());
+    if (exactUser) return exactUser.full_name;
+
     const upperInit = initials.toUpperCase();
-    if (!users) return upperInit;
     const user = users.find(u => {
       const parts = u.full_name.trim().split(/\s+/);
       const computed = parts.length >= 2 
@@ -37,7 +43,7 @@ export default function CallTrackingDetails({
         : u.full_name[0].toUpperCase();
       return computed === upperInit;
     });
-    return user ? user.full_name : upperInit;
+    return user ? user.full_name : initials;
   };
 
   const formatDate = (dateStr?: string | null) => {
@@ -51,7 +57,7 @@ export default function CallTrackingDetails({
     }
     return dateStr.split(/[T ]/)[0];
   };
-  const { data: summaries } = useCallTrackingSummary();
+  useCallTrackingSummary();
   const existingOutcomes = [
     "Follow Up",
     "Voicemail",
@@ -80,6 +86,11 @@ export default function CallTrackingDetails({
     const match = industriesData?.find(ind => ind.name.toLowerCase() === formData.industry?.toLowerCase());
     return match ? match.name : formData.industry;
   }, [formData.industry, industriesData]);
+
+  const currentAnalyst = React.useMemo(() => {
+    if (!formData.analyst) return '';
+    return getAnalystName(formData.analyst);
+  }, [formData.analyst, users]);
 
 
   useEffect(() => {
@@ -156,6 +167,7 @@ export default function CallTrackingDetails({
                 <h3 className="font-medium">{editingId === 'NEW' ? 'Create Log' : 'Edit Log'}</h3>
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
+                  {/* Row 1: Company Name, Industry */}
                   <div className="space-y-1 text-left w-full">
                     <label>Company Name *</label>
                     <Input 
@@ -165,21 +177,19 @@ export default function CallTrackingDetails({
                     />
                   </div>
                   <div className="space-y-1 text-left w-full">
-                    <label>Date of Call</label>
-                    <Input type="date" value={formatDate(formData.date_of_call)} onChange={e => setFormData({...formData, date_of_call: e.target.value})} />
-                  </div>
-                  <div className="space-y-1 text-left w-full">
-                    <label>Outcome / Status</label>
-                    <Select value={currentOutcome} onValueChange={val => setFormData({...formData, outcome: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select outcome..." /></SelectTrigger>
+                    <label>Industry</label>
+                    <Select value={currentIndustry} onValueChange={val => setFormData({...formData, industry: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select industry..." /></SelectTrigger>
                       <SelectContent>
-                        {existingOutcomes.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                        {currentOutcome && !existingOutcomes.includes(currentOutcome) && (
-                          <SelectItem value={currentOutcome}>{currentOutcome}</SelectItem>
+                        {industriesData?.map(ind => <SelectItem key={ind.id} value={ind.name}>{ind.name}</SelectItem>)}
+                        {currentIndustry && !industriesData?.find(i => i.name === currentIndustry) && (
+                          <SelectItem value={currentIndustry}>{currentIndustry}</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Row 2: Contact Name, Position */}
                   <div className="space-y-1 text-left w-full">
                     <label>Contact Name</label>
                     <Input 
@@ -199,18 +209,39 @@ export default function CallTrackingDetails({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Row 3: Date of Call, Outcome */}
                   <div className="space-y-1 text-left w-full">
-                    <label>Industry</label>
-                    <Select value={currentIndustry} onValueChange={val => setFormData({...formData, industry: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select industry..." /></SelectTrigger>
+                    <label>Date of Call</label>
+                    <Input type="date" value={formatDate(formData.date_of_call)} onChange={e => setFormData({...formData, date_of_call: e.target.value})} />
+                  </div>
+                  <div className="space-y-1 text-left w-full">
+                    <label>Outcome / Status</label>
+                    <Select value={currentOutcome} onValueChange={val => setFormData({...formData, outcome: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select outcome..." /></SelectTrigger>
                       <SelectContent>
-                        {industriesData?.map(ind => <SelectItem key={ind.id} value={ind.name}>{ind.name}</SelectItem>)}
-                        {currentIndustry && !industriesData?.find(i => i.name === currentIndustry) && (
-                          <SelectItem value={currentIndustry}>{currentIndustry}</SelectItem>
+                        {existingOutcomes.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        {currentOutcome && !existingOutcomes.includes(currentOutcome) && (
+                          <SelectItem value={currentOutcome}>{currentOutcome}</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-1 text-left w-full">
+                  <label>Analyst</label>
+                  <Select value={currentAnalyst} onValueChange={val => setFormData({...formData, analyst: val})}>
+                    <SelectTrigger><SelectValue placeholder="Select analyst..." /></SelectTrigger>
+                    <SelectContent>
+                      {analysts?.map(u => (
+                        <SelectItem key={u.id} value={u.full_name || ''}>{u.full_name}</SelectItem>
+                      ))}
+                      {currentAnalyst && !analysts?.find(u => u.full_name === currentAnalyst) && (
+                        <SelectItem value={currentAnalyst}>{currentAnalyst}</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1 text-left w-full">
@@ -223,8 +254,11 @@ export default function CallTrackingDetails({
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
-                  <Button onClick={handleSave}>Save</Button>
+                  <Button variant="outline" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
+                  <Button onClick={handleSave} disabled={isPending}>
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isPending ? "Saving..." : "Save"}
+                  </Button>
                 </div>
               </div>
             )}
@@ -268,6 +302,7 @@ export default function CallTrackingDetails({
         onOpenChange={(open) => !open && setDeletingId(null)}
         title="Delete log?" 
         description="Are you sure you want to delete this activity log? This cannot be undone."
+        isLoading={isDeletingLog}
         onConfirm={() => {
           if (deletingId) handleDelete(deletingId);
           setDeletingId(null);
