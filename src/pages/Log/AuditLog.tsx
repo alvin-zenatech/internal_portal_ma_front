@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/apiClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, ArrowUpDown, Loader2, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
+import { Search, ArrowUpDown, Loader2, CheckCircle2, XCircle, ChevronDown, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,15 +26,20 @@ import type {
 } from "@tanstack/react-table";
 
 export default function AuditLog() {
-  const { data: auditLogs = [] } = useQuery({
+  const { data: auditLogs = [], refetch: refetchAudit, isFetching: isFetchingAudit } = useQuery({
     queryKey: ["auditLogs"],
     queryFn: () => apiClient.get<any[]>("/api/audit-logs"),
   });
 
-  const { data: loginActivities = [], isLoading: isLoginLoading } = useQuery({
+  const { data: loginActivities = [], isLoading: isLoginLoading, refetch: refetchLogin, isFetching: isFetchingLogin } = useQuery({
     queryKey: ["loginActivities"],
     queryFn: () => apiClient.get<any[]>("/api/login-activities"),
   });
+
+  useEffect(() => {
+    refetchAudit();
+    refetchLogin();
+  }, [refetchAudit, refetchLogin]);
 
   const getActionBadgeColor = (action: string) => {
     const act = action.toUpperCase();
@@ -292,12 +297,20 @@ export default function AuditLog() {
                   className="pl-10 w-[280px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
                 />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto">
-                    Columns <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
+              <div className="ml-auto flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => { refetchAudit(); refetchLogin(); }} 
+                  disabled={isFetchingAudit || isFetchingLogin}
+                >
+                  <RefreshCw className={`h-4 w-4 ${(isFetchingAudit || isFetchingLogin) ? "animate-spin" : ""}`} />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Columns <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {auditTable
                     .getAllColumns()
@@ -317,6 +330,7 @@ export default function AuditLog() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          </div>
             
             <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
               <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
@@ -378,12 +392,20 @@ export default function AuditLog() {
                   className="pl-10 w-[280px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
                 />
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto">
-                    Columns <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
+              <div className="ml-auto flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => { refetchAudit(); refetchLogin(); }} 
+                  disabled={isFetchingAudit || isFetchingLogin}
+                >
+                  <RefreshCw className={`h-4 w-4 ${(isFetchingAudit || isFetchingLogin) ? "animate-spin" : ""}`} />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Columns <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {loginTable
                     .getAllColumns()
@@ -402,6 +424,7 @@ export default function AuditLog() {
                     })}
                 </DropdownMenuContent>
               </DropdownMenu>
+            </div>
             </div>
             
             <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
