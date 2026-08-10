@@ -115,12 +115,10 @@ export default function CallTracking() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadingToastRef = useRef<string | number | null>(null);
-  const [importProgress, setImportProgress] = useState(0);
   const [importMessage, setImportMessage] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
   
-  const { mutate: importCallTrackingXlsx, isPending } = useImportCallTrackingXlsx((p, m) => {
-    setImportProgress(p);
+  const { mutate: importCallTrackingXlsx, isPending } = useImportCallTrackingXlsx((_, m) => {
     setImportMessage(m);
   });
   
