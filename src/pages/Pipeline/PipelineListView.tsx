@@ -1,19 +1,21 @@
 import React, { useState, useDeferredValue } from "react";
+import { cn } from "@/lib/utils";
 import { 
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
-  flexRender, type ColumnDef, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
+  flexRender, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown, Filter, X } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getPriorityColors } from "./KanbanCard";
 
 const getInitials = (name: string) => {
@@ -47,42 +49,62 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
       .sort() as string[];
   }, [column.getFacetedUniqueValues()]);
 
-  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 50;
+  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 300;
+  
+  const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
+  
+  const toggleOption = (val: string) => {
+    if (filterArray.includes(val)) {
+      const newFilters = filterArray.filter(v => v !== val);
+      column.setFilterValue(newFilters.length ? newFilters : undefined);
+    } else {
+      column.setFilterValue([...filterArray, val]);
+    }
+  };
 
   return (
-    <div className="flex items-center space-x-1">
+    <div className="inline-flex items-center gap-0 group whitespace-nowrap">
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-3 h-8 data-[state=open]:bg-accent"
+        className="-ml-3 h-8 flex justify-start data-[state=open]:bg-accent px-2"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         <span>{title}</span>
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50 group-hover:opacity-100" />
       </Button>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Filter className={`h-3 w-3 ${column.getFilterValue() ? "text-primary" : "text-muted-foreground"}`} />
+          <Button variant="ghost" size="icon" className="h-8 w-6 shrink-0 -ml-1">
+            <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-48 p-2" align="start">
+        <PopoverContent className="w-56 p-2" align="start">
           {isDropdown ? (
-            <select
-              value={(column.getFilterValue() ?? "") as string}
-              onChange={(e) => column.setFilterValue(e.target.value || undefined)}
-              className="w-full h-9 text-sm border border-input rounded-md px-3 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">All {title}s</option>
+            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
               {uniqueValues.map(val => (
-                <option key={val} value={val}>{val}</option>
+                <div key={val} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`filter-${title}-${val}`} 
+                    checked={filterArray.includes(val)} 
+                    onCheckedChange={() => toggleOption(val)} 
+                  />
+                  <Label htmlFor={`filter-${title}-${val}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
+                    {val}
+                  </Label>
+                </div>
               ))}
-            </select>
+              {filterArray.length > 0 && (
+                <Button variant="ghost" size="sm" className="w-full mt-2 h-8 text-xs" onClick={() => column.setFilterValue(undefined)}>
+                  Clear filters
+                </Button>
+              )}
+            </div>
           ) : (
             <Input
               placeholder={`Filter ${title}...`}
               value={(column.getFilterValue() ?? "") as string}
-              onChange={(e) => column.setFilterValue(e.target.value)}
+              onChange={(e) => column.setFilterValue(e.target.value || undefined)}
               className="h-8 text-sm"
             />
           )}
@@ -115,41 +137,48 @@ const PipelineListView = React.memo(function PipelineListView({
   const actualGlobalFilter = globalFilter !== undefined ? globalFilter : internalGlobalFilter;
   const setActualGlobalFilter = onGlobalFilterChange || setInternalGlobalFilter;
   const deferredGlobalFilter = useDeferredValue(actualGlobalFilter);
+  const [visibleCount, setVisibleCount] = useState(50);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const { mutate: removeTask } = useDeleteTask();
   const parentRef = React.useRef<HTMLDivElement>(null);
 
-  const columns = React.useMemo<ColumnDef<PipelineTask>[]>(() => [
+  const columns = React.useMemo(() => [
     { 
       accessorKey: "analyst_name", 
-      header: ({ column }) => <ColumnHeader column={column} title="Analyst" />,
-      cell: ({ row }) => {
-        const analyst = row.original.analyst_name;
-        if (!analyst) return <span className="text-muted-foreground">-</span>;
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" />,
+      cell: ({ row }: { row: { original: PipelineTask } }) => {
+        const initials = getInitials(row.original.analyst_name || '');
         return (
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-[10px] bg-muted text-muted-foreground font-medium">
-                {getInitials(analyst)}
-              </AvatarFallback>
+              <AvatarImage src="" />
+              <AvatarFallback className="text-[10px] bg-primary/10">{initials}</AvatarFallback>
             </Avatar>
-            <span>{analyst}</span>
+            <span className="truncate">{row.original.analyst_name || 'Unassigned'}</span>
           </div>
         );
       },
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.original.analyst_name || "";
-        const b = rowB.original.analyst_name || "";
-        if (!a && b) return 1;
-        if (a && !b) return -1;
-        return a.localeCompare(b);
-      }
+      size: 160
     },
-    { accessorKey: "company_name", header: ({ column }) => <ColumnHeader column={column} title="Company Name" /> },
-    { accessorKey: "location", header: ({ column }) => <ColumnHeader column={column} title="Location" /> },
+    { 
+      accessorKey: "company_name", 
+      header: ({ column }) => <ColumnHeader column={column} title="Company Name" />, 
+      size: 220,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 truncate">
+          <span className="truncate">{row.original.company_name}</span>
+          {row.original.is_dnc && (
+            <Badge variant="destructive" className="h-5 px-1.5 text-[10px] uppercase font-bold shrink-0">DNC</Badge>
+          )}
+        </div>
+      )
+    },
+    { accessorKey: "location", header: ({ column }) => <ColumnHeader column={column} title="State/Province" />, size: 180 },
+    { accessorKey: "country_name", header: ({ column }) => <ColumnHeader column={column} title="Country" />, size: 140 },
     { 
       accessorKey: "revenue", 
       header: ({ column }) => <ColumnHeader column={column} title="Revenue" />,
+      size: 150,
       sortingFn: (rowA, rowB) => {
         const parseRevenue = (rev: string | null) => {
           if (!rev) return 0;
@@ -163,18 +192,22 @@ const PipelineListView = React.memo(function PipelineListView({
         return revA - revB;
       }
     },
-    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" /> },
+    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 140 },
     { 
       accessorKey: "latest_note", 
-      header: ({ column }) => <ColumnHeader column={column} title="Note" />,
+      header: () => <div className="px-2 font-medium text-sm text-foreground">Note</div>,
+      size: 250,
+      enableSorting: false,
+      enableColumnFilter: false,
       cell: ({ row }) => {
         const note = row.original.latest_note || "-";
-        return <span className="text-muted-foreground truncate max-w-[200px] inline-block" title={note}>{note}</span>;
+        return <span className="text-muted-foreground truncate block w-full" title={note}>{note}</span>;
       }
     },
     { 
       accessorKey: "priority_name", 
       header: ({ column }) => <ColumnHeader column={column} title="Next Steps" />,
+      size: 160,
       cell: ({ row }) => {
         const priority = row.original.priority_name;
         if (!priority) return <span className="text-muted-foreground">-</span>;
@@ -214,11 +247,12 @@ const PipelineListView = React.memo(function PipelineListView({
         return p1.localeCompare(p2);
       }
     },
-    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" /> },
-    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" /> },
+    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 120 },
+    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 120 },
     {
       accessorKey: "follow_up_date" as const,
       header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up Date" />,
+      size: 180,
       cell: ({ row }: { row: { original: PipelineTask } }) => (
         <FollowUpDateCell dateStr={row.original.follow_up_date} />
       ),
@@ -247,22 +281,33 @@ const PipelineListView = React.memo(function PipelineListView({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    filterFns: {
+      multiSelect: (row: any, columnId: string, filterValue: any) => {
+        if (!filterValue || filterValue.length === 0) return true;
+        const val = row.getValue(columnId);
+        if (Array.isArray(filterValue)) return filterValue.includes(String(val));
+        return String(val).toLowerCase().includes(String(filterValue).toLowerCase());
+      }
+    },
+    defaultColumn: { filterFn: 'multiSelect' as any },
   });
 
   const allRows = table.getRowModel().rows;
   
-  const rowVirtualizer = useVirtualizer({
-    count: allRows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 52, // Typical row height for PipelineTask
-    overscan: 10,
-  });
+  React.useEffect(() => {
+    setVisibleCount(50);
+  }, [deferredGlobalFilter, columnFilters, sorting]);
 
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
-  const paddingBottom = virtualRows.length > 0
-    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
-    : 0;
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 200) {
+      if (visibleCount < allRows.length) {
+        setVisibleCount(prev => Math.min(prev + 50, allRows.length));
+      }
+    }
+  };
+
+  const visibleRows = allRows.slice(0, visibleCount);
 
   return (
     <div className="h-full flex flex-col p-6 space-y-4">
@@ -305,13 +350,13 @@ const PipelineListView = React.memo(function PipelineListView({
         </div>
       </div>
       <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
-        <div className="flex-1 overflow-auto relative" id="pipeline-list-scroll" ref={parentRef}>
-        <Table containerClassName="overflow-visible h-auto">
+        <div className="flex-1 overflow-auto relative" id="pipeline-list-scroll" ref={parentRef} onScroll={handleScroll}>
+        <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[2000px]">
           <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
             {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
                 {hg.headers.map(h => (
-                  <TableHead key={h.id} className="bg-muted/50">
+                  <TableHead key={h.id} className="bg-muted/50" style={{ width: h.column.getSize() }}>
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
@@ -319,18 +364,21 @@ const PipelineListView = React.memo(function PipelineListView({
             ))}
           </TableHeader>
           <TableBody>
-            {paddingTop > 0 && (
-              <TableRow>
-                <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
-              </TableRow>
-            )}
-            {virtualRows.length ? (
-              virtualRows.map(virtualRow => {
-                const row = allRows[virtualRow.index];
+            {visibleRows.length ? (
+              visibleRows.map(row => {
                 return (
-                  <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onTaskClick(row.original)}>
+                  <TableRow 
+                    key={row.id} 
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      row.original.is_dnc 
+                        ? "bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 border-l-2 border-l-red-500" 
+                        : "hover:bg-muted/50"
+                    )}
+                    onClick={() => onTaskClick(row.original)}
+                  >
                     {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className="truncate" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -344,9 +392,11 @@ const PipelineListView = React.memo(function PipelineListView({
                 </TableCell>
               </TableRow>
             )}
-            {paddingBottom > 0 && (
+            {visibleCount < allRows.length && (
               <TableRow>
-                <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                <TableCell colSpan={columns.length} className="h-16 text-center text-muted-foreground text-sm">
+                  Scroll to load more...
+                </TableCell>
               </TableRow>
             )}
           </TableBody>

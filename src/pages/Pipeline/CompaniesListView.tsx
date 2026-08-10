@@ -176,11 +176,11 @@ export default function CompaniesListView() {
     : 0;
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
-      <div className="border-b bg-white p-4">
+    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/50">
+      <div className="border-b dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <Building2 className="h-6 w-6 text-primary" /> Companies
             </h1>
             <p className="text-muted-foreground text-sm">Manage unique companies and their contact information.</p>
@@ -190,7 +190,7 @@ export default function CompaniesListView() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search companies..."
-                className="pl-9 bg-slate-50 border-slate-200"
+                className="pl-9 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800"
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
               />
@@ -204,16 +204,16 @@ export default function CompaniesListView() {
 
       <div className="flex-1 p-4 overflow-auto relative" ref={parentRef}>
         <div className="w-full">
-          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">Loading companies...</div>
             ) : (
               <Table>
-                <TableHeader className="sticky top-0 z-10 shadow-sm bg-slate-50/80">
+                <TableHeader className="sticky top-0 z-10 shadow-sm bg-slate-50/80 dark:bg-zinc-950/50">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-slate-50/80 hover:bg-slate-50/80">
+                    <TableRow key={headerGroup.id} className="bg-slate-50/80 dark:bg-zinc-950/50 hover:bg-slate-50/80 dark:hover:bg-zinc-950/50">
                       {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="bg-slate-50/80">
+                        <TableHead key={header.id} className="bg-slate-50/80 dark:bg-zinc-950/50">
                           {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                         </TableHead>
                       ))}

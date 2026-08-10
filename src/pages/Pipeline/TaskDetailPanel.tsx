@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs, useUsers } from "@/hooks/usePipeline";
+import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs, useAnalysts } from "@/hooks/usePipeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus } from "lucide-react";
+import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 import CallTrackingDetails from "./CallTrackingDetails";
 import { formatYesNo } from "@/lib/utils";
+import { FollowUpActions } from "./FollowUpActions";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
-
+  const token = sessionStorage.getItem("token");
   const { data: notes } = useTaskNotes(task?.id || null);
 
   const { mutateAsync: createNote, isPending: isCreatingNote } = useCreateTaskNote();
@@ -19,26 +20,30 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
   const { mutateAsync: deleteTask, isPending: isDeletingTask } = useDeleteTask();
 
   const [newNote, setNewNote] = useState("");
+  const [newTitle, setNewTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [isConfirmDeleteTask, setIsConfirmDeleteTask] = useState(false);
+
   const [showCallTracking, setShowCallTracking] = useState(false);
   const [selectedCallLogId, setSelectedCallLogId] = useState<number | null>(null);
+  const [isCallLogsExpanded, setIsCallLogsExpanded] = useState(false);
 
-  const { data: users } = useUsers();
+  const { data: analysts } = useAnalysts();
   
   const getAnalystName = (initials?: string | null) => {
     if (!initials) return '-';
     const upperInit = initials.toUpperCase();
-    if (!users) return upperInit;
-    const user = users.find(u => {
-      const parts = u.full_name.trim().split(/\s+/);
+    if (!analysts) return upperInit;
+    const user = analysts.find(u => {
+      const name = u.full_name || '';
+      const parts = name.trim().split(/\s+/);
       const computed = parts.length >= 2 
         ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : u.full_name[0].toUpperCase();
+        : (name[0] || '').toUpperCase();
       return computed === upperInit;
     });
     return user ? user.full_name : upperInit;
@@ -56,15 +61,16 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
     return dateStr.split(/[T ]/)[0];
   };
 
-  const normalizedCompanyName = task?.company_name ? task.company_name.replace(/\s+/g, '').toLowerCase() : null;
-  const { data: callLogs } = useCompanyCallLogs(normalizedCompanyName);
+  const { data: callLogs } = useCompanyCallLogs(task?.company_name || null);
 
   const handleAddNote = async () => {
-    if ((!newNote.trim() && !selectedFile) || !task) return;
-    const finalNote = newNote.trim() || (selectedFile ? `Attached file: ${selectedFile.name}` : "");
-    await createNote({ taskId: task.id, note: finalNote, file: selectedFile });
-    setNewNote("");
-    setSelectedFile(null);
+    if (!newNote.trim() && !selectedFile) return;
+    if (task) {
+      await createNote({ taskId: task.id, note: newNote, title: newTitle, file: selectedFile });
+      setNewNote("");
+      setNewTitle("");
+      setSelectedFile(null);
+    }
   };
 
   return (
@@ -78,7 +84,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   <SheetTitle className="text-2xl font-bold">{task.company_name}</SheetTitle>
                 </SheetHeader>
                 <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1"><User className="h-4 w-4" /> {task.name} {task.position_name ? `(${task.position_name})` : ''}</span>
+                  <span className="flex items-center gap-1"><User className="h-4 w-4" /> {task.name}</span>
                   {task.industry_name && <span className="flex items-center gap-1"><Building2 className="h-4 w-4" /> {task.industry_name}</span>}
                   <span className="flex items-center gap-1"><Mail className="h-4 w-4" /> {task.email}</span>
                   {task.phone && <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {task.phone}</span>}
@@ -102,7 +108,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                 <h3 className="font-semibold text-lg mb-4">Task Details</h3>
                 <dl className="space-y-4 text-sm">
                   <div>
-                    <dt className="text-muted-foreground">Next Steps</dt>
+                    <dt className="text-muted-foreground">Priority</dt>
                     <dd className="font-medium">{task.priority_name}</dd>
                   </div>
                   <div>
@@ -119,10 +125,13 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Follow-up Date</dt>
-                    <dd className="font-medium">
-                      {task.follow_up_date
-                        ? new Date(task.follow_up_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
-                        : '-'}
+                    <dd className="font-medium flex items-center gap-4">
+                      <span>
+                        {task.follow_up_date
+                          ? new Date(task.follow_up_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+                          : '-'}
+                      </span>
+                      {task.follow_up_date && <FollowUpActions task={task} />}
                     </dd>
                   </div>
                   <div>
@@ -150,9 +159,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                 {/* Call Logs */}
                 <div className="w-full mt-4 border-t border-border pt-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-base flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      className="p-0 h-auto font-semibold text-base flex items-center gap-2 hover:bg-transparent"
+                      onClick={() => setIsCallLogsExpanded(!isCallLogsExpanded)}
+                    >
+                      {isCallLogsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       <Phone className="h-4 w-4" /> Call Logs {callLogs && `(${callLogs.length})`}
-                    </h3>
+                    </Button>
                     <Button 
                       variant="ghost" 
                       size="icon"
@@ -167,55 +181,61 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     </Button>
                   </div>
                   
-                  <div className="space-y-3">
-                        {callLogs && callLogs.length > 0 ? (
-                          callLogs.map(log => (
-                            <div 
-                              key={log.id} 
-                              className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
-                              onClick={() => {
-                                setSelectedCallLogId(log.id);
-                                setShowCallTracking(true);
-                              }}
-                            >
-                              <div className="flex justify-between items-start mb-2">
-                                <span className="font-semibold text-primary">Call</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDate(log.date_of_call) || 'No Date'}
-                                </span>
+                  {isCallLogsExpanded && (
+                    <div className="space-y-3">
+                          {callLogs && callLogs.length > 0 ? (
+                            callLogs.map(log => (
+                              <div 
+                                key={log.id} 
+                                className="bg-muted/30 p-3 rounded-md text-sm border shadow-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                                onClick={() => {
+                                  setSelectedCallLogId(log.id);
+                                  setShowCallTracking(true);
+                                }}
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className="font-semibold text-primary">Call</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(log.date_of_call) || 'No Date'}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-xs">
+                                  {log.outcome && (
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Outcome</span><span className="font-medium">{log.outcome}</span></div>
+                                  )}
+                                  {log.call_length && (
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Duration</span><span className="font-medium">{log.call_length}</span></div>
+                                  )}
+                                  {log.contact_name && (
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{log.contact_name}</span></div>
+                                  )}
+                                  {log.phone_number && (
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Phone</span><span className="font-medium">{log.phone_number}</span></div>
+                                  )}
+                                  {log.emailed && (
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Emailed</span><span className="font-medium">{formatYesNo(log.emailed)}</span></div>
+                                  )}
+                                  {log.picked_up && (
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Picked Up</span><span className="font-medium">{formatYesNo(log.picked_up)}</span></div>
+                                  )}
+                                  {log.analyst && (
+                                    <div className="flex flex-col mt-1"><span className="text-muted-foreground">Analyst</span><span className="font-medium">{getAnalystName(log.analyst)}</span></div>
+                                  )}
+                                </div>
+                                {log.notes && (
+                                  <div className="mt-3 text-xs text-muted-foreground border-t pt-2">
+                                    {log.notes}
+                                  </div>
+                                )}
                               </div>
-                              <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-xs">
-                                {log.outcome && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Outcome</span><span className="font-medium">{log.outcome}</span></div>
-                                )}
-                                {log.call_length && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Duration</span><span className="font-medium">{log.call_length}</span></div>
-                                )}
-                                {log.contact_name && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{log.contact_name} {log.position ? `(${log.position})` : ''}</span></div>
-                                )}
-                                {log.phone_number && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Phone</span><span className="font-medium">{log.phone_number}</span></div>
-                                )}
-                                {log.emailed && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Emailed</span><span className="font-medium">{formatYesNo(log.emailed)}</span></div>
-                                )}
-                                {log.picked_up && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Picked Up</span><span className="font-medium">{formatYesNo(log.picked_up)}</span></div>
-                                )}
-                                {log.analyst && (
-                                  <div className="flex flex-col"><span className="text-muted-foreground">Analyst</span><span className="font-medium">{getAnalystName(log.analyst)}</span></div>
-                                )}
-                              </div>
-                              {log.notes && (
-                                <p className="mt-2 text-muted-foreground text-xs border-t pt-2 whitespace-pre-wrap break-all">{log.notes}</p>
-                              )}
+                            ))
+                          ) : (
+                            <div className="text-sm text-muted-foreground italic text-center p-4 border rounded-md border-dashed bg-muted/10">
+                              No call logs found for this company.
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-slate-500 text-sm italic py-2">No call logs found.</div>
-                        )}
-                  </div>
+                          )}
+                    </div>
+                  )}
                 </div>
                 </div>
               </div>
@@ -273,8 +293,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                         {editingNoteId === note.id ? (
                           <div className="flex flex-col gap-2 mt-2">
                             <textarea 
-                              className="w-full bg-background border rounded p-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary" 
-                              rows={3} 
+                              className="w-full bg-background border rounded p-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-primary min-h-[100px] max-h-[300px] break-words" 
                               value={editContent} 
                               onChange={e => setEditContent(e.target.value)} 
                             />
@@ -293,12 +312,23 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <p className="whitespace-pre-wrap break-all">{note.note}</p>
+                            {note.title && <h4 className="font-bold text-base">{note.title}</h4>}
+                            <p className="whitespace-pre-wrap break-words">{note.note}</p>
                             {note.attachment_url && (
-                              <a href={`${BASE_URL}${note.attachment_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit">
-                                <Paperclip className="h-4 w-4" />
-                                {note.attachment_name}
-                              </a>
+                              note.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                <a href={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment?token=${token || ''}`} target="_blank" rel="noreferrer" className="block max-w-[200px] sm:max-w-xs overflow-hidden rounded-md border bg-muted/50 p-2 hover:opacity-90 transition-opacity">
+                                  <img src={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment?token=${token || ''}`} alt={note.attachment_name || "Attachment preview"} className="w-full h-auto object-cover rounded" />
+                                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Paperclip className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{note.attachment_name}</span>
+                                  </div>
+                                </a>
+                              ) : (
+                                <a href={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment?token=${token || ''}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit max-w-full">
+                                  <Paperclip className="w-4 h-4 shrink-0" />
+                                  <span className="truncate">{note.attachment_name}</span>
+                                </a>
+                              )
                             )}
                           </div>
                         )}
@@ -317,11 +347,22 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                       </Button>
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <Input placeholder="Type a note or drag a file here..." value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNote()} disabled={isCreatingNote} />
-                    <Button onClick={handleAddNote} disabled={(!newNote.trim() && !selectedFile) || isCreatingNote}>
-                      {isCreatingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
-                    </Button>
+                  <div className="flex flex-col gap-2">
+                    <Input placeholder="Title (Optional)" value={newTitle} onChange={e => setNewTitle(e.target.value)} disabled={isCreatingNote} className="font-semibold" />
+                    <textarea 
+                      placeholder="Type a note or drag a file here..." 
+                      value={newNote} 
+                      onChange={e => setNewNote(e.target.value)} 
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAddNote(); }} 
+                      disabled={isCreatingNote}
+                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] max-h-[300px] resize-y break-words"
+                    />
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-muted-foreground">Ctrl+Enter to send</span>
+                      <Button onClick={handleAddNote} disabled={(!newNote.trim() && !selectedFile) || isCreatingNote}>
+                        {isCreatingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

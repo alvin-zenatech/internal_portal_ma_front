@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { useIndustries, usePositions, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useUsers, useAnalysts } from '@/hooks/usePipeline';
+import { useIndustries, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useAnalysts } from '@/hooks/usePipeline';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,25 +28,26 @@ export default function CallTrackingDetails({
   const isPending = isCreatingLog || isUpdatingLog;
 
   const { data: industriesData } = useIndustries();
-  const { data: positionsData } = usePositions();
-  const { data: users } = useUsers();
+
   const { data: analysts } = useAnalysts();
   
   const getAnalystName = (initials?: string | null) => {
     if (!initials) return '-';
-    if (!users) return initials;
-    const exactUser = users.find(u => u.full_name.toLowerCase() === initials.toLowerCase());
+    const upperInit = initials.toUpperCase();
+    if (!analysts) return upperInit;
+
+    const exactUser = analysts.find(u => u.full_name?.toLowerCase() === initials.toLowerCase());
     if (exactUser) return exactUser.full_name;
 
-    const upperInit = initials.toUpperCase();
-    const user = users.find(u => {
-      const parts = u.full_name.trim().split(/\s+/);
+    const user = analysts.find(u => {
+      const name = u.full_name || '';
+      const parts = name.trim().split(/\s+/);
       const computed = parts.length >= 2 
         ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : u.full_name[0].toUpperCase();
+        : (name[0] || '').toUpperCase();
       return computed === upperInit;
     });
-    return user ? user.full_name : initials;
+    return user ? (user.full_name || upperInit) : upperInit;
   };
 
   const formatDate = (dateStr?: string | null) => {
@@ -78,11 +79,7 @@ export default function CallTrackingDetails({
   const [formData, setFormData] = useState<Partial<CallLog>>({});
 
   const currentOutcome = formData.outcome || '';
-  const currentPosition = React.useMemo(() => {
-    if (!formData.position) return '';
-    const match = positionsData?.find(p => p.name.toLowerCase() === formData.position?.toLowerCase());
-    return match ? match.name : formData.position;
-  }, [formData.position, positionsData]);
+
   
   const currentIndustry = React.useMemo(() => {
     if (!formData.industry) return '';
@@ -93,7 +90,7 @@ export default function CallTrackingDetails({
   const currentAnalyst = React.useMemo(() => {
     if (!formData.analyst) return '';
     return getAnalystName(formData.analyst);
-  }, [formData.analyst, users]);
+  }, [formData.analyst, analysts]);
 
 
   useEffect(() => {
@@ -131,15 +128,19 @@ export default function CallTrackingDetails({
         return;
       }
 
+      const payload = {
+        ...formData
+      };
+
       if (editingId === 'NEW') {
-        await createLog(formData);
+        await createLog(payload);
         toast.success("Call log created!");
         if (!normalizedName) {
            onClose(); // newly created company, close sheet to refresh view
            return;
         }
       } else if (editingId) {
-        await updateLog({ id: editingId, payload: formData });
+        await updateLog({ id: editingId, payload });
         toast.success("Call log updated!");
       }
       onClose();
@@ -185,15 +186,21 @@ export default function CallTrackingDetails({
         ) : (
           <div className="space-y-6 p-6 pb-24">
             {!editingId && (
-              <Button onClick={() => handleEdit()}>+ Add New Log</Button>
+              <div className="flex justify-between items-center mb-4">
+                {logs && <div className="text-sm text-slate-500 font-medium">Total Call Logs: {logs.length}</div>}
+                <Button onClick={() => handleEdit()}>+ Add New Log</Button>
+              </div>
             )}
 
             {editingId && (
-              <div className="bg-slate-50 p-4 rounded-lg border space-y-4">
-                <h3 className="font-medium">{editingId === 'NEW' ? 'Create Log' : 'Edit Log'}</h3>
+              <div className="bg-slate-50 flex flex-col h-full rounded-lg border">
+                <div className="sticky top-0 bg-slate-50 z-10 p-4 border-b rounded-t-lg shadow-sm">
+                  <h3 className="font-medium">{editingId === 'NEW' ? 'Create Log' : 'Edit Log'}</h3>
+                </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {/* Row 1: Company Name, Industry */}
+                <div className="p-4 overflow-y-auto space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {/* Row 1: Company Name, Industry */}
                   <div className="space-y-1 text-left w-full">
                     <label>Company Name *</label>
                     <Input 
@@ -215,7 +222,7 @@ export default function CallTrackingDetails({
                     </Select>
                   </div>
 
-                  {/* Row 2: Contact Name, Position */}
+                  {/* Row 2: Contact Name */}
                   <div className="space-y-1 text-left w-full">
                     <label>Contact Name</label>
                     <Input 
@@ -223,17 +230,8 @@ export default function CallTrackingDetails({
                       onChange={e => setFormData({...formData, contact_name: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-1 text-left w-full">
-                    <label>Position</label>
-                    <Select value={currentPosition} onValueChange={val => setFormData({...formData, position: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select position..." /></SelectTrigger>
-                      <SelectContent>
-                        {positionsData?.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
-                        {currentPosition && !positionsData?.find(p => p.name === currentPosition) && (
-                          <SelectItem value={currentPosition}>{currentPosition}</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                  <div className="hidden">
+
                   </div>
 
                   {/* Row 3: Date of Call, Outcome */}
@@ -257,11 +255,30 @@ export default function CallTrackingDetails({
                   {/* Row 4: Phone Number, Call Length */}
                   <div className="space-y-1 text-left w-full">
                     <label>Phone Number</label>
-                    <Input 
-                      value={formData.phone_number || ''} 
-                      onChange={e => setFormData({...formData, phone_number: e.target.value})}
-                      placeholder="e.g. 555-123-4567"
-                    />
+                    <div className="flex gap-2">
+                      <Input 
+                        value={formData.phone_number?.replace(/ \((Personal|Office)\)$/, '') || ''} 
+                        onChange={e => {
+                          const type = formData.phone_number?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
+                          setFormData({...formData, phone_number: e.target.value ? `${e.target.value} (${type})` : ''})
+                        }}
+                        placeholder="e.g. 555-123-4567"
+                        className="flex-1"
+                      />
+                      <Select 
+                        value={formData.phone_number?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
+                        onValueChange={val => {
+                          const num = formData.phone_number?.replace(/ \((Personal|Office)\)$/, '') || '';
+                          setFormData({...formData, phone_number: num ? `${num} (${val})` : ` (${val})`})
+                        }}
+                      >
+                        <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Personal">Personal</SelectItem>
+                          <SelectItem value="Office">Office</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Call Length</label>
@@ -293,11 +310,11 @@ export default function CallTrackingDetails({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                  </div>
 
-                <div className="space-y-1 text-left w-full">
-                  <label>Analyst</label>
-                  <Select value={currentAnalyst} onValueChange={val => setFormData({...formData, analyst: val})}>
+                  <div className="space-y-1 text-left w-full">
+                    <label>Analyst</label>
+                  <Select value={currentAnalyst || undefined} onValueChange={val => setFormData({...formData, analyst: val})}>
                     <SelectTrigger><SelectValue placeholder="Select analyst..." /></SelectTrigger>
                     <SelectContent>
                       {analysts?.map(u => (
@@ -307,19 +324,20 @@ export default function CallTrackingDetails({
                         <SelectItem value={currentAnalyst}>{currentAnalyst}</SelectItem>
                       )}
                     </SelectContent>
-                  </Select>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1 text-left w-full">
+                    <label>Notes</label>
+                    <Textarea 
+                      value={formData.notes || ''} 
+                      onChange={e => setFormData({...formData, notes: e.target.value})}
+                      rows={4}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1 text-left w-full">
-                  <label>Notes</label>
-                  <Textarea 
-                    value={formData.notes || ''} 
-                    onChange={e => setFormData({...formData, notes: e.target.value})}
-                    rows={4}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="sticky bottom-0 bg-slate-50 z-10 p-6 border-t flex justify-end gap-2 rounded-b-lg shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] shrink-0">
                   <Button variant="outline" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
                   <Button onClick={handleSave} disabled={isPending}>
                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -347,7 +365,7 @@ export default function CallTrackingDetails({
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500 bg-slate-50 p-2 rounded">
-                  <div>Contact: {log.contact_name} {log.position ? `(${log.position})` : ''}</div>
+                  <div>Contact: {log.contact_name}</div>
                   <div>Phone: {log.phone_number}</div>
                   <div>Emailed: {formatYesNo(log.emailed)} | Picked up: {formatYesNo(log.picked_up)}</div>
                   <div>Analyst: {getAnalystName(log.analyst)}</div>

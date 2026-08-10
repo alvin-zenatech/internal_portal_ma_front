@@ -84,7 +84,7 @@ const PureKanbanCard = memo(({
         <div className="space-y-1.5 mt-auto">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <User className="h-3 w-3 shrink-0" />
-            <span className="truncate">{task.name} {task.position_name ? `• ${task.position_name}` : ''}</span>
+            <span className="truncate">{task.name}</span>
           </div>
           {(!isCompact && task.industry_name) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">

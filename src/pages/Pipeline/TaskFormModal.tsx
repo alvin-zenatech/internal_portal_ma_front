@@ -10,11 +10,11 @@ import { toast } from "sonner";
 import { CalendarIcon, X, Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePositions, usePriorities, useCountries, useAnalysts } from "@/hooks/usePipeline";
+import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePriorities, useCountries, useAnalysts } from "@/hooks/usePipeline";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
-  const { data: positions } = usePositions();
+
   const { data: priorities } = usePriorities();
   const { data: countries } = useCountries();
   const { data: analysts } = useAnalysts();
@@ -24,7 +24,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const isPending = isCreating || isUpdating;
 
   const [formData, setFormData] = useState<any>({
-    company_name: "", name: "", email: "", priority_id: "", industry_id: "", position_id: "",
+    company_name: "", name: "", email: "", priority_id: "", industry_id: "",
     country_id: "", location: "", phone: "", first_poc: "", nda: "", p_and_l: "",
     revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
   });
@@ -34,7 +34,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
       setFormData({
         company_name: task.company_name, name: task.name, email: task.email, 
         priority_id: task.priority_id?.toString() || "", industry_id: task.industry_id?.toString() || "", 
-        position_id: task.position_id?.toString() || "", country_id: task.country_id?.toString() || "",
+        country_id: task.country_id?.toString() || "",
         location: task.location || "", phone: task.phone || "", first_poc: task.first_poc || "", 
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
         team_size: task.team_size || "", no_of_calls: task.no_of_calls || "", notes: "",
@@ -43,7 +43,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
     } else {
       setFormData({
         company_name: "", name: "", email: "", priority_id: priorities?.find(p => p.name.toLowerCase() === "new")?.id?.toString() || priorities?.[0]?.id?.toString() || "", 
-        industry_id: "", position_id: "", country_id: "", location: "", phone: "", first_poc: "", 
+        industry_id: "", country_id: "", location: "", phone: "", first_poc: "", 
         nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
       });
     }
@@ -52,11 +52,21 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (
+        !formData.company_name || !formData.name || !formData.email || 
+        !formData.phone?.replace(/ \((Personal|Office)\)$/, '').trim() || 
+        !formData.priority_id || !formData.analyst_id || !formData.industry_id || 
+        !formData.country_id || !formData.location || !formData.follow_up_date || 
+        (!task && !formData.notes)
+      ) {
+        toast.error("Please fill out all required fields.");
+        return;
+      }
+
       const payload = {
         ...formData,
         priority_id: parseInt(formData.priority_id),
         industry_id: formData.industry_id ? parseInt(formData.industry_id) : undefined,
-        position_id: formData.position_id ? parseInt(formData.position_id) : undefined,
         country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
         analyst_id: formData.analyst_id === "unassigned" ? null : formData.analyst_id,
         follow_up_date: formData.follow_up_date || null,
@@ -79,13 +89,14 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-4xl w-[90vw] max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b bg-white z-10">
           <DialogTitle>{task ? "Edit Task" : "Create New Task"}</DialogTitle>
           <DialogDescription>Fill out the task details below.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Company Name *</Label>
@@ -95,19 +106,41 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               <Label>Contact Name *</Label>
               <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
-            
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <Label>Email *</Label>
+              <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <Label>Phone *</Label>
+              <div className="flex gap-2">
+                <Input 
+                  required 
+                  value={formData.phone?.replace(/ \((Personal|Office)\)$/, '') || ''} 
+                  onChange={e => {
+                    const type = formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
+                    setFormData({...formData, phone: e.target.value ? `${e.target.value} (${type})` : ` (${type})`})
+                  }}
+                  className="flex-1"
+                />
+                <Select 
+                  value={formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
+                  onValueChange={val => {
+                    const num = formData.phone?.replace(/ \((Personal|Office)\)$/, '') || '';
+                    setFormData({...formData, phone: num ? `${num} (${val})` : ` (${val})`})
+                  }}
+                >
+                  <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Personal">Personal</SelectItem>
+                    <SelectItem value="Office">Office</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Next Steps *</Label>
-              <Select value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
+              <Label>Priority *</Label>
+              <Select required value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
                 <SelectContent>
                   {priorities?.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
@@ -116,8 +149,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
-              <Label>Analyst</Label>
-              <Select value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
+              <Label>Analyst *</Label>
+              <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
@@ -127,8 +160,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
-              <Label>Industry</Label>
-              <Select value={formData.industry_id} onValueChange={v => setFormData({...formData, industry_id: v})}>
+              <Label>Industry *</Label>
+              <Select required value={formData.industry_id} onValueChange={v => setFormData({...formData, industry_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
                 <SelectContent>
                   {industries?.map(i => <SelectItem key={i.id} value={i.id.toString()}>{i.name}</SelectItem>)}
@@ -136,19 +169,11 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Position</Label>
-              <Select value={formData.position_id} onValueChange={v => setFormData({...formData, position_id: v})}>
-                <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
-                <SelectContent>
-                  {positions?.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+
 
             <div className="space-y-2">
-              <Label>Country</Label>
-              <Select value={formData.country_id} onValueChange={v => setFormData({...formData, country_id: v})}>
+              <Label>Country *</Label>
+              <Select required value={formData.country_id} onValueChange={v => setFormData({...formData, country_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
                 <SelectContent>
                   {countries?.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}
@@ -157,8 +182,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
-              <Label>Location / City</Label>
-              <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
+              <Label>Location / City *</Label>
+              <Input required value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
             </div>
 
             <div className="space-y-2">
@@ -196,7 +221,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
-              <Label>Follow-up Date</Label>
+              <Label>Follow-up Date *</Label>
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -242,12 +267,13 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
 
           {!task && (
             <div className="space-y-2 pt-2 border-t">
-              <Label>Initial Note</Label>
-              <Input placeholder="Optional starting note..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
+              <Label>Initial Note *</Label>
+              <Input required placeholder="Initial note..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
             </div>
           )}
 
-          <DialogFooter className="pt-4 border-t mt-6">
+          </div>
+          <DialogFooter className="px-6 py-6 border-t bg-white m-0 z-10 rounded-b-lg">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

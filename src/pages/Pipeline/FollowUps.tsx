@@ -3,6 +3,7 @@ import { usePipelineTasks, useBackfillFollowUpDates, useAnalysts, type PipelineT
 import TaskDetailPanel from "./TaskDetailPanel";
 import TaskFormModal from "./TaskFormModal";
 import FollowUpCalendar from "./FollowUpCalendar";
+import { FollowUpActions } from "./FollowUpActions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -428,14 +429,17 @@ export default function FollowUps() {
                       </span>
                     )}
                   </button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Edit ${task.company_name}`}
-                    onClick={() => handleEdit(task)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <FollowUpActions task={task} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit ${task.company_name}`}
+                      onClick={() => handleEdit(task)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}

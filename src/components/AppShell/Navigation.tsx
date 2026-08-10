@@ -6,6 +6,8 @@ import {
   CalendarCheck,
   CalendarClock,
   Phone,
+  UploadCloud,
+  AlertTriangle,
 } from "lucide-react";
 
 export const navigation = [
@@ -37,6 +39,20 @@ export const navigation = [
     section: "MAIN",
     navigationCode: "PIPELINE",
   },
+  {
+    label: "Do Not Contact",
+    path: "/pipeline/do-not-contact",
+    icon: AlertTriangle,
+    section: "MAIN",
+    navigationCode: "PIPELINE",
+  },
+  {
+    label: "Uploads",
+    path: "/pipeline/uploads",
+    icon: UploadCloud,
+    section: "MAIN",
+    navigationCode: "PIPELINE",
+  },
 
 
   {
@@ -46,7 +62,7 @@ export const navigation = [
     subItems: [
       { label: "Companies", path: "/pipeline/companies", navigationCode: "PIPELINE_CONFIG" },
       { label: "Industries", path: "/pipeline/master-data/industry", navigationCode: "PIPELINE_CONFIG" },
-      { label: "Positions", path: "/pipeline/master-data/position", navigationCode: "PIPELINE_CONFIG" },
+
       { label: "Priorities", path: "/pipeline/master-data/priority", navigationCode: "PIPELINE_CONFIG" },
       { label: "Countries", path: "/pipeline/master-data/country", navigationCode: "PIPELINE_CONFIG" },
     ]

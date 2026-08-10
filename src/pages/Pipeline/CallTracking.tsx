@@ -1,6 +1,8 @@
 import React, { useState, useDeferredValue } from 'react';
 import { useCallTrackingSummary, type CallTrackingSummary, useUsers } from '@/hooks/usePipeline';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   useReactTable,
   getCoreRowModel,
@@ -20,6 +22,18 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import CallTrackingDetails from './CallTrackingDetails';
 import { formatYesNo } from "@/lib/utils";
 
+const STATE_MAP: Record<string, string> = {
+  "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
+  "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
+  "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+  "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+  "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
+  "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
+  "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
+  "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+  "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
+  "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming"
+};
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
   const uniqueValues = React.useMemo(() => {
@@ -28,42 +42,62 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
       .sort() as string[];
   }, [column.getFacetedUniqueValues()]);
 
-  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 50;
+  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 300;
+  
+  const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
+  
+  const toggleOption = (val: string) => {
+    if (filterArray.includes(val)) {
+      const newFilters = filterArray.filter(v => v !== val);
+      column.setFilterValue(newFilters.length ? newFilters : undefined);
+    } else {
+      column.setFilterValue([...filterArray, val]);
+    }
+  };
 
   return (
-    <div className="flex items-center space-x-1">
+    <div className="inline-flex items-center gap-0 group whitespace-nowrap">
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-3 h-8 data-[state=open]:bg-accent"
+        className="-ml-3 h-8 flex justify-start data-[state=open]:bg-accent px-2"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         <span>{title}</span>
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50 group-hover:opacity-100" />
       </Button>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Filter className={`h-3 w-3 ${column.getFilterValue() ? "text-primary" : "text-muted-foreground"}`} />
+          <Button variant="ghost" size="icon" className="h-8 w-6 shrink-0 -ml-1">
+            <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-48 p-2" align="start">
+        <PopoverContent className="w-56 p-2" align="start">
           {isDropdown ? (
-            <select
-              value={(column.getFilterValue() ?? "") as string}
-              onChange={(e) => column.setFilterValue(e.target.value || undefined)}
-              className="w-full h-9 text-sm border border-input rounded-md px-3 bg-transparent focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">All {title}s</option>
+            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
               {uniqueValues.map(val => (
-                <option key={val} value={val}>{val}</option>
+                <div key={val} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`filter-${title}-${val}`} 
+                    checked={filterArray.includes(val)} 
+                    onCheckedChange={() => toggleOption(val)} 
+                  />
+                  <Label htmlFor={`filter-${title}-${val}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
+                    {val}
+                  </Label>
+                </div>
               ))}
-            </select>
+              {filterArray.length > 0 && (
+                <Button variant="ghost" size="sm" className="w-full mt-2 h-8 text-xs" onClick={() => column.setFilterValue(undefined)}>
+                  Clear filters
+                </Button>
+              )}
+            </div>
           ) : (
             <Input
               placeholder={`Filter ${title}...`}
               value={(column.getFilterValue() ?? "") as string}
-              onChange={(e) => column.setFilterValue(e.target.value)}
+              onChange={(e) => column.setFilterValue(e.target.value || undefined)}
               className="h-8 text-sm"
             />
           )}
@@ -103,6 +137,7 @@ export default function CallTracking() {
       { 
         accessorKey: 'latest_analyst', 
         header: ({ column }) => <ColumnHeader column={column} title="Analyst" />,
+        size: 160,
         cell: ({ row }) => {
           const { name, avatar } = getAnalystDetails(row.original.latest_analyst);
           return (
@@ -110,52 +145,67 @@ export default function CallTracking() {
                 <Avatar className="h-6 w-6">
                    <AvatarFallback className="text-[10px] bg-slate-200 text-slate-700">{avatar}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium">{name}</span>
+                <span className="text-sm font-medium truncate">{name}</span>
              </div>
           );
         }
       },
       { 
         accessorKey: 'company_name', 
-        header: ({ column }) => <ColumnHeader column={column} title="Company Name" />
+        header: ({ column }) => <ColumnHeader column={column} title="Company Name" />,
+        size: 240
       },
       { 
         accessorKey: 'industry', 
-        header: ({ column }) => <ColumnHeader column={column} title="Industry" />
+        header: ({ column }) => <ColumnHeader column={column} title="Industry" />,
+        size: 180
       },
       { 
-        accessorKey: 'full_location', 
-        header: ({ column }) => <ColumnHeader column={column} title="Location" />
+        accessorKey: 'state_province', 
+        header: ({ column }) => <ColumnHeader column={column} title="State/Province" />,
+        size: 180,
+        cell: ({ row }) => {
+          const val = row.original.state_province;
+          if (!val) return <span>-</span>;
+          return <span>{STATE_MAP[val.toUpperCase()] || val}</span>;
+        }
+      },
+      { 
+        accessorKey: 'location', 
+        header: ({ column }) => <ColumnHeader column={column} title="Country" />,
+        size: 180
       },
       { 
         accessorKey: 'contact_name', 
-        header: ({ column }) => <ColumnHeader column={column} title="Contact Name" />
-      },
-      { 
-        accessorKey: 'position', 
-        header: ({ column }) => <ColumnHeader column={column} title="Position" />
+        header: ({ column }) => <ColumnHeader column={column} title="Contact Name" />,
+        size: 180
       },
       { 
         accessorKey: 'current_status', 
-        header: ({ column }) => <ColumnHeader column={column} title="Current Status" />
+        header: ({ column }) => <ColumnHeader column={column} title="Current Status" />,
+        size: 180
       },
       { 
         accessorKey: 'phone_number', 
-        header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />
+        header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />,
+        size: 160
       },
       { 
         accessorKey: 'emailed', 
         header: ({ column }) => <ColumnHeader column={column} title="Emailed" />,
+        size: 130,
         cell: ({ row }) => <span>{formatYesNo(row.original.emailed)}</span>
       },
       { 
         accessorKey: 'picked_up', 
         header: ({ column }) => <ColumnHeader column={column} title="Picked Up" />,
+        size: 130,
         cell: ({ row }) => <span>{formatYesNo(row.original.picked_up)}</span>
       },
       { 
         accessorKey: 'call_length', 
-        header: ({ column }) => <ColumnHeader column={column} title="Call Length" />
+        header: ({ column }) => <ColumnHeader column={column} title="Call Length" />,
+        size: 140
       },
     ],
     []
@@ -178,6 +228,15 @@ export default function CallTracking() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    filterFns: {
+      multiSelect: (row: any, columnId: string, filterValue: any) => {
+        if (!filterValue || filterValue.length === 0) return true;
+        const val = row.getValue(columnId);
+        if (Array.isArray(filterValue)) return filterValue.includes(String(val));
+        return String(val).toLowerCase().includes(String(filterValue).toLowerCase());
+      }
+    },
+    defaultColumn: { filterFn: 'multiSelect' as any },
   });
 
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -200,7 +259,7 @@ export default function CallTracking() {
   }
 
   return (
-    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
+    <div className="h-full flex flex-col w-full min-h-0">
       <div className="px-8 py-6 border-b bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
@@ -230,13 +289,13 @@ export default function CallTracking() {
 
           <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
             <div className="flex-1 overflow-auto relative" ref={parentRef}>
-              <Table containerClassName="overflow-visible h-auto">
+              <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1800px]">
                 <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="whitespace-nowrap bg-muted/50">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
+                  {table.getHeaderGroups().map((hg) => (
+                    <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
+                      {hg.headers.map((h) => (
+                        <TableHead key={h.id} className="bg-muted/50 whitespace-nowrap" style={{ width: h.column.getSize() }}>
+                          {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                         </TableHead>
                       ))}
                     </TableRow>
@@ -258,7 +317,7 @@ export default function CallTracking() {
                           onClick={() => setSelectedCompany(row.original.normalized_company_name)}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-3 text-muted-foreground whitespace-nowrap truncate max-w-[250px]">
+                            <TableCell key={cell.id} className="py-3 whitespace-nowrap truncate" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                           ))}

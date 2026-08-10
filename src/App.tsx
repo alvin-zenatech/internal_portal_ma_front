@@ -20,12 +20,13 @@ const PipelineDashboard = lazy(() => import("./pages/Pipeline/PipelineDashboard"
 const FollowUps = lazy(() => import("./pages/Pipeline/FollowUps"));
 
 const MasterDataIndustry = lazy(() => import("./pages/Pipeline/MasterDataIndustry"));
-const MasterDataPosition = lazy(() => import("./pages/Pipeline/MasterDataPosition"));
 const MasterDataPriority = lazy(() => import("./pages/Pipeline/MasterDataPriority"));
 const MasterDataCountry = lazy(() => import("./pages/Pipeline/MasterDataCountry"));
 const CompaniesListView = lazy(() => import("./pages/Pipeline/CompaniesListView"));
 const WeeklyCheckIn = lazy(() => import("./pages/Pipeline/WeeklyCheckIn"));
 const CallTracking = lazy(() => import("./pages/Pipeline/CallTracking"));
+const PipelineUploads = lazy(() => import("./pages/Pipeline/PipelineUploads"));
+const DoNotContact = lazy(() => import("./pages/Pipeline/DoNotContact"));
 
 
 function App() {
@@ -58,10 +59,11 @@ function App() {
 
             <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE"><WeeklyCheckIn /></ProtectedRoute>} />
             <Route path="/pipeline/call-tracking" element={<ProtectedRoute navigationCode="PIPELINE"><CallTracking /></ProtectedRoute>} />
+            <Route path="/pipeline/do-not-contact" element={<ProtectedRoute navigationCode="PIPELINE"><DoNotContact /></ProtectedRoute>} />
+            <Route path="/pipeline/uploads" element={<ProtectedRoute navigationCode="PIPELINE"><PipelineUploads /></ProtectedRoute>} />
             <Route path="/pipeline" element={<Navigate to="/pipeline/master-data/industry" replace />} />
             <Route path="/pipeline/companies" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><CompaniesListView /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataIndustry /></ProtectedRoute>} />
-            <Route path="/pipeline/master-data/position" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPosition /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPriority /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/country" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataCountry /></ProtectedRoute>} />
 

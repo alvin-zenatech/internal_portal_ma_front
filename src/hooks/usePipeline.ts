@@ -44,8 +44,7 @@ export interface PipelineTask {
   industry_name: string | null;
   location: string | null;
   name: string;
-  position_id: number | null;
-  position_name: string | null;
+
   email: string | null;
   phone: string | null;
   first_poc: string | null;
@@ -66,9 +65,18 @@ export interface PipelineTask {
   country_id: number | null;
   country_name: string | null;
   latest_note: string | null;
+  is_dnc?: boolean;
   follow_up_date: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface DoNotContactRecord {
+  id: number;
+  company_name: string;
+  reason?: string;
+  added_by?: string;
+  created_at: string;
 }
 
 export interface PipelineTaskHistory {
@@ -90,6 +98,7 @@ export interface PipelineNote {
   author_id: string | null;
   author_name: string | null;
   author_email: string | null;
+  title?: string | null;
   note: string;
   attachment_url?: string | null;
   attachment_name?: string | null;
@@ -109,6 +118,23 @@ export interface AnalystData {
   full_name: string | null;
   email: string | null;
 }
+
+export const useRoles = () => useQuery({ queryKey: ["roles"], queryFn: () => api.get<any[]>("/api/rbac/roles") });
+
+export interface PipelineAttachment {
+  id: number;
+  task_id: number;
+  company_name: string;
+  location: string | null;
+  date: string | null;
+  attachment_name: string;
+  attachment_url: string;
+}
+
+export const usePipelineAttachments = () => useQuery({
+  queryKey: ["pipeline", "attachments"],
+  queryFn: () => api.get<PipelineAttachment[]>("/api/pipeline/attachments")
+});
 
 export const useUsers = () => useQuery({ queryKey: ["users"], queryFn: () => api.get<UserData[]>("/api/configuration/users") });
 
@@ -144,29 +170,7 @@ export function useUpdateIndustry() {
 }
 export const useDeleteIndustry = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/industries/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["industries"] }); qc.invalidateQueries({ queryKey: ["tasks"] }); } }); };
 
-export const usePositions = () => useQuery({ queryKey: ["positions"], queryFn: () => api.get<MasterData[]>("/api/pipeline/positions") });
-export function useCreatePosition() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (name: string) => {
-      return await api.post("/api/pipeline/positions", { name });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["positions"] }),
-  });
-}
-export function useUpdatePosition() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: { name: string } }) => {
-      return await api.put(`/api/pipeline/positions/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["positions"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
-  });
-}
-export const useDeletePosition = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/positions/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["positions"] }); qc.invalidateQueries({ queryKey: ["tasks"] }); } }); };
+
 
 export const usePriorities = () => useQuery({ queryKey: ["priorities"], queryFn: () => api.get<PriorityData[]>("/api/pipeline/priorities") });
 export function useCreatePriority() {
@@ -229,9 +233,12 @@ export const useDeleteTask = () => { const qc = useQueryClient(); return useMuta
 export const useTaskHistory = (taskId: number | null) => useQuery({ queryKey: ["tasks", taskId, "history"], queryFn: () => api.get<PipelineTaskHistory[]>(`/api/pipeline/tasks/${taskId}/history`), enabled: !!taskId });
 export const useTaskNotes = (taskId: number | null) => useQuery({ queryKey: ["tasks", taskId, "notes"], queryFn: () => api.get<PipelineNote[]>(`/api/pipeline/tasks/${taskId}/notes`), enabled: !!taskId });
 export const useCreateTaskNote = () => { const queryClient = useQueryClient();  return useMutation({
-    mutationFn: async ({ taskId, note, file }: { taskId: number, note: string, file?: File | null }) => {
+    mutationFn: async ({ taskId, note, title, file }: { taskId: number, note: string, title?: string, file?: File | null }) => {
       const formData = new FormData();
       formData.append("note", note);
+      if (title) {
+        formData.append("title", title);
+      }
       if (file) {
         formData.append("file", file);
       }
@@ -246,8 +253,8 @@ export const useCreateTaskNote = () => { const queryClient = useQueryClient();  
 }
 
 export const useUpdateTaskNote = () => { const queryClient = useQueryClient(); return useMutation({
-  mutationFn: async ({ noteId, note }: { noteId: number, note: string }) => {
-    return await api.put(`/api/pipeline/tasks/notes/${noteId}`, { note });
+  mutationFn: async ({ noteId, note, title }: { noteId: number, note: string, title?: string }) => {
+    return await api.put(`/api/pipeline/tasks/notes/${noteId}`, { note, title });
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -317,7 +324,7 @@ export interface PipelineActivity {
   type: string;
   activity_date: string;
   contact_name?: string;
-  position?: string;
+
   phone_number?: string;
   picked_up?: boolean;
   emailed?: boolean;
@@ -412,9 +419,10 @@ export interface CallTrackingSummary {
   normalized_company_name: string;
   company_name: string;
   industry: string | null;
-  full_location: string | null;
+  state_province: string | null;
+  location: string | null;
   contact_name: string | null;
-  position: string | null;
+
   current_status: string | null;
   latest_analyst: string | null;
   phone_number: string | null;
@@ -430,7 +438,7 @@ export type CallLog = {
   state_province?: string;
   location?: string;
   contact_name?: string;
-  position?: string;
+
   phone_number?: string;
   date_of_call?: string;
   emailed?: string;
@@ -511,6 +519,53 @@ export function useDeleteCallLog() {
   });
 }
 
+export function useDoNotContactList() {
+  return useQuery<DoNotContactRecord[]>({
+    queryKey: ["doNotContactList"],
+    queryFn: async () => {
+      return await api.get<DoNotContactRecord[]>("/api/pipeline/do-not-contact");
+    },
+  });
+}
 
+export function useCreateDoNotContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { company_name: string; reason?: string }) => {
+      return await api.post("/api/pipeline/do-not-contact", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doNotContactList"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Added to Do Not Contact list");
+    },
+  });
+}
 
+export function useUpdateDoNotContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { company_name: string; reason?: string } }) => {
+      return await api.put(`/api/pipeline/do-not-contact/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doNotContactList"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Updated Do Not Contact record");
+    },
+  });
+}
 
+export function useDeleteDoNotContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      return await api.delete(`/api/pipeline/do-not-contact/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doNotContactList"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Removed from Do Not Contact list");
+    },
+  });
+}
