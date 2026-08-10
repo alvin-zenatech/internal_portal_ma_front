@@ -17,6 +17,9 @@ export function ConfirmDialog({
   description = "This action cannot be undone. This will permanently delete this data.",
   onConfirm,
   isLoading = false,
+  confirmText = "Delete",
+  loadingText = "Deleting...",
+  variant = "destructive",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,6 +27,9 @@ export function ConfirmDialog({
   description?: string;
   onConfirm: () => void;
   isLoading?: boolean;
+  confirmText?: string;
+  loadingText?: string;
+  variant?: "destructive" | "default";
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -34,9 +40,13 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={isLoading} className="bg-red-600 text-white hover:bg-red-700">
+          <AlertDialogAction 
+            onClick={onConfirm} 
+            disabled={isLoading} 
+            className={variant === "destructive" ? "bg-red-600 text-white hover:bg-red-700" : ""}
+          >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Deleting..." : "Delete"}
+            {isLoading ? loadingText : confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

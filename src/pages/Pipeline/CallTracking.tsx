@@ -1,5 +1,7 @@
-import React, { useState, useDeferredValue } from 'react';
-import { useCallTrackingSummary, type CallTrackingSummary, useUsers } from '@/hooks/usePipeline';
+import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
+import { useCallTrackingSummary, type CallTrackingSummary, useUsers, useImportCallTrackingXlsx } from '@/hooks/usePipeline';
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -110,6 +112,32 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 export default function CallTracking() {
   const { data: summaries, isLoading } = useCallTrackingSummary();
   const { data: users } = useUsers();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadingToastRef = useRef<string | number | null>(null);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importMessage, setImportMessage] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  
+  const { mutate: importCallTrackingXlsx, isPending } = useImportCallTrackingXlsx((p, m) => {
+    setImportProgress(p);
+    setImportMessage(m);
+  });
+  
+  useEffect(() => {
+    if (loadingToastRef.current && isPending) {
+      toast.loading(importMessage || "Importing call logs...", { id: loadingToastRef.current });
+    }
+  }, [importMessage, isPending]);
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+    }
+    e.target.value = '';
+  };
+
   
   const getAnalystDetails = React.useCallback((initials: string | null) => {
     if (!initials) return { name: '-', avatar: '?' };
@@ -269,9 +297,21 @@ export default function CallTracking() {
             Track and review all client and prospect communication.
           </p>
         </div>
-        <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
-          Add Call Log
-        </Button>
+<div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx"
+            onChange={handleImport}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap" disabled={isPending}>
+            Upload Call Log
+          </Button>
+          <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
+            Add Call Log
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden relative bg-muted/20">
@@ -354,6 +394,33 @@ export default function CallTracking() {
           onClose={() => setSelectedCompany(null)} 
         />
       )}
+
+      <ConfirmDialog 
+        confirmText="Import"
+        loadingText="Importing..."
+        variant="default"
+        open={importFile !== null} 
+        onOpenChange={(open) => !open && setImportFile(null)}
+        title="Confirm Import"
+        description="Are you sure you want to append these call logs? They will be added to the existing tracking data without overwriting it."
+        onConfirm={() => {
+          if (importFile) {
+            loadingToastRef.current = toast.loading("Importing call logs...");
+            importCallTrackingXlsx(importFile, {
+              onSuccess: (res: any) => {
+                toast.success(res.message || "Imported successfully!", { id: loadingToastRef.current! });
+                loadingToastRef.current = null;
+                setImportFile(null);
+              },
+              onError: (err: any) => {
+                toast.error(err.message || err.response?.data?.detail || "Failed to import", { id: loadingToastRef.current! });
+                loadingToastRef.current = null;
+                setImportFile(null);
+              }
+            });
+          }
+        }}
+      />
     </div>
   );
 }

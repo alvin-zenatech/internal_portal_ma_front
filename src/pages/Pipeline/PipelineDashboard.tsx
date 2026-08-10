@@ -224,6 +224,9 @@ export default function PipelineDashboard() {
       />
 
       <ConfirmDialog 
+        confirmText="Import"
+        loadingText="Importing..."
+        variant="default"
         open={importFile !== null} 
         onOpenChange={(open) => !open && setImportFile(null)}
         title="Confirm Import"

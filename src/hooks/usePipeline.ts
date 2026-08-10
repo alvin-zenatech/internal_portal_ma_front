@@ -270,6 +270,40 @@ export const useDeleteTaskNote = () => { const queryClient = useQueryClient(); r
   },
 }); }
 
+
+export function useImportCallTrackingXlsx(onProgress?: (progress: number, message: string) => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post<{task_id: string}>("/api/pipeline/import-call-tracking-xlsx", formData);
+      const taskId = res.task_id;
+      
+      while (true) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // The background task updates the SAME IMPORT_TASKS dictionary, so we can poll the same status endpoint!
+        const statusRes = await api.get<{status: string, progress: number, message: string}>(`/api/pipeline/import/status/${taskId}`);
+        
+        if (onProgress) {
+            onProgress(statusRes.progress, statusRes.message);
+        }
+        
+        if (statusRes.status === "completed") {
+            return statusRes;
+        } else if (statusRes.status === "error" || statusRes.status === "failed") {
+            throw new Error(statusRes.message || "Import failed");
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+    }
+  });
+}
+
 export function useImportPipeline(onProgress?: (progress: number, message: string) => void) {
   const queryClient = useQueryClient();
   return useMutation({
