@@ -175,7 +175,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 onChange={v => setFormData({...formData, industry_id: v.toString()})}
                 options={industries || []}
                 onCreate={async (name) => {
-                  const res = await createIndustry(name);
+                  const res = await createIndustry({ name });
                   return (res as any).id;
                 }}
                 placeholder="Select or create industry..."

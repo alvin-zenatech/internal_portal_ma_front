@@ -35,7 +35,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       if (hasCode) payload.code = code.trim();
       if (hasColor) payload.color = color;
       
-      await onCreate(hasSortOrder || hasCode || hasColor ? payload : newName.trim());
+      await onCreate(payload);
       setNewName("");
       setCode("");
       setColor("#64748b");

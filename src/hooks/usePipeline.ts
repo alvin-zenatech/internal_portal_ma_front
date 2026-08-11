@@ -156,8 +156,8 @@ export const useIndustries = () => useQuery({ queryKey: ["industries"], queryFn:
 export function useCreateIndustry() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => {
-      return await api.post("/api/pipeline/industries", { name });
+    mutationFn: async (data: { name: string }) => {
+      return await api.post("/api/pipeline/industries", data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["industries"] }),
   });
@@ -207,7 +207,7 @@ export const useCountries = () => useQuery({ queryKey: ["countries"], queryFn: (
 export function useCreateCountry() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string, code: string }) => {
+    mutationFn: async (data: { name: string, code?: string }) => {
       return await api.post("/api/pipeline/countries", data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["countries"] }),
