@@ -681,6 +681,8 @@ export interface CallLogPreviewRow {
   picked_up?: string;
   outcome?: string;
   analyst?: string;
+  raw_analyst?: string;
+  analyst_id?: string | null;
   call_length?: string;
   notes?: string;
   is_duplicate: boolean;

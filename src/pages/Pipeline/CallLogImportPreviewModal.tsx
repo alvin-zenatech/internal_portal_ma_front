@@ -27,7 +27,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check } from 'lucide-react';
-import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog } from '@/hooks/usePipeline';
+import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts } from '@/hooks/usePipeline';
 
 interface Props {
   open: boolean;
@@ -42,10 +42,19 @@ export default function CallLogImportPreviewModal({
   previewData,
   onSuccess
 }: Props) {
+  const getInitials = (name: string | null) => {
+    if (!name) return "";
+    const parts = name.split(" ").filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return "";
+  };
+
   const [rows, setRows] = useState<CallLogPreviewRow[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
 
   const { mutate: confirmImport, isPending: isImporting } = useConfirmImportCallLog();
+  const { data: analysts } = useAnalysts();
 
   useEffect(() => {
     if (previewData?.rows) {
@@ -77,6 +86,18 @@ export default function CallLogImportPreviewModal({
 
   const handleToggleRow = (index: number, checked: boolean) => {
     setRows(prev => prev.map(r => r.row_index === index ? { ...r, selected_for_import: checked } : r));
+  };
+
+  const handleAnalystChange = (index: number, analystId: string) => {
+    setRows(prev => prev.map(r => {
+      if (r.row_index !== index) return r;
+      const selectedAnalyst = analysts?.find(a => a.id === analystId);
+      return {
+        ...r,
+        analyst_id: analystId === "unassigned" ? null : analystId,
+        analyst: selectedAnalyst ? selectedAnalyst.full_name : r.analyst,
+      };
+    }));
   };
 
   const handleToggleAll = (checked: boolean) => {
@@ -412,7 +433,7 @@ export default function CallLogImportPreviewModal({
                 <TableHead className="w-[90px]">Picked Up?</TableHead>
                 <TableHead className="w-[140px]">Outcome</TableHead>
                 <TableHead className="w-[90px]">Length</TableHead>
-                <TableHead className="w-[80px]">Analyst</TableHead>
+                <TableHead className="w-[140px]">Analyst</TableHead>
                 <TableHead className="w-[260px]">Notes</TableHead>
                 <TableHead className="w-[140px]">Duplicate Check</TableHead>
               </TableRow>
@@ -520,7 +541,31 @@ export default function CallLogImportPreviewModal({
                   <TableCell className="text-xs font-medium">{row.picked_up || '-'}</TableCell>
                   <TableCell className="text-xs">{row.outcome || '-'}</TableCell>
                   <TableCell className="text-xs font-mono">{row.call_length || '-'}</TableCell>
-                  <TableCell className="text-xs font-mono">{row.analyst || '-'}</TableCell>
+                  <TableCell className="min-w-[140px]">
+                    {row.raw_analyst && (
+                      <div className="w-full text-center text-[10px] text-muted-foreground mb-1 font-mono">
+                        {row.raw_analyst}
+                      </div>
+                    )}
+                    <Select
+                      value={row.analyst_id || "unassigned"}
+                      onValueChange={(val) => handleAnalystChange(row.row_index, val)}
+                    >
+                      <SelectTrigger className="h-7 text-xs bg-background">
+                        <SelectValue placeholder="Select analyst..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-56">
+                        <SelectItem value="unassigned" className="text-xs text-muted-foreground">
+                          Unassigned
+                        </SelectItem>
+                        {analysts?.map(u => (
+                          <SelectItem key={u.id} value={u.id} className="text-xs">
+                            {u.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
 
                   <TableCell className="text-xs text-muted-foreground truncate max-w-[250px]" title={row.notes}>
                     {row.notes || '-'}
