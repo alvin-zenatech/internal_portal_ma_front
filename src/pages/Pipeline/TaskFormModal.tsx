@@ -10,12 +10,14 @@ import { toast } from "sonner";
 import { CalendarIcon, X, Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePriorities, useCountries, useAnalysts, useStates, useCreateState, useCreateCountry, useCreateIndustry } from "@/hooks/usePipeline";
+import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePriorities, useCountries, useAnalysts, useStates, useCreateState, useCreateCountry, useCreateIndustry, useCompanies } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
   const { mutateAsync: createIndustry } = useCreateIndustry();
+  const { data: companies } = useCompanies();
+  const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
 
   const { data: priorities } = usePriorities();
   
@@ -109,7 +111,13 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 min-w-0">
               <Label>Company Name *</Label>
-              <Input required value={formData.company_name} onChange={e => setFormData({...formData, company_name: e.target.value})} />
+              <AutocompleteCombobox
+                value={formData.company_name}
+                onChange={v => setFormData({...formData, company_name: v as string})}
+                options={companyOptions}
+                onCreate={async (name) => name}
+                placeholder="e.g. Acme Corp"
+              />
             </div>
             <div className="space-y-2 min-w-0">
               <Label>Contact Name *</Label>

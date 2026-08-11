@@ -3,8 +3,10 @@ import {
   useDoNotContactList, 
   useCreateDoNotContact, 
   useUpdateDoNotContact, 
-  useDeleteDoNotContact 
+  useDeleteDoNotContact,
+  useCompanies
 } from "@/hooks/usePipeline";
+import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +22,8 @@ export default function DoNotContact() {
   const createDnc = useCreateDoNotContact();
   const updateDnc = useUpdateDoNotContact();
   const deleteDnc = useDeleteDoNotContact();
+  const { data: companies } = useCompanies();
+  const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -102,9 +106,11 @@ export default function DoNotContact() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Company Name</Label>
-                <Input 
-                  value={newCompanyName} 
-                  onChange={(e) => setNewCompanyName(e.target.value)} 
+                <AutocompleteCombobox
+                  value={newCompanyName}
+                  onChange={(v) => setNewCompanyName(v as string)}
+                  options={companyOptions}
+                  onCreate={async (name) => name}
                   placeholder="e.g. Acme Corp"
                 />
               </div>
@@ -204,9 +210,12 @@ export default function DoNotContact() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Company Name</Label>
-              <Input 
-                value={editRecord?.company_name || ""} 
-                onChange={(e) => setEditRecord(prev => prev ? { ...prev, company_name: e.target.value } : null)} 
+              <AutocompleteCombobox
+                value={editRecord?.company_name || ""}
+                onChange={(v) => setEditRecord(prev => prev ? { ...prev, company_name: v as string } : null)}
+                options={companyOptions}
+                onCreate={async (name) => name}
+                placeholder="e.g. Acme Corp"
               />
             </div>
             <div className="space-y-2">

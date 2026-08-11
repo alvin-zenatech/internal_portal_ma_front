@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils";
 import fuzzysort from "fuzzysort";
 
 export interface AutocompleteOption {
-  id: number;
+  id: number | string;
   name: string;
 }
 
 interface AutocompleteComboboxProps {
-  value: number | "";
-  onChange: (value: number) => void;
+  value: number | string | "";
+  onChange: (value: any) => void;
   options: AutocompleteOption[];
-  onCreate?: (name: string) => Promise<number>;
+  onCreate?: (name: string) => Promise<number | string>;
   placeholder?: string;
   disabled?: boolean;
 }

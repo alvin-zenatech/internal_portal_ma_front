@@ -18,6 +18,7 @@ export default function CompaniesListView() {
   const { mutateAsync: createState } = useCreateState();
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredSearchQuery = useDeferredValue(globalFilter);
+  const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyData | null>(null);
@@ -266,10 +267,12 @@ export default function CompaniesListView() {
           <div className="py-4 space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Company Name <span className="text-red-500">*</span></label>
-              <Input 
-                value={companyName} 
-                onChange={e => setCompanyName(e.target.value)} 
-                placeholder="e.g. Lescure Surveying" 
+              <AutocompleteCombobox
+                value={companyName}
+                onChange={(v) => setCompanyName(v as string)}
+                options={companyOptions}
+                onCreate={async (name) => name}
+                placeholder="e.g. Lescure Surveying"
               />
             </div>
             

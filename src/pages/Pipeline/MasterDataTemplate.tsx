@@ -25,6 +25,14 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
+
+    // Check for duplicates
+    const isDuplicate = data?.some((item: any) => item.name.toLowerCase() === newName.trim().toLowerCase());
+    if (isDuplicate) {
+      toast.error(`"${newName.trim()}" already exists.`);
+      return;
+    }
+
     setIsCreating(true);
     try {
       const payload: any = { name: newName.trim() };
