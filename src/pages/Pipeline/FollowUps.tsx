@@ -1,3 +1,4 @@
+import { formatNameWithInitial } from "@/lib/utils";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { usePipelineTasks, useBackfillFollowUpDates, useAnalysts, type PipelineTask } from "@/hooks/usePipeline";
 import TaskDetailPanel from "./TaskDetailPanel";
@@ -417,7 +418,7 @@ export default function FollowUps() {
                   <button className="min-w-0 flex-1 text-left" onClick={() => openTask(task)}>
                     <p className="truncate font-medium">{task.company_name}</p>
                     <p className="truncate text-sm text-muted-foreground">
-                      {[task.name, task.analyst_name && `Analyst: ${task.analyst_name}`]
+                      {[task.name, task.analyst_name && `Analyst: ${formatNameWithInitial(task.analyst_name)}`]
                         .filter(Boolean)
                         .join(" · ") || "No contact on file"}
                     </p>

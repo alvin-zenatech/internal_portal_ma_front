@@ -13,8 +13,7 @@ import {
 const getInitials = (name: string) => {
   if (!name) return "";
   const parts = name.split(" ").filter(Boolean);
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  return parts.map(p => p.charAt(0)).join('').toUpperCase();
 };
 
 export const getPriorityColors = (taskOrName: Partial<PipelineTask> | string) => {

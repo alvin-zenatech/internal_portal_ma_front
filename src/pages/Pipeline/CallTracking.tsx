@@ -1,3 +1,4 @@
+import { formatNameWithInitial } from '@/lib/utils';
 import React, { useState, useDeferredValue, useRef } from 'react';
 import { useCallTrackingSummary, type CallTrackingSummary, useUsers, usePreviewCallLog, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
@@ -150,7 +151,7 @@ export default function CallTracking() {
         : u.full_name[0].toUpperCase();
       return computed === upperInit;
     });
-    return user ? { name: user.full_name, avatar: upperInit } : { name: upperInit, avatar: upperInit };
+    return user ? { name: formatNameWithInitial(user.full_name), avatar: upperInit } : { name: upperInit, avatar: upperInit };
   }, [users]);
 
   const [sorting, setSorting] = useState<SortingState>([]);

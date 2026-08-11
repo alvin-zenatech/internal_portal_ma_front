@@ -17,6 +17,8 @@ export interface CompanyData {
   country_name?: string | null;
   contact_name?: string | null;
   email?: string | null;
+  state_id?: number | null;
+  state_name?: string | null;
   created_at: string;
 }
 
@@ -36,6 +38,8 @@ export interface PriorityData extends MasterData {
 export interface CountryData extends MasterData {
   code?: string;
 }
+
+export interface StateData extends MasterData {}
 
 export interface PipelineTask {
   id: number;
@@ -64,6 +68,8 @@ export interface PipelineTask {
   team_size: string | null;
   country_id: number | null;
   country_name: string | null;
+  state_id?: number | null;
+  state_name?: string | null;
   latest_note: string | null;
   is_dnc?: boolean;
   follow_up_date: string | null;
@@ -220,6 +226,31 @@ export function useUpdateCountry() {
   });
 }
 export const useDeleteCountry = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/countries/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["countries"] }); qc.invalidateQueries({ queryKey: ["tasks"] }); } }); };
+
+export const useStates = () => useQuery({ queryKey: ["states"], queryFn: () => api.get<StateData[]>("/api/pipeline/states") });
+export function useCreateState() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string }) => {
+      return await api.post("/api/pipeline/states", data);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["states"] }),
+  });
+}
+export function useUpdateState() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number, data: { name: string } }) => {
+      return await api.put(`/api/pipeline/states/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["states"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+export const useDeleteState = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/states/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["states"] }); qc.invalidateQueries({ queryKey: ["tasks"] }); } }); };
+
 
 // Task Hooks
 export const usePipelineTasks = () => useQuery({ queryKey: ["tasks"], queryFn: () => api.get<PipelineTask[]>("/api/pipeline/tasks") });

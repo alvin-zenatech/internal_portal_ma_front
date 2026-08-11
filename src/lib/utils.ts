@@ -12,3 +12,9 @@ export function formatYesNo(val: string | null | undefined): string {
   if (lower === 'n' || lower === 'no') return 'No';
   return val;
 }
+
+export const formatNameWithInitial = (name: string | null | undefined): string => {
+  if (!name) return 'Unassigned';
+  const parts = name.trim().split(/\s+/);
+  return parts.map(p => p.charAt(0)).join('').toUpperCase();
+};
