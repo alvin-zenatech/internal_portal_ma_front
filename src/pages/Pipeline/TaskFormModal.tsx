@@ -10,12 +10,14 @@ import { toast } from "sonner";
 import { CalendarIcon, X, Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePriorities, useCountries, useAnalysts, useStates, useCreateState, useCreateCountry, useCreateIndustry } from "@/hooks/usePipeline";
+import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePriorities, useCountries, useAnalysts, useStates, useCreateState, useCreateCountry, useCreateIndustry, useCompanies } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
   const { mutateAsync: createIndustry } = useCreateIndustry();
+  const { data: companies } = useCompanies();
+  const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
 
   const { data: priorities } = usePriorities();
   
@@ -107,19 +109,25 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Company Name *</Label>
-              <Input required value={formData.company_name} onChange={e => setFormData({...formData, company_name: e.target.value})} />
+              <AutocompleteCombobox
+                value={formData.company_name}
+                onChange={v => setFormData({...formData, company_name: v as string})}
+                options={companyOptions}
+                onCreate={async (name) => name}
+                placeholder="e.g. Acme Corp"
+              />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Contact Name *</Label>
               <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Email *</Label>
               <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Phone *</Label>
               <div className="flex gap-2">
                 <Input 
@@ -147,7 +155,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Priority *</Label>
               <Select required value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
@@ -157,7 +165,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Analyst *</Label>
               <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
@@ -168,21 +176,21 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Industry *</Label>
               <AutocompleteCombobox
                 value={formData.industry_id ? parseInt(formData.industry_id) : ""}
                 onChange={v => setFormData({...formData, industry_id: v.toString()})}
                 options={industries || []}
                 onCreate={async (name) => {
-                  const res = await createIndustry(name);
+                  const res = await createIndustry({ name });
                   return (res as any).id;
                 }}
                 placeholder="Select or create industry..."
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Country *</Label>
               <AutocompleteCombobox
                 value={formData.country_id ? parseInt(formData.country_id) : ""}
@@ -196,7 +204,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>State / Province *</Label>
               <AutocompleteCombobox
                 value={formData.state_id ? parseInt(formData.state_id) : ""}
@@ -210,17 +218,17 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Revenue</Label>
               <Input value={formData.revenue} onChange={e => setFormData({...formData, revenue: e.target.value})} />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>Team Size</Label>
               <Input value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label>NDA Status</Label>
               <Select value={formData.nda} onValueChange={v => setFormData({...formData, nda: v === "none" ? "" : v})}>
                 <SelectTrigger><SelectValue placeholder="Select NDA status" /></SelectTrigger>

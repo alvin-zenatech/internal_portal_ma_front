@@ -77,7 +77,10 @@ export default function Login() {
     window.location.href = `${baseUrl}/api/auth/microsoft/login`;
   };
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 628d418e8193bf3037dfde5dfde650689bed9e3a
   return (
     <div className="min-h-screen w-full bg-slate-50 dark:bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
       {/* Background decorations */}
@@ -117,7 +120,7 @@ export default function Login() {
               )}
             </Button>
 
-          </CardContent>
+          </CardContent >
           <CardFooter className="flex justify-center pb-8 pt-4 border-t border-slate-100 dark:border-zinc-800/50 mt-2 bg-slate-50/50 dark:bg-zinc-950/30">
             <p className="text-sm text-slate-500 dark:text-zinc-400">
               Having trouble?{" "}
@@ -126,8 +129,8 @@ export default function Login() {
               </a>
             </p>
           </CardFooter>
-        </Card>
-      </div>
-    </div>
+        </Card >
+      </div >
+    </div >
   );
 }

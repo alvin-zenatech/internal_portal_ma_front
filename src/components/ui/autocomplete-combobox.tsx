@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils";
 import fuzzysort from "fuzzysort";
 
 export interface AutocompleteOption {
-  id: number;
+  id: number | string;
   name: string;
 }
 
 interface AutocompleteComboboxProps {
-  value: number | "";
-  onChange: (value: number) => void;
+  value: number | string | "";
+  onChange: (value: any) => void;
   options: AutocompleteOption[];
-  onCreate?: (name: string) => Promise<number>;
+  onCreate?: (name: string) => Promise<number | string>;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -92,10 +92,12 @@ export function AutocompleteCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal bg-white"
+          className="w-full justify-between font-normal bg-white overflow-hidden"
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.name : <span className="text-muted-foreground">{placeholder}</span>}
+          <span className="truncate flex-1 text-left">
+            {selectedOption ? selectedOption.name : <span className="text-muted-foreground truncate block">{placeholder}</span>}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

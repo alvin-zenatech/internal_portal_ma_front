@@ -205,7 +205,7 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "priority_name", 
-      header: ({ column }) => <ColumnHeader column={column} title="Next Steps" />,
+      header: ({ column }) => <ColumnHeader column={column} title="Priority" />,
       size: 160,
       cell: ({ row }) => {
         const priority = row.original.priority_name;

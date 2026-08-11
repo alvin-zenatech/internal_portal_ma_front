@@ -25,6 +25,14 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
+
+    // Check for duplicates
+    const isDuplicate = data?.some((item: any) => item.name.toLowerCase() === newName.trim().toLowerCase());
+    if (isDuplicate) {
+      toast.error(`"${newName.trim()}" already exists.`);
+      return;
+    }
+
     setIsCreating(true);
     try {
       const payload: any = { name: newName.trim() };
@@ -35,7 +43,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       if (hasCode) payload.code = code.trim();
       if (hasColor) payload.color = color;
       
-      await onCreate(hasSortOrder || hasCode || hasColor ? payload : newName.trim());
+      await onCreate(payload);
       setNewName("");
       setCode("");
       setColor("#64748b");
