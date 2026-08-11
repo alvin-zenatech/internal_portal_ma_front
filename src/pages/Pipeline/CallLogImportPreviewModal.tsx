@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check, Edit3 } from 'lucide-react';
 import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts } from '@/hooks/usePipeline';
 
 interface Props {
@@ -52,6 +52,52 @@ export default function CallLogImportPreviewModal({
 
   const [rows, setRows] = useState<CallLogPreviewRow[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
+
+  const [editingRowForCompany, setEditingRowForCompany] = useState<CallLogPreviewRow | null>(null);
+  const [companyForm, setCompanyForm] = useState({
+    company_name: '',
+    industry: '',
+    location: '',
+    contact_name: '',
+    email: '',
+    phone_number: '',
+    state_province: '',
+    country: ''
+  });
+
+  const handleOpenCompanyModal = (row: CallLogPreviewRow) => {
+    setEditingRowForCompany(row);
+    setCompanyForm({
+      company_name: row.company_name || row.raw_company_name || '',
+      industry: row.industry || row.raw_industry || '',
+      location: row.location || row.raw_location || '',
+      contact_name: row.contact_name || row.raw_contact_name || '',
+      email: row.email || '',
+      phone_number: row.phone_number || row.raw_phone_number || '',
+      state_province: row.state_province || row.raw_state_province || '',
+      country: row.country || ''
+    });
+  };
+
+  const handleSaveCompanyForm = () => {
+    if (!editingRowForCompany) return;
+    setRows(prev => prev.map(r => {
+      if (r.row_index !== editingRowForCompany.row_index) return r;
+      return {
+        ...r,
+        company_name: companyForm.company_name.trim(),
+        industry: companyForm.industry.trim() || undefined,
+        location: companyForm.location.trim() || undefined,
+        contact_name: companyForm.contact_name.trim() || undefined,
+        email: companyForm.email.trim() || undefined,
+        phone_number: companyForm.phone_number.trim() || undefined,
+        state_province: companyForm.state_province.trim() || undefined,
+        country: companyForm.country.trim() || undefined,
+        has_user_changed: true
+      };
+    }));
+    setEditingRowForCompany(null);
+  };
 
   const { mutate: confirmImport, isPending: isImporting } = useConfirmImportCallLog();
   const { data: analysts } = useAnalysts();
@@ -200,6 +246,7 @@ export default function CallLogImportPreviewModal({
         const match = r.suggestions ? r.suggestions.find(s => String(s.id) === value) : null;
         matchedCompanyId = match ? match.id : Number(value) || null;
         targetCompanyName = match ? match.name : value;
+        matchType = 'suggested';
 
         if (match) {
           targetIndustry = match.industry || targetIndustry;
@@ -212,6 +259,7 @@ export default function CallLogImportPreviewModal({
       } else {
         matchedCompanyId = null;
         targetCompanyName = r.raw_company_name;
+        matchType = 'new';
         targetIndustry = r.raw_industry;
         targetState = r.raw_state_province;
         targetLocation = r.raw_location;
@@ -424,7 +472,7 @@ export default function CallLogImportPreviewModal({
                 </TableHead>
                 <TableHead className="w-[340px]">Company Matching</TableHead>
                 <TableHead className="w-[140px]">Industry</TableHead>
-                <TableHead className="w-[80px]">State</TableHead>
+                <TableHead className="w-[80px]">State/Province</TableHead>
                 <TableHead className="w-[80px]">Location</TableHead>
                 <TableHead className="w-[140px]">Contact</TableHead>
                 <TableHead className="w-[120px]">Phone</TableHead>
@@ -499,7 +547,7 @@ export default function CallLogImportPreviewModal({
                           </SelectTrigger>
                           <SelectContent className="max-h-56">
                             <SelectItem value="__NEW__" className="text-xs text-blue-600 font-medium">
-                              + Create as New Company: "{row.raw_company_name}"
+                              + Create as New Company: "{row.company_name || row.raw_company_name}"
                             </SelectItem>
                             {row.suggestions.map(s => (
                               <SelectItem key={s.id} value={String(s.id)} className="text-xs">
@@ -509,6 +557,19 @@ export default function CallLogImportPreviewModal({
                           </SelectContent>
                         </Select>
 
+                        {!row.matched_company_id && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs px-2 text-blue-600 border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-950/30 shrink-0 flex items-center gap-1 font-medium"
+                            onClick={() => handleOpenCompanyModal(row)}
+                            title="Set Up / Edit Company Details"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Setup Info
+                          </Button>
+                        )}
                         {(row.match_type === 'suggested' || row.has_user_changed) && (
                           <Button
                             type="button"
@@ -517,7 +578,7 @@ export default function CallLogImportPreviewModal({
                             onClick={() => handleConfirmSingleMatch(row.row_index)}
                           >
                             <Check className="h-3.5 w-3.5" />
-                            Confirm Match
+                            {row.matched_company_id ? "Confirm Match" : "Confirm New Company"}
                           </Button>
                         )}
                       </div>
@@ -611,6 +672,102 @@ export default function CallLogImportPreviewModal({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Set Up Company Details Modal (Matches Add Company Dialog Schema) */}
+      <Dialog open={!!editingRowForCompany} onOpenChange={(o) => !o && setEditingRowForCompany(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Add / Set Up Company Info
+            </DialogTitle>
+            <DialogDescription>
+              Configure or verify details for creating this new company.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Company Name <span className="text-red-500">*</span></label>
+              <Input
+                value={companyForm.company_name}
+                onChange={e => setCompanyForm(prev => ({ ...prev, company_name: e.target.value }))}
+                placeholder="e.g. Lescure Surveying"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Contact Name</label>
+              <Input
+                value={companyForm.contact_name}
+                onChange={e => setCompanyForm(prev => ({ ...prev, contact_name: e.target.value }))}
+                placeholder="Primary contact name"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  value={companyForm.email}
+                  onChange={e => setCompanyForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="contact@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone</label>
+                <Input
+                  value={companyForm.phone_number}
+                  onChange={e => setCompanyForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                  placeholder="Phone number"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Industry</label>
+                <Input
+                  value={companyForm.industry}
+                  onChange={e => setCompanyForm(prev => ({ ...prev, industry: e.target.value }))}
+                  placeholder="Industry..."
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Location / City</label>
+                <Input
+                  value={companyForm.location}
+                  onChange={e => setCompanyForm(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="City or location..."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">State/Province</label>
+                <Input
+                  value={companyForm.state_province}
+                  onChange={e => setCompanyForm(prev => ({ ...prev, state_province: e.target.value }))}
+                  placeholder="State or province..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Country</label>
+                <Input
+                  value={companyForm.country}
+                  onChange={e => setCompanyForm(prev => ({ ...prev, country: e.target.value }))}
+                  placeholder="Country..."
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRowForCompany(null)}>Cancel</Button>
+            <Button onClick={handleSaveCompanyForm} disabled={!companyForm.company_name.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

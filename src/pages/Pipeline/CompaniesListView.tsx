@@ -125,7 +125,7 @@ export default function CompaniesListView() {
       accessorKey: "state_name", 
       header: "State/Province",
       size: 150,
-      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.state_name}</span> 
+      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.state_name || row.original.location || "-"}</span> 
     },
     {
       id: "actions",

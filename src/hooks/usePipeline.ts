@@ -687,6 +687,8 @@ export interface CallLogPreviewRow {
   notes?: string;
   is_duplicate: boolean;
   duplicate_reason?: string;
+  email?: string;
+  country?: string;
   is_confirmed?: boolean;
   has_user_changed?: boolean;
   selected_for_import: boolean;

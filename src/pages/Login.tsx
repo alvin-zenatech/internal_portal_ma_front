@@ -11,7 +11,6 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const { refreshPermissions } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [isBypassLoading, setIsBypassLoading] = useState(false);
 
   const hasProcessedLogin = useRef(false);
 
@@ -78,43 +77,6 @@ export default function Login() {
     window.location.href = `${baseUrl}/api/auth/microsoft/login`;
   };
 
-  const handleBypassLogin = async () => {
-    setIsBypassLoading(true);
-    let rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
-    if (rawBaseUrl && !rawBaseUrl.startsWith("http")) {
-      rawBaseUrl = `https://${rawBaseUrl}`;
-    }
-    const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
-
-    try {
-      const res = await fetch(`${baseUrl}/api/auth/developer/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "testa@zenatech.com" })
-      });
-
-      if (!res.ok) {
-        throw new Error("Bypass login failed");
-      }
-
-      const data = await res.json();
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("ms_id_token");
-      if (data.token) {
-        sessionStorage.setItem("token", data.token);
-      }
-      await refreshPermissions();
-      toast.success("Successfully logged in via bypass");
-      navigate("/");
-    } catch (error) {
-      console.error("Bypass login error", error);
-      toast.error("Bypass login failed");
-    } finally {
-      setIsBypassLoading(false);
-    }
-  };
-
 
   return (
     <div className="min-h-screen w-full bg-slate-50 dark:bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
@@ -143,7 +105,7 @@ export default function Login() {
             <Button
               onClick={handleLogin}
               className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all mb-3"
-              disabled={isLoading || isBypassLoading}
+              disabled={isLoading}
             >
               {isLoading ? (
                 <>
@@ -152,22 +114,6 @@ export default function Login() {
                 </>
               ) : (
                 "Sign in with Microsoft"
-              )}
-            </Button>
-
-            <Button
-              onClick={handleBypassLogin}
-              variant="outline"
-              className="w-full h-12 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all mb-3"
-              disabled={isLoading || isBypassLoading}
-            >
-              {isBypassLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Bypassing...
-                </>
-              ) : (
-                "Bypass Login (testa@zenatech.com)"
               )}
             </Button>
 
