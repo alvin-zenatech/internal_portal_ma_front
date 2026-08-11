@@ -283,7 +283,7 @@ export default function CompaniesListView() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <label className="text-sm font-medium">Email</label>
                 <Input 
                   value={email} 
@@ -291,7 +291,7 @@ export default function CompaniesListView() {
                   placeholder="contact@company.com" 
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <label className="text-sm font-medium">Phone</label>
                 <Input 
                   value={phone} 
@@ -302,7 +302,7 @@ export default function CompaniesListView() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">State/Province</label>
                 <AutocompleteCombobox
                   value={stateId}
@@ -316,7 +316,7 @@ export default function CompaniesListView() {
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">Country</label>
                 <AutocompleteCombobox
                   value={countryId}

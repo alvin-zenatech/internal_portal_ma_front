@@ -92,10 +92,12 @@ export function AutocompleteCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal bg-white"
+          className="w-full justify-between font-normal bg-white overflow-hidden"
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.name : <span className="text-muted-foreground">{placeholder}</span>}
+          <span className="truncate flex-1 text-left">
+            {selectedOption ? selectedOption.name : <span className="text-muted-foreground truncate block">{placeholder}</span>}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
