@@ -1,8 +1,7 @@
 import { formatNameWithInitial } from '@/lib/utils';
-import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallTrackingSummary, type CallTrackingSummary, useUsers, useImportCallTrackingXlsx } from '@/hooks/usePipeline';
+import React, { useState, useDeferredValue, useRef } from 'react';
+import { useCallTrackingSummary, type CallTrackingSummary, useUsers, usePreviewCallLog, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -17,12 +16,13 @@ import {
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Filter } from "lucide-react";
+import { ArrowUpDown, Filter, Upload } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import CallTrackingDetails from './CallTrackingDetails';
+import CallLogImportPreviewModal from './CallLogImportPreviewModal';
 import { formatYesNo } from "@/lib/utils";
 
 const STATE_MAP: Record<string, string> = {
@@ -111,28 +111,30 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 }
 
 export default function CallTracking() {
-  const { data: summaries, isLoading } = useCallTrackingSummary();
+  const { data: summaries, isLoading, refetch } = useCallTrackingSummary();
   const { data: users } = useUsers();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const loadingToastRef = useRef<string | number | null>(null);
-  const [importMessage, setImportMessage] = useState("");
-  const [importFile, setImportFile] = useState<File | null>(null);
-  
-  const { mutate: importCallTrackingXlsx, isPending } = useImportCallTrackingXlsx((_, m) => {
-    setImportMessage(m);
-  });
-  
-  useEffect(() => {
-    if (loadingToastRef.current && isPending) {
-      toast.loading(importMessage || "Importing call logs...", { id: loadingToastRef.current });
-    }
-  }, [importMessage, isPending]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<CallLogPreviewResponse | null>(null);
+
+  const previewCallLog = usePreviewCallLog();
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImportFile(file);
+      toast.loading("Analyzing call log file...", { id: "preview-loading" });
+      previewCallLog.mutate(file, {
+        onSuccess: (data) => {
+          toast.dismiss("preview-loading");
+          setPreviewData(data);
+          setPreviewOpen(true);
+        },
+        onError: (err: any) => {
+          toast.dismiss("preview-loading");
+          toast.error(err?.message || "Failed to parse call log file");
+        }
+      });
     }
     e.target.value = '';
   };
@@ -301,10 +303,11 @@ export default function CallTracking() {
             type="file" 
             ref={fileInputRef} 
             className="hidden" 
-            accept=".xlsx"
+            accept=".xlsx,.xls,.xlsm,.csv"
             onChange={handleImport}
           />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap" disabled={isPending}>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap" disabled={previewCallLog.isPending}>
+            <Upload className="h-4 w-4 mr-2" />
             Upload Call Log
           </Button>
           <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
@@ -394,30 +397,13 @@ export default function CallTracking() {
         />
       )}
 
-      <ConfirmDialog 
-        confirmText="Import"
-        loadingText="Importing..."
-        variant="default"
-        open={importFile !== null} 
-        onOpenChange={(open) => !open && setImportFile(null)}
-        title="Confirm Import"
-        description="Are you sure you want to append these call logs? They will be added to the existing tracking data without overwriting it."
-        onConfirm={() => {
-          if (importFile) {
-            loadingToastRef.current = toast.loading("Importing call logs...");
-            importCallTrackingXlsx(importFile, {
-              onSuccess: (res: any) => {
-                toast.success(res.message || "Imported successfully!", { id: loadingToastRef.current! });
-                loadingToastRef.current = null;
-                setImportFile(null);
-              },
-              onError: (err: any) => {
-                toast.error(err.message || err.response?.data?.detail || "Failed to import", { id: loadingToastRef.current! });
-                loadingToastRef.current = null;
-                setImportFile(null);
-              }
-            });
-          }
+      <CallLogImportPreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        previewData={previewData}
+        onSuccess={() => {
+          setPreviewData(null);
+          refetch();
         }}
       />
     </div>
