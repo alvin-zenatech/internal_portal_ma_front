@@ -40,8 +40,8 @@ function App() {
 
           {/* Main app layout routes */}
           <Route element={<ProtectedRoute><AppShell><Outlet /></AppShell></ProtectedRoute>}>
-            <Route path="/" element={<ProtectedRoute navigationCode="PIPELINE"><PipelineDashboard /></ProtectedRoute>} />
-            <Route path="/pipeline/follow-ups" element={<ProtectedRoute navigationCode="PIPELINE"><FollowUps /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute navigationCode="PIPELINE_DASHBOARD"><PipelineDashboard /></ProtectedRoute>} />
+            <Route path="/pipeline/follow-ups" element={<ProtectedRoute navigationCode="PIPELINE_FOLLOW_UPS"><FollowUps /></ProtectedRoute>} />
 
             <Route path="/configurations" element={<Navigate to="/configurations/users" replace />} />
 
@@ -51,21 +51,21 @@ function App() {
             <Route path="/configurations/users" element={<ProtectedRoute navigationCode="CONFIG_USERS"><Users /></ProtectedRoute>} />
             <Route path="/configurations/roles" element={<ProtectedRoute navigationCode="CONFIG_ROLES"><Roles /></ProtectedRoute>} />
             <Route path="/configurations/user-role-assignment" element={<ProtectedRoute navigationCode="CONFIG_USER_ROLE_ASSIGNMENT"><UserRoleAssignment /></ProtectedRoute>} />
-            <Route path="/configurations/role-group-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLES"><RoleGroupPermissions /></ProtectedRoute>} />
+            <Route path="/configurations/role-group-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_NAVIGATION_PERMISSIONS"><RoleGroupPermissions /></ProtectedRoute>} />
             <Route path="/configurations/role-api-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_API_PERMISSIONS"><RoleApiPermissions /></ProtectedRoute>} />
 
 
             {/* Pipeline */}
 
-            <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE"><WeeklyCheckIn /></ProtectedRoute>} />
-            <Route path="/pipeline/call-tracking" element={<ProtectedRoute navigationCode="PIPELINE"><CallTracking /></ProtectedRoute>} />
-            <Route path="/pipeline/do-not-contact" element={<ProtectedRoute navigationCode="PIPELINE"><DoNotContact /></ProtectedRoute>} />
-            <Route path="/pipeline/uploads" element={<ProtectedRoute navigationCode="PIPELINE"><PipelineUploads /></ProtectedRoute>} />
+            <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE_WEEKLY_CHECK_IN"><WeeklyCheckIn /></ProtectedRoute>} />
+            <Route path="/pipeline/call-tracking" element={<ProtectedRoute navigationCode="PIPELINE_CALL_TRACKING"><CallTracking /></ProtectedRoute>} />
+            <Route path="/pipeline/do-not-contact" element={<ProtectedRoute navigationCode="PIPELINE_DO_NOT_CONTACT"><DoNotContact /></ProtectedRoute>} />
+            <Route path="/pipeline/uploads" element={<ProtectedRoute navigationCode="PIPELINE_UPLOADS"><PipelineUploads /></ProtectedRoute>} />
             <Route path="/pipeline" element={<Navigate to="/pipeline/master-data/industry" replace />} />
-            <Route path="/pipeline/companies" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><CompaniesListView /></ProtectedRoute>} />
-            <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataIndustry /></ProtectedRoute>} />
-            <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataPriority /></ProtectedRoute>} />
-            <Route path="/pipeline/master-data/country" element={<ProtectedRoute navigationCode="PIPELINE_CONFIG"><MasterDataCountry /></ProtectedRoute>} />
+            <Route path="/pipeline/companies" element={<ProtectedRoute navigationCode="PIPELINE_COMPANIES"><CompaniesListView /></ProtectedRoute>} />
+            <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_INDUSTRIES"><MasterDataIndustry /></ProtectedRoute>} />
+            <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_PRIORITIES"><MasterDataPriority /></ProtectedRoute>} />
+            <Route path="/pipeline/master-data/country" element={<ProtectedRoute navigationCode="PIPELINE_COUNTRIES"><MasterDataCountry /></ProtectedRoute>} />
 
 
             {/* Logs */}
