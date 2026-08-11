@@ -77,10 +77,7 @@ export default function Login() {
     window.location.href = `${baseUrl}/api/auth/microsoft/login`;
   };
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 628d418e8193bf3037dfde5dfde650689bed9e3a
   return (
     <div className="min-h-screen w-full bg-slate-50 dark:bg-zinc-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
       {/* Background decorations */}
