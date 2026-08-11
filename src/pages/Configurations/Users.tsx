@@ -67,6 +67,7 @@ export default function Users() {
   const [formData, setFormData] = useState({
     email: "",
     full_name: "",
+    initials: "",
     is_active: true,
     is_super_admin: false,
   });
@@ -120,7 +121,7 @@ export default function Users() {
 
   const openCreateDialog = () => {
     setEditingUser(null);
-    setFormData({ email: "", full_name: "", is_active: true, is_super_admin: false });
+    setFormData({ email: "", full_name: "", initials: "", is_active: true, is_super_admin: false });
     setIsDialogOpen(true);
   };
 
@@ -156,6 +157,7 @@ export default function Users() {
     setFormData({ 
       email: user.email.replace(/@zenatech\.com$/, ""), 
       full_name: user.full_name || "", 
+      initials: (user as any).initials || "",
       is_active: (user as any).is_active ?? true, 
       is_super_admin: user.is_super_admin 
     });
@@ -178,6 +180,16 @@ export default function Users() {
         </Button>
       ),
       cell: ({ row }) => <span className="font-medium">{row.original.full_name || "-"}</span>,
+    },
+    {
+      accessorKey: "initials",
+      header: ({ column }) => (
+        <Button variant="ghost" className="px-0 font-semibold" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Initials
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <span className="font-medium">{(row.original as any).initials || "-"}</span>,
     },
     {
       accessorKey: "email",
@@ -429,6 +441,15 @@ export default function Users() {
                 value={formData.full_name} 
                 onChange={e => setFormData({...formData, full_name: e.target.value})} 
                 placeholder="John Doe"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Initials</label>
+              <Input 
+                value={(formData as any).initials} 
+                onChange={e => setFormData({...formData, initials: e.target.value.toUpperCase()})} 
+                placeholder="JD"
+                maxLength={10}
               />
             </div>
             <div className="space-y-2">

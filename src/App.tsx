@@ -22,6 +22,7 @@ const FollowUps = lazy(() => import("./pages/Pipeline/FollowUps"));
 const MasterDataIndustry = lazy(() => import("./pages/Pipeline/MasterDataIndustry"));
 const MasterDataPriority = lazy(() => import("./pages/Pipeline/MasterDataPriority"));
 const MasterDataCountry = lazy(() => import("./pages/Pipeline/MasterDataCountry"));
+const MasterDataState = lazy(() => import("./pages/Pipeline/MasterDataState"));
 const CompaniesListView = lazy(() => import("./pages/Pipeline/CompaniesListView"));
 const WeeklyCheckIn = lazy(() => import("./pages/Pipeline/WeeklyCheckIn"));
 const CallTracking = lazy(() => import("./pages/Pipeline/CallTracking"));
@@ -66,6 +67,7 @@ function App() {
             <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_INDUSTRIES"><MasterDataIndustry /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_PRIORITIES"><MasterDataPriority /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/country" element={<ProtectedRoute navigationCode="PIPELINE_COUNTRIES"><MasterDataCountry /></ProtectedRoute>} />
+            <Route path="/pipeline/master-data/state" element={<ProtectedRoute navigationCode="PIPELINE_STATES"><MasterDataState /></ProtectedRoute>} />
 
 
             {/* Logs */}

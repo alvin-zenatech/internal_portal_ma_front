@@ -1,5 +1,6 @@
 import React, { useState, useDeferredValue } from "react";
-import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, type CompanyData } from "@/hooks/usePipeline";
+import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, useCreateCountry, useStates, useCreateState, type CompanyData } from "@/hooks/usePipeline";
+import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, MapPin, User, Mail, Phone, Loader2 } from "lucide-react";
@@ -8,11 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CompaniesListView() {
   const { data: companies, isLoading } = useCompanies();
   const { data: countries } = useCountries();
+  const { mutateAsync: createCountry } = useCreateCountry();
+  const { data: states } = useStates();
+  const { mutateAsync: createState } = useCreateState();
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredSearchQuery = useDeferredValue(globalFilter);
   
@@ -22,8 +25,8 @@ export default function CompaniesListView() {
   // Form state
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
-  const [locationStr, setLocationStr] = useState("");
-  const [countryId, setCountryId] = useState<string>("none");
+  const [stateId, setStateId] = useState<number | "">("");
+  const [countryId, setCountryId] = useState<number | "">("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
 
@@ -38,16 +41,16 @@ export default function CompaniesListView() {
       setEditingCompany(company);
       setCompanyName(company.name);
       setPhone(company.phone || "");
-      setLocationStr(company.location || "");
-      setCountryId(company.country_id?.toString() || "none");
+      setStateId(company.state_id || "");
+      setCountryId(company.country_id || "");
       setContactName(company.contact_name || "");
       setEmail(company.email || "");
     } else {
       setEditingCompany(null);
       setCompanyName("");
       setPhone("");
-      setLocationStr("");
-      setCountryId("none");
+      setStateId("");
+      setCountryId("");
       setContactName("");
       setEmail("");
     }
@@ -60,8 +63,8 @@ export default function CompaniesListView() {
     const dataToSave = {
       name: companyName.trim(),
       phone: phone.trim() || null,
-      location: locationStr.trim() || null,
-      country_id: countryId !== "none" ? parseInt(countryId) : null,
+      state_id: stateId || null,
+      country_id: countryId || null,
       contact_name: contactName.trim() || null,
       email: email.trim() || null,
     };
@@ -118,15 +121,11 @@ export default function CompaniesListView() {
         </div>
       )
     },
-    {
-      accessorKey: "location",
-      header: "Location",
-      cell: ({ row }: any) => (row.original.location || row.original.country_name) ? (
-        <div className="flex items-center gap-2 text-sm">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          {[row.original.location, row.original.country_name].filter(Boolean).join(", ")}
-        </div>
-      ) : <span className="text-muted-foreground">-</span>
+    { 
+      accessorKey: "state_name", 
+      header: "State/Province",
+      size: 150,
+      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.state_name}</span> 
     },
     {
       id: "actions",
@@ -303,27 +302,32 @@ export default function CompaniesListView() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Location</label>
-                <Input 
-                  value={locationStr} 
-                  onChange={e => setLocationStr(e.target.value)} 
-                  placeholder="City, State" 
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">State/Province</label>
+                <AutocompleteCombobox
+                  value={stateId}
+                  onChange={v => setStateId(v)}
+                  options={states || []}
+                  onCreate={async (name) => {
+                    const res = await createState({ name });
+                    return res.id;
+                  }}
+                  placeholder="Select or create state/province..."
                 />
               </div>
-              <div className="space-y-2">
+
+              <div className="grid gap-2">
                 <label className="text-sm font-medium">Country</label>
-                <Select value={countryId} onValueChange={setCountryId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {countries?.map((c) => (
-                      <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AutocompleteCombobox
+                  value={countryId}
+                  onChange={v => setCountryId(v)}
+                  options={countries || []}
+                  onCreate={async (name) => {
+                    const res = await createCountry({ name, code: "" });
+                    return res.id;
+                  }}
+                  placeholder="Select or create country..."
+                />
               </div>
             </div>
           </div>

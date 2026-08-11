@@ -21,8 +21,7 @@ import { getPriorityColors } from "./KanbanCard";
 const getInitials = (name: string) => {
   if (!name) return "";
   const parts = name.split(" ").filter(Boolean);
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  return parts.map(p => p.charAt(0)).join('').toUpperCase();
 };
 
 function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
@@ -154,7 +153,7 @@ const PipelineListView = React.memo(function PipelineListView({
               <AvatarImage src="" />
               <AvatarFallback className="text-[10px] bg-primary/10">{initials}</AvatarFallback>
             </Avatar>
-            <span className="truncate">{row.original.analyst_name || 'Unassigned'}</span>
+            <span className="truncate">{row.original.analyst_name}</span>
           </div>
         );
       },
@@ -173,7 +172,7 @@ const PipelineListView = React.memo(function PipelineListView({
         </div>
       )
     },
-    { accessorKey: "location", header: ({ column }) => <ColumnHeader column={column} title="State/Province" />, size: 180 },
+    { accessorKey: "state_name", header: ({ column }) => <ColumnHeader column={column} title="State/Province" />, size: 180 },
     { accessorKey: "country_name", header: ({ column }) => <ColumnHeader column={column} title="Country" />, size: 140 },
     { 
       accessorKey: "revenue", 

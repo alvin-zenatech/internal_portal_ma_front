@@ -4,7 +4,8 @@ import { apiClient } from '../services/apiClient';
 export interface User {
   id: string;
   email: string;
-  full_name: string;
+  full_name?: string;
+  initials?: string;
   is_super_admin: boolean;
   is_active?: boolean;
 }
