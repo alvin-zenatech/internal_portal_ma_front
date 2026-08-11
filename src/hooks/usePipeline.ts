@@ -603,3 +603,98 @@ export function useDeleteDoNotContact() {
     },
   });
 }
+
+export interface CallLogPreviewSummary {
+  total_rows: number;
+  exact_matches: number;
+  suggested_matches: number;
+  new_companies: number;
+  potential_duplicates: number;
+}
+
+export interface CompanyCandidateSuggestion {
+  id: number;
+  name: string;
+  score: number;
+  industry?: string;
+  state_province?: string;
+  location?: string;
+  contact_name?: string;
+  position?: string;
+  phone_number?: string;
+}
+
+export interface CallLogPreviewRow {
+  row_index: number;
+  raw_company_name: string;
+  company_name: string;
+  matched_company_id: number | null;
+  match_type: 'exact' | 'suggested' | 'new';
+  match_confidence: number;
+  suggestions: CompanyCandidateSuggestion[];
+  call_number?: string;
+  industry?: string;
+  state_province?: string;
+  location?: string;
+  contact_name?: string;
+  position?: string;
+  phone_number?: string;
+  raw_industry?: string;
+  raw_state_province?: string;
+  raw_location?: string;
+  raw_contact_name?: string;
+  raw_position?: string;
+  raw_phone_number?: string;
+  date_of_call?: string;
+  emailed?: string;
+  picked_up?: string;
+  outcome?: string;
+  analyst?: string;
+  call_length?: string;
+  notes?: string;
+  is_duplicate: boolean;
+  duplicate_reason?: string;
+  is_confirmed?: boolean;
+  has_user_changed?: boolean;
+  selected_for_import: boolean;
+}
+
+export interface ExistingCallLogItem {
+  company_name: string;
+  phone_number?: string;
+  date_of_call: string;
+  analyst: string;
+}
+
+export interface CallLogPreviewResponse {
+  summary: CallLogPreviewSummary;
+  rows: CallLogPreviewRow[];
+  existing_logs?: ExistingCallLogItem[];
+}
+
+export function usePreviewCallLog() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return await api.post<CallLogPreviewResponse>("/api/pipeline/preview-call-log", formData);
+    }
+  });
+}
+
+export function useConfirmImportCallLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: CallLogPreviewRow[]) => {
+      return await api.post<{ imported_count: number; status: string }>("/api/pipeline/confirm-import-call-log", { rows });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      toast.success(`Successfully imported ${data.imported_count} call log entries.`);
+    }
+  });
+}
+
