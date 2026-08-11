@@ -175,8 +175,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 onChange={v => setFormData({...formData, industry_id: v.toString()})}
                 options={industries || []}
                 onCreate={async (name) => {
-                  const res = await createIndustry({ name });
-                  return res.id;
+                  const res = await createIndustry(name);
+                  return (res as any).id;
                 }}
                 placeholder="Select or create industry..."
               />
@@ -190,7 +190,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 options={countries || []}
                 onCreate={async (name) => {
                   const res = await createCountry({ name, code: "" });
-                  return res.id;
+                  return (res as any).id;
                 }}
                 placeholder="Select or create country..."
               />
@@ -204,7 +204,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 options={states || []}
                 onCreate={async (name) => {
                   const res = await createState({ name });
-                  return res.id;
+                  return (res as any).id;
                 }}
                 placeholder="Select or create state/province..."
               />

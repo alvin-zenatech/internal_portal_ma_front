@@ -17,6 +17,8 @@ export interface CompanyData {
   country_name?: string | null;
   contact_name?: string | null;
   email?: string | null;
+  state_id?: number | null;
+  state_name?: string | null;
   created_at: string;
 }
 
@@ -36,6 +38,8 @@ export interface PriorityData extends MasterData {
 export interface CountryData extends MasterData {
   code?: string;
 }
+
+export interface StateData extends MasterData {}
 
 export interface PipelineTask {
   id: number;
@@ -64,6 +68,8 @@ export interface PipelineTask {
   team_size: string | null;
   country_id: number | null;
   country_name: string | null;
+  state_id?: number | null;
+  state_name?: string | null;
   latest_note: string | null;
   is_dnc?: boolean;
   follow_up_date: string | null;

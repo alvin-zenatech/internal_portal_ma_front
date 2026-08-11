@@ -3,7 +3,7 @@ import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, use
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, MapPin, User, Mail, Phone, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, User, Mail, Phone, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -310,7 +310,7 @@ export default function CompaniesListView() {
                   options={states || []}
                   onCreate={async (name) => {
                     const res = await createState({ name });
-                    return res.id;
+                    return (res as any).id;
                   }}
                   placeholder="Select or create state/province..."
                 />
@@ -324,7 +324,7 @@ export default function CompaniesListView() {
                   options={countries || []}
                   onCreate={async (name) => {
                     const res = await createCountry({ name, code: "" });
-                    return res.id;
+                    return (res as any).id;
                   }}
                   placeholder="Select or create country..."
                 />

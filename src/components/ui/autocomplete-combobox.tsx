@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -47,8 +47,8 @@ export function AutocompleteCombobox({
     if (!search.trim()) {
       return options.map(opt => ({ ...opt, score: 0 })).slice(0, 50); // Just show top 50
     }
-    const fuzz_results = fuzzysort.go(search, options, { key: "name", all: true });
-    return fuzz_results.map(res => {
+    const fuzz_results = fuzzysort.go(search, options as any, { key: "name", all: true } as any);
+    return (fuzz_results as any).map((res: any) => {
       // fuzzysort score is negative, closer to 0 is better.
       // normalize it to 0-100% roughly for display.
       const rawScore = res.score;
