@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Edit2, Check, X, Loader2, ChevronRight, ChevronDown } from "lucide-react";
+import { Trash2, Edit2, Check, X, Loader2, ChevronRight, ChevronDown, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -11,6 +11,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
   const [code, setCode] = useState("");
   const [color, setColor] = useState("#64748b");
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
@@ -122,12 +123,31 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
     </div>
   );
 
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (!searchQuery.trim()) return data;
+    const query = searchQuery.toLowerCase();
+    return data.filter((item: any) => 
+      item.name?.toLowerCase().includes(query) || 
+      item.code?.toLowerCase().includes(query)
+    );
+  }, [data, searchQuery]);
+
   return (
     <div className="p-8 w-full space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-end gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{title} Management</h1>
           <p className="text-muted-foreground mt-2">Manage available options for {title.toLowerCase()}s in the pipeline.</p>
+        </div>
+        <div className="w-64 relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder={`Search ${title.toLowerCase()}s...`}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9 bg-card h-9"
+          />
         </div>
       </div>
 
@@ -171,10 +191,10 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : data?.length === 0 ? (
+            ) : filteredData?.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No {title.toLowerCase()}s found.</TableCell></TableRow>
             ) : (
-              data?.map((item: any) => {
+              filteredData?.map((item: any) => {
                 const isEditing = editingId === item.id;
                 return (
                   <React.Fragment key={item.id}>

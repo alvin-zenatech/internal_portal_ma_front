@@ -155,7 +155,7 @@ export default function PipelineDashboard() {
           <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={isPending}>
+              <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={true}>
                 {isPending ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -166,7 +166,7 @@ export default function PipelineDashboard() {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isPending ? importMessage || "Importing..." : "Import XLSX"}</TooltipContent>
+            <TooltipContent>Import XLSX (Disabled)</TooltipContent>
           </Tooltip>
 
           <Tooltip>
