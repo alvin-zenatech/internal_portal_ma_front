@@ -151,7 +151,7 @@ export default function CallTracking() {
         : u.full_name[0].toUpperCase();
       return computed === upperInit;
     });
-    return user ? { name: formatNameWithInitial(user.full_name), avatar: upperInit } : { name: upperInit, avatar: upperInit };
+    return user ? { name: user.full_name, avatar: upperInit } : { name: upperInit, avatar: upperInit };
   }, [users]);
 
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -271,18 +271,23 @@ export default function CallTracking() {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
   
-  const rowVirtualizer = useVirtualizer({
-    count: allRows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 52, // Typical row height for CallTracking
-    overscan: 10,
-  });
+  const [visibleCount, setVisibleCount] = React.useState(50);
 
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
-  const paddingBottom = virtualRows.length > 0
-    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
-    : 0;
+  React.useEffect(() => {
+    setVisibleCount(50);
+  }, [deferredGlobalFilter, columnFilters, sorting]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 200) {
+      if (visibleCount < allRows.length) {
+        setVisibleCount(prev => Math.min(prev + 50, allRows.length));
+      }
+    }
+  };
+
+  const visibleRows = allRows.slice(0, visibleCount);
+
   if (isLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
@@ -330,7 +335,7 @@ export default function CallTracking() {
           </div>
 
           <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
-            <div className="flex-1 overflow-auto relative" ref={parentRef}>
+            <div className="flex-1 overflow-auto relative" ref={parentRef} onScroll={handleScroll}>
               <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1800px]">
                 <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
                   {table.getHeaderGroups().map((hg) => (
@@ -344,14 +349,8 @@ export default function CallTracking() {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {paddingTop > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
-                    </TableRow>
-                  )}
-                  {virtualRows.length ? (
-                    virtualRows.map(virtualRow => {
-                      const row = allRows[virtualRow.index];
+                  {visibleRows.length ? (
+                    visibleRows.map(row => {
                       return (
                         <TableRow 
                           key={row.id} 
@@ -373,9 +372,11 @@ export default function CallTracking() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {paddingBottom > 0 && (
+                  {visibleRows.length < allRows.length && (
                     <TableRow>
-                      <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                      <TableCell colSpan={columns.length} className="py-4 text-center text-muted-foreground">
+                        Loading more...
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>

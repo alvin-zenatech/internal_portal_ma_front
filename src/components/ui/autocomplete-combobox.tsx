@@ -30,6 +30,7 @@ export function AutocompleteCombobox({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [createdOption, setCreatedOption] = useState<{id: any, name: string} | null>(null);
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,7 +46,7 @@ export function AutocompleteCombobox({
   // Perform fuzzy search
   const results = useMemo(() => {
     if (!search.trim()) {
-      return options.map(opt => ({ ...opt, score: 0 })).slice(0, 50); // Just show top 50
+      return options.map(opt => ({ ...opt, score: 0 })).slice(0, 1000); // Show up to 1000 options
     }
     const fuzz_results = fuzzysort.go(search, options as any, { key: "name", all: true } as any);
     return (fuzz_results as any).map((res: any) => {
@@ -62,20 +63,24 @@ export function AutocompleteCombobox({
         name: res.obj.name,
         score: matchPercent,
       };
-    }).slice(0, 50);
+    }).slice(0, 1000);
   }, [search, options]);
 
   const exactMatch = useMemo(() => {
     return options.some(opt => opt.name.toLowerCase() === search.trim().toLowerCase());
   }, [search, options]);
 
-  const selectedOption = options.find((opt) => opt.id === value);
+  const selectedOption = options.find((opt) => opt.id === value) || 
+    (createdOption?.id === value ? createdOption : 
+    (value ? { id: value, name: String(value) } : undefined));
 
   const handleCreate = async () => {
     if (!onCreate || !search.trim()) return;
     setIsCreating(true);
     try {
-      const newId = await onCreate(search.trim());
+      const typedName = search.trim();
+      const newId = await onCreate(typedName);
+      setCreatedOption({ id: newId, name: typedName });
       onChange(newId);
       setOpen(false);
     } catch (e) {
@@ -112,7 +117,7 @@ export function AutocompleteCombobox({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="max-h-[300px] overflow-y-auto p-1">
+          <div className="max-h-[300px] overflow-y-auto p-1" onWheel={(e) => e.stopPropagation()}>
             {results.map((opt) => (
               <div
                 key={opt.id}

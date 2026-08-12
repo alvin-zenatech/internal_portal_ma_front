@@ -1,21 +1,19 @@
 import React, { useState, useDeferredValue } from "react";
-import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, useCreateCountry, useStates, useCreateState, type CompanyData } from "@/hooks/usePipeline";
+import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, useStates, type CompanyData } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, User, Mail, Phone, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, User, Mail, Phone, Loader2, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender, type ColumnDef } from "@tanstack/react-table";
 
 export default function CompaniesListView() {
   const { data: companies, isLoading } = useCompanies();
   const { data: countries } = useCountries();
-  const { mutateAsync: createCountry } = useCreateCountry();
-  const { data: states } = useStates();
-  const { mutateAsync: createState } = useCreateState();
+  const [countryCode, setCountryCode] = useState<string>("");
+  const { data: states } = useStates(countryCode || undefined);
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredSearchQuery = useDeferredValue(globalFilter);
   const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
@@ -26,8 +24,7 @@ export default function CompaniesListView() {
   // Form state
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
-  const [stateId, setStateId] = useState<number | "">("");
-  const [countryId, setCountryId] = useState<number | "">("");
+  const [stateCode, setStateCode] = useState<string>("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
 
@@ -42,16 +39,16 @@ export default function CompaniesListView() {
       setEditingCompany(company);
       setCompanyName(company.name);
       setPhone(company.phone || "");
-      setStateId(company.state_id || "");
-      setCountryId(company.country_id || "");
+      setStateCode(company.state_code || company.state_name || "");
+      setCountryCode(company.country_code || company.country_name || company.location || "");
       setContactName(company.contact_name || "");
       setEmail(company.email || "");
     } else {
       setEditingCompany(null);
       setCompanyName("");
       setPhone("");
-      setStateId("");
-      setCountryId("");
+      setStateCode("");
+      setCountryCode("");
       setContactName("");
       setEmail("");
     }
@@ -64,8 +61,8 @@ export default function CompaniesListView() {
     const dataToSave = {
       name: companyName.trim(),
       phone: phone.trim() || null,
-      state_id: stateId || null,
-      country_id: countryId || null,
+      state_code: stateCode || null,
+      country_code: countryCode || null,
       contact_name: contactName.trim() || null,
       email: email.trim() || null,
     };
@@ -123,10 +120,16 @@ export default function CompaniesListView() {
       )
     },
     { 
-      accessorKey: "state_name", 
+      accessorKey: "state_code", 
       header: "State/Province",
       size: 150,
-      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.state_name || row.original.location || "-"}</span> 
+      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.state_code || row.original.state_name || "-"}</span> 
+    },
+    { 
+      accessorKey: "country_code", 
+      header: "Country",
+      size: 150,
+      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.country_code || row.original.country_name || row.original.location || "-"}</span> 
     },
     {
       id: "actions",
@@ -161,99 +164,107 @@ export default function CompaniesListView() {
 
   const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
+  
+  const [displayCount, setDisplayCount] = useState(50);
+  const observer = React.useRef<IntersectionObserver | null>(null);
 
-  const rowVirtualizer = useVirtualizer({
-    count: allRows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 64, // Approximate height for Companies table rows
-    overscan: 10,
-  });
+  const lastElementRef = React.useCallback((node: HTMLTableRowElement) => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setDisplayCount(prev => prev + 50);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading]);
 
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
-  const paddingBottom = virtualRows.length > 0
-    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
-    : 0;
+  const visibleRows = allRows.slice(0, displayCount);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/50">
-      <div className="border-b dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-100">
-              <Building2 className="h-6 w-6 text-primary" /> Companies
-            </h1>
-            <p className="text-muted-foreground text-sm">Manage unique companies and their contact information.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search companies..."
-                className="pl-9 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800"
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-              />
-            </div>
-            <Button onClick={() => handleOpenModal()}>
-              <Plus className="mr-2 h-4 w-4" /> Add Company
-            </Button>
-          </div>
+    <div className="h-full flex flex-col w-full min-h-0">
+      <div className="px-8 py-6 bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Building2 className="h-6 w-6 text-primary" /> Companies
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage unique companies and their contact information.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => handleOpenModal()} className="whitespace-nowrap">
+            <Plus className="mr-2 h-4 w-4" /> Add Company
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-auto relative" ref={parentRef}>
-        <div className="w-full">
-          <div className="rounded-xl border dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
+      <div className="flex-1 overflow-hidden relative bg-muted/20">
+        <div className="h-full flex flex-col p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1">
+              <Input 
+                placeholder="Search companies..." 
+                value={globalFilter} 
+                onChange={(e) => setGlobalFilter(e.target.value)} 
+                className="w-64 max-w-sm" 
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
             {isLoading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading companies...</div>
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading companies...</div>
             ) : (
-              <Table>
-                <TableHeader className="sticky top-0 z-10 shadow-sm bg-slate-50/80 dark:bg-zinc-950/50">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-slate-50/80 dark:bg-zinc-950/50 hover:bg-slate-50/80 dark:hover:bg-zinc-950/50">
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="bg-slate-50/80 dark:bg-zinc-950/50">
-                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {paddingTop > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
-                    </TableRow>
-                  )}
-                  {virtualRows.length ? (
-                    virtualRows.map(virtualRow => {
-                      const row = allRows[virtualRow.index];
-                      return (
-                      <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
+              <div className="flex-1 overflow-auto relative" ref={parentRef}>
+                <Table containerClassName="overflow-visible h-auto" className="w-full">
+                  <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id} className="bg-muted/50 whitespace-nowrap">
+                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableHead>
                         ))}
                       </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="h-24 text-center">
-                        No companies found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {paddingBottom > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {visibleRows.length ? (
+                      visibleRows.map((row, index) => {
+                        const isLast = index === visibleRows.length - 1;
+                        return (
+                          <TableRow key={row.id} ref={isLast ? lastElementRef : null} className="hover:bg-muted/50 transition-colors">
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id} className="py-3">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                          No companies found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {visibleRows.length < allRows.length && (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-16 text-center text-muted-foreground">
+                          Loading more...
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
+          </div>
+          
+          <div className="text-xs text-muted-foreground pt-1 flex justify-between items-center">
+            <span>Total rows: {allRows.length}</span>
           </div>
         </div>
       </div>
@@ -308,28 +319,24 @@ export default function CompaniesListView() {
               <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">State/Province</label>
                 <AutocompleteCombobox
-                  value={stateId}
-                  onChange={v => setStateId(v)}
-                  options={states || []}
-                  onCreate={async (name) => {
-                    const res = await createState({ name });
-                    return (res as any).id;
-                  }}
-                  placeholder="Select or create state/province..."
+                  value={stateCode}
+                  onChange={(v) => setStateCode(v?.toString() || "")}
+                  options={(states || []).map(s => ({ id: s.name, name: s.name }))}
+                  placeholder="Select state/province..."
+                  disabled={!countryCode}
                 />
               </div>
 
               <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">Country</label>
                 <AutocompleteCombobox
-                  value={countryId}
-                  onChange={v => setCountryId(v)}
-                  options={countries || []}
-                  onCreate={async (name) => {
-                    const res = await createCountry({ name, code: "" });
-                    return (res as any).id;
+                  value={countryCode}
+                  onChange={(v) => {
+                    setCountryCode(v?.toString() || "");
+                    setStateCode("");
                   }}
-                  placeholder="Select or create country..."
+                  options={(countries || []).map(c => ({ id: c.name, name: c.name }))}
+                  placeholder="Select country..."
                 />
               </div>
             </div>

@@ -1,12 +1,12 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Edit2, Check, X, Loader2 } from "lucide-react";
+import { Trash2, Edit2, Check, X, Loader2, ChevronRight, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete, onUpdate, hasSortOrder = false, hasCode = false, hasColor = false }: any) {
+export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete, onUpdate, hasSortOrder = false, hasCode = false, hasColor = false, renderExtraActions, renderExpandedContent }: any) {
   const [newName, setNewName] = useState("");
   const [code, setCode] = useState("");
   const [color, setColor] = useState("#64748b");
@@ -21,6 +21,12 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [expandedIds, setExpandedIds] = useState<number[]>([]);
+  
+  const toggleExpand = (id: number) => {
+    setExpandedIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +54,9 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       setCode("");
       setColor("#64748b");
       toast.success(`${title} created successfully.`);
-    } catch (error) {
-      toast.error(`Failed to create ${title}.`);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || `Failed to create ${title}.`;
+      toast.error(errorMsg);
     } finally {
       setIsCreating(false);
     }
@@ -75,8 +82,9 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       await onUpdate({ id: editingId, data: payload });
       setEditingId(null);
       toast.success(`${title} updated successfully.`);
-    } catch (error) {
-      toast.error(`Failed to update ${title}.`);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || `Failed to update ${title}.`;
+      toast.error(errorMsg);
     } finally {
       setIsUpdating(false);
     }
@@ -92,8 +100,9 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
       try {
         await onDelete(itemToDelete);
         toast.success(`${title} deleted successfully.`);
-      } catch (error) {
-        toast.error(`Failed to delete ${title}.`);
+      } catch (error: any) {
+        const errorMsg = error.response?.data?.detail || `Failed to delete ${title}.`;
+        toast.error(errorMsg);
       } finally {
         setIsDeleting(false);
       }
@@ -152,6 +161,7 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
         <Table>
           <TableHeader>
             <TableRow>
+              {renderExpandedContent && <TableHead className="w-[40px]"></TableHead>}
               <TableHead>Name</TableHead>
               {hasCode && <TableHead>Code</TableHead>}
               {hasColor && <TableHead>Color</TableHead>}
@@ -167,11 +177,15 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
               data?.map((item: any) => {
                 const isEditing = editingId === item.id;
                 return (
-                  <TableRow key={item.id} className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={(e) => {
-                    if (!isEditing && !(e.target as HTMLElement).closest('button')) {
-                      handleEditClick(item);
-                    }
-                  }}>
+                  <React.Fragment key={item.id}>
+                  <TableRow className="group hover:bg-muted/50 transition-colors">
+                    {renderExpandedContent && (
+                      <TableCell className="pl-4 pr-0 py-2">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleExpand(item.id)}>
+                          {expandedIds.includes(item.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </Button>
+                      </TableCell>
+                    )}
                     <TableCell>
                       {isEditing ? (
                         <Input value={editName} onChange={e => setEditName(e.target.value)} autoFocus className="h-8" />
@@ -210,17 +224,26 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditClick(item); }} className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50">
-                            <Edit2 className="h-4 w-4" />
+                        <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          {renderExtraActions && renderExtraActions(item)}
+                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(item)} disabled={isDeleting || isUpdating}>
+                            <Edit2 className="h-4 w-4 text-blue-500" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteRequest(item.id); }} className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteRequest(item.id)} disabled={isDeleting || isUpdating}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       )}
                     </TableCell>
                   </TableRow>
+                  {renderExpandedContent && expandedIds.includes(item.id) && (
+                    <TableRow className="bg-muted/10 border-b">
+                      <TableCell colSpan={hasCode || hasColor ? (hasCode && hasColor ? 5 : 4) : 3} className="p-0">
+                        {renderExpandedContent(item)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </React.Fragment>
                 );
               })
             )}

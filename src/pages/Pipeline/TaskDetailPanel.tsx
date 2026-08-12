@@ -116,12 +116,12 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                     <dd className="font-medium">{formatNameWithInitial(task.analyst_name)}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Location</dt>
-                    <dd className="font-medium">{task.location || '-'}</dd>
+                    <dt className="text-muted-foreground">State/Province</dt>
+                    <dd className="font-medium">{task.state_code || task.state_name || '-'}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Country</dt>
-                    <dd className="font-medium">{task.country_name || '-'}</dd>
+                    <dd className="font-medium">{task.country_code || task.country_name || '-'}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Follow-up Date</dt>
