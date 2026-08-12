@@ -45,7 +45,7 @@ export default function Breadcrumbs() {
     return true;
   });
 
-  const finalBreadcrumbItems = [];
+  const finalBreadcrumbItems: Array<{ value: string; to: string; isLast: boolean }> = [];
   for (const item of breadcrumbItems) {
     if (item.value.toLowerCase() === 'companies') {
       finalBreadcrumbItems.push({
