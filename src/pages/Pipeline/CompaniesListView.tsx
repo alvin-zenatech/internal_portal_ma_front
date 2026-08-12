@@ -3,11 +3,11 @@ import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, use
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Search, ArrowUpDown, Building2, User, Mail, Phone, Loader2, MapPin } from "lucide-react";
+import { Plus, Edit2, Trash2, ArrowUpDown, Building2, User, Mail, Phone, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender, type ColumnDef } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
 
 export default function CompaniesListView() {
   const { data: companies, isLoading } = useCompanies();

@@ -1,4 +1,4 @@
-import { formatNameWithInitial } from '@/lib/utils';
+
 import React, { useState, useDeferredValue, useRef } from 'react';
 import { useCallTrackingSummary, type CallTrackingSummary, useUsers, usePreviewCallLog, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import { ArrowUpDown, Filter, Upload } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
+
 import CallTrackingDetails from './CallTrackingDetails';
 import CallLogImportPreviewModal from './CallLogImportPreviewModal';
 import { formatYesNo } from "@/lib/utils";
@@ -112,7 +112,7 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 
 export default function CallTracking() {
   const { data: summaries, isLoading, refetch } = useCallTrackingSummary();
-  const { data: users } = useUsers();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -140,18 +140,32 @@ export default function CallTracking() {
   };
 
   
-  const getAnalystDetails = React.useCallback((initials: string | null) => {
-    if (!initials) return { name: '-', avatar: '?' };
-    const upperInit = initials.toUpperCase();
-    if (!users) return { name: upperInit, avatar: upperInit };
-    const user = users.find(u => {
-      const parts = u.full_name.trim().split(/\s+/);
-      const computed = parts.length >= 2 
-        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : u.full_name[0].toUpperCase();
-      return computed === upperInit;
-    });
-    return user ? { name: user.full_name, avatar: upperInit } : { name: upperInit, avatar: upperInit };
+  const getAnalystDetails = React.useCallback((val: string | null) => {
+    if (!val) return { name: '-', avatar: '?' };
+    
+    const getInitials = (str: string) => {
+      const parts = str.trim().split(/\s+/);
+      return parts.length >= 2 
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() 
+        : str.substring(0, 2).toUpperCase();
+    };
+
+    const upperVal = val.toUpperCase();
+    const valInitials = getInitials(val);
+
+    if (!users) return { name: val, avatar: valInitials };
+
+    let user = users.find(u => u.full_name.toUpperCase() === upperVal);
+    
+    if (!user) {
+      user = users.find(u => getInitials(u.full_name) === upperVal);
+    }
+
+    if (user) {
+      return { name: user.full_name, avatar: getInitials(user.full_name) };
+    }
+
+    return { name: val, avatar: valInitials };
   }, [users]);
 
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -237,7 +251,7 @@ export default function CallTracking() {
         size: 140
       },
     ],
-    []
+    [getAnalystDetails]
   );
 
   const table = useReactTable({
@@ -288,7 +302,7 @@ export default function CallTracking() {
 
   const visibleRows = allRows.slice(0, visibleCount);
 
-  if (isLoading) {
+  if (isLoading || isUsersLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
@@ -315,9 +329,7 @@ export default function CallTracking() {
             <Upload className="h-4 w-4 mr-2" />
             Upload Call Log
           </Button>
-          <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
-            Add Call Log
-          </Button>
+
         </div>
       </div>
 

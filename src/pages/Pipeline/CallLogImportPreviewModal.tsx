@@ -27,7 +27,8 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check, Edit3 } from 'lucide-react';
-import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts } from '@/hooks/usePipeline';
+import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts, useCountries, useStates } from '@/hooks/usePipeline';
+import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 
 interface Props {
   open: boolean;
@@ -75,7 +76,7 @@ export default function CallLogImportPreviewModal({
       email: row.email || '',
       phone_number: row.phone_number || row.raw_phone_number || '',
       state_province: row.state_province || row.raw_state_province || '',
-      country: row.country || ''
+      country: row.country || row.location || row.raw_location || ''
     });
   };
 
@@ -101,6 +102,8 @@ export default function CallLogImportPreviewModal({
 
   const { mutate: confirmImport, isPending: isImporting } = useConfirmImportCallLog();
   const { data: analysts } = useAnalysts();
+  const { data: countries } = useCountries();
+  const { data: states } = useStates(companyForm.country || undefined);
 
   useEffect(() => {
     if (previewData?.rows) {
@@ -141,7 +144,7 @@ export default function CallLogImportPreviewModal({
       return {
         ...r,
         analyst_id: analystId === "unassigned" ? null : analystId,
-        analyst: selectedAnalyst ? selectedAnalyst.full_name : r.analyst,
+        analyst: selectedAnalyst ? (selectedAnalyst.full_name || undefined) : r.analyst,
       };
     }));
   };
@@ -473,7 +476,7 @@ export default function CallLogImportPreviewModal({
                 <TableHead className="w-[340px]">Company Matching</TableHead>
                 <TableHead className="w-[140px]">Industry</TableHead>
                 <TableHead className="w-[80px]">State/Province</TableHead>
-                <TableHead className="w-[80px]">Location</TableHead>
+                <TableHead className="w-[80px]">Country</TableHead>
                 <TableHead className="w-[140px]">Contact</TableHead>
                 <TableHead className="w-[120px]">Phone</TableHead>
                 <TableHead className="w-[100px]">Date</TableHead>
@@ -536,26 +539,32 @@ export default function CallLogImportPreviewModal({
                           Edit
                         </Button>
                       </div>
-                    ) : row.suggestions && row.suggestions.length > 0 ? (
-                      <div className="flex items-center gap-1.5">
-                        <Select
-                          value={row.matched_company_id ? String(row.matched_company_id) : '__NEW__'}
-                          onValueChange={(val) => handleCompanyChange(row.row_index, val)}
-                        >
-                          <SelectTrigger className="h-7 text-xs flex-1 bg-background">
-                            <SelectValue placeholder="Select matched company..." />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-56">
-                            <SelectItem value="__NEW__" className="text-xs text-blue-600 font-medium">
-                              + Create as New Company: "{row.company_name || row.raw_company_name}"
-                            </SelectItem>
-                            {row.suggestions.map(s => (
-                              <SelectItem key={s.id} value={String(s.id)} className="text-xs">
-                                {s.name} {s.score < 1 ? `(${Math.round(s.score * 100)}% match)` : ''}
+                    ) : (
+                      <div className="flex items-center gap-1.5 w-full">
+                        {row.suggestions && row.suggestions.length > 0 ? (
+                          <Select
+                            value={row.matched_company_id ? String(row.matched_company_id) : '__NEW__'}
+                            onValueChange={(val) => handleCompanyChange(row.row_index, val)}
+                          >
+                            <SelectTrigger className="h-7 text-xs flex-1 bg-background min-w-[120px]">
+                              <SelectValue placeholder="Select matched company..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-56">
+                              <SelectItem value="__NEW__" className="text-xs text-blue-600 font-medium">
+                                + Create as New Company: "{row.company_name || row.raw_company_name}"
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              {row.suggestions.map(s => (
+                                <SelectItem key={s.id} value={String(s.id)} className="text-xs">
+                                  {s.name} {s.score < 1 ? `(${Math.round(s.score * 100)}% match)` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="font-semibold text-xs truncate flex-1 min-w-[120px]" title={row.company_name}>
+                            {row.company_name}
+                          </div>
+                        )}
 
                         {!row.matched_company_id && (
                           <Button
@@ -570,28 +579,22 @@ export default function CallLogImportPreviewModal({
                             Setup Info
                           </Button>
                         )}
-                        {(row.match_type === 'suggested' || row.has_user_changed) && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-medium flex items-center gap-1 shadow-sm"
-                            onClick={() => handleConfirmSingleMatch(row.row_index)}
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                            {row.matched_company_id ? "Confirm Match" : "Confirm New Company"}
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="font-semibold text-xs truncate" title={row.company_name}>
-                        {row.company_name}
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 font-medium flex items-center gap-1 shadow-sm"
+                          onClick={() => handleConfirmSingleMatch(row.row_index)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {row.matched_company_id ? "Confirm Match" : "Confirm New Company"}
+                        </Button>
                       </div>
                     )}
                   </TableCell>
 
                   <TableCell className="text-xs truncate" title={row.industry}>{row.industry || '-'}</TableCell>
                   <TableCell className="text-xs">{row.state_province || '-'}</TableCell>
-                  <TableCell className="text-xs">{row.location || '-'}</TableCell>
+                  <TableCell className="text-xs">{row.country || row.location || '-'}</TableCell>
                   <TableCell className="text-xs truncate" title={`${row.contact_name || ''} ${row.position ? `(${row.position})` : ''}`}>
                     {row.contact_name || '-'}
                     {row.position && <span className="text-[10px] text-muted-foreground block truncate">{row.position}</span>}
@@ -723,41 +726,34 @@ export default function CallLogImportPreviewModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Industry</label>
-                <Input
-                  value={companyForm.industry}
-                  onChange={e => setCompanyForm(prev => ({ ...prev, industry: e.target.value }))}
-                  placeholder="Industry..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Location / City</label>
-                <Input
-                  value={companyForm.location}
-                  onChange={e => setCompanyForm(prev => ({ ...prev, location: e.target.value }))}
-                  placeholder="City or location..."
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Industry</label>
+              <Input
+                value={companyForm.industry}
+                onChange={e => setCompanyForm(prev => ({ ...prev, industry: e.target.value }))}
+                placeholder="Industry..."
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">State/Province</label>
-                <Input
+                <AutocompleteCombobox
                   value={companyForm.state_province}
-                  onChange={e => setCompanyForm(prev => ({ ...prev, state_province: e.target.value }))}
-                  placeholder="State or province..."
+                  onChange={(v) => setCompanyForm(prev => ({ ...prev, state_province: v?.toString() || "" }))}
+                  options={(states || []).map(s => ({ id: s.name, name: s.name }))}
+                  placeholder="Select state/province..."
+                  disabled={!companyForm.country}
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">Country</label>
-                <Input
+                <AutocompleteCombobox
                   value={companyForm.country}
-                  onChange={e => setCompanyForm(prev => ({ ...prev, country: e.target.value }))}
-                  placeholder="Country..."
+                  onChange={(v) => setCompanyForm(prev => ({ ...prev, country: v?.toString() || "", state_province: "" }))}
+                  options={(countries || []).map(c => ({ id: c.name, name: c.name }))}
+                  placeholder="Select country..."
                 />
               </div>
             </div>

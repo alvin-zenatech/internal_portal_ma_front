@@ -336,7 +336,7 @@ const PipelineListView = React.memo(function PipelineListView({
                 variant="ghost" 
                 size="sm"
                 onClick={() => {
-                  if (!hideSearchBar) setActualGlobalFilter("");
+                  setActualGlobalFilter("");
                   setColumnFilters([]);
                 }}
                 className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
