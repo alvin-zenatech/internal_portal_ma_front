@@ -25,18 +25,7 @@ import CallTrackingDetails from './CallTrackingDetails';
 import CallLogImportPreviewModal from './CallLogImportPreviewModal';
 import { formatYesNo } from "@/lib/utils";
 
-const STATE_MAP: Record<string, string> = {
-  "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
-  "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
-  "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
-  "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
-  "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
-  "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
-  "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
-  "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
-  "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
-  "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming"
-};
+
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
   const uniqueValues = React.useMemo(() => {
@@ -210,7 +199,7 @@ export default function CallTracking() {
         cell: ({ row }) => {
           const val = row.original.state_province;
           if (!val) return <span>-</span>;
-          return <span>{STATE_MAP[val.toUpperCase()] || val}</span>;
+          return <span>{val}</span>;
         }
       },
       { 
