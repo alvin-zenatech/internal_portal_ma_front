@@ -1,5 +1,6 @@
-import React, { useState, useDeferredValue } from "react";
+import React, { useState, useDeferredValue, useEffect } from "react";
 import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, useStates, type CompanyData } from "@/hooks/usePipeline";
+import { useSearchParams } from "react-router-dom";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,19 @@ export default function CompaniesListView() {
   const [email, setEmail] = useState("");
 
   const [companyToDelete, setCompanyToDelete] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const companyId = searchParams.get('companyId');
+    if (companyId && companies && !isModalOpen) {
+      const company = companies.find(c => c.id === parseInt(companyId));
+      if (company) {
+        handleOpenModal(company);
+        searchParams.delete('companyId');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [searchParams, companies, isModalOpen]);
 
   const { mutate: createCompany, isPending: creating } = useCreateCompany();
   const { mutate: updateCompany, isPending: updating } = useUpdateCompany();

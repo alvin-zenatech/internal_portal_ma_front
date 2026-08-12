@@ -11,7 +11,7 @@ import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, 
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
 const DEFAULT_SORT = [{ id: "priority_name", desc: false }];
@@ -24,6 +24,7 @@ export default function PipelineDashboard() {
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { isLoading: prioritiesLoading } = usePriorities();
@@ -58,6 +59,18 @@ export default function PipelineDashboard() {
   }, [tasks, analystFilter]);
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
+
+  useEffect(() => {
+    const taskId = searchParams.get('taskId');
+    if (taskId && tasks && !selectedTask) {
+      const task = tasks.find(t => t.id === parseInt(taskId));
+      if (task) {
+        setSelectedTask(task);
+        searchParams.delete('taskId');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [searchParams, tasks, selectedTask]);
 
   const dueFollowUpCount = useMemo(() => {
     if (!tasks) return 0;

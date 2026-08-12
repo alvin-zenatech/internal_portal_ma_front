@@ -79,7 +79,6 @@ export default function TopBar() {
 
   const { data: results = [], isLoading, isFetching } = useGlobalSearch(debouncedValue);
 
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -94,9 +93,7 @@ export default function TopBar() {
   const getIcon = (type: string) => {
     switch (type) {
       case "company": return <Building2 className="h-4 w-4 text-blue-500" />;
-      case "gl_account": return <BookText className="h-4 w-4 text-emerald-500" />;
-      case "gl_entry": return <FileText className="h-4 w-4 text-amber-500" />;
-      case "bank_transaction": return <Banknote className="h-4 w-4 text-purple-500" />;
+      case "task": return <FileText className="h-4 w-4 text-amber-500" />;
       default: return <Search className="h-4 w-4 text-muted-foreground" />;
     }
   };
@@ -137,63 +134,29 @@ export default function TopBar() {
                 </div>
               ) : results.length > 0 ? (
                 <div className="max-h-[400px] overflow-y-auto py-2">
-                  {results.map((result, idx) => (
-                    <div 
-                      key={`${result.type}-${result.id}-${idx}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => handleResultClick(result.url || "/")}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-sm">
-                        {getIcon(result.type)}
+                  {results.map((result: any, idx: number) => {
+                    return (
+                      <div 
+                        key={`${result.url}-${idx}`}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => handleResultClick(result.url)}
+                      >
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-sm text-muted-foreground">
+                          {getIcon(result.type)}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-semibold text-foreground truncate">{result.title}</span>
+                          {result.subtitle && <span className="text-xs text-muted-foreground truncate">{result.subtitle}</span>}
+                        </div>
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-foreground truncate">{result.title}</span>
-                        {result.subtitle && (
-                          <span className="text-xs text-muted-foreground truncate">{result.subtitle}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="px-4 py-2 border-t border-border/50 mt-2">
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start gap-3 h-14 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300"
-                      onClick={() => {
-                        setIsOpen(false);
-                        setInputValue("");
-                        setDebouncedValue("");
-                        window.dispatchEvent(new CustomEvent('ask-ai', { detail: { query: debouncedValue } }));
-                      }}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                        <Sparkles className="h-4 w-4" />
-                      </div>
-                      <div className="flex flex-col items-start min-w-0">
-                        <span className="text-sm font-semibold truncate">Ask AI "{debouncedValue}"</span>
-                        <span className="text-xs opacity-80 truncate">Can't find what you need? Ask our AI assistant</span>
-                      </div>
-                    </Button>
-                  </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-8 flex flex-col items-center justify-center text-center">
-                  <span className="text-sm text-muted-foreground mb-4">
+                  <span className="text-sm text-muted-foreground">
                     No results found for "{debouncedValue}"
                   </span>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2 rounded-xl border-blue-200 hover:border-blue-300 hover:bg-blue-50 dark:border-blue-900/50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors"
-                    onClick={() => {
-                      setIsOpen(false);
-                      setInputValue("");
-                      setDebouncedValue("");
-                      window.dispatchEvent(new CustomEvent('ask-ai', { detail: { query: debouncedValue } }));
-                    }}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Ask AI "{debouncedValue}"
-                  </Button>
                 </div>
               )}
             </div>
