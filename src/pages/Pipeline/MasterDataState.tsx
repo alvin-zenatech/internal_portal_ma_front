@@ -2,7 +2,7 @@ import { useStates, useCreateState, useDeleteState, useUpdateState } from "@/hoo
 import { MasterDataTemplate } from "./MasterDataTemplate";
 
 export default function MasterDataState({ countryId }: { countryId?: number }) {
-  const { data, isLoading } = useStates(countryId);
+  const { data, isLoading } = useStates(countryId?.toString());
   const { mutateAsync: create } = useCreateState();
   const { mutateAsync: remove } = useDeleteState();
   const { mutateAsync: update } = useUpdateState();
