@@ -289,7 +289,7 @@ export default function CallTrackingDetails({
                     />
                   </div>
 
-                  {/* Row 5: Emailed, Picked Up */}
+                  {/* Row 5: Emailed, Picked Up, KDM */}
                   <div className="space-y-1 text-left w-full">
                     <label>Emailed?</label>
                     <Select value={formatYesNo(formData.emailed)} onValueChange={val => setFormData({...formData, emailed: val})}>
@@ -303,6 +303,16 @@ export default function CallTrackingDetails({
                   <div className="space-y-1 text-left w-full">
                     <label>Picked Up?</label>
                     <Select value={formatYesNo(formData.picked_up)} onValueChange={val => setFormData({...formData, picked_up: val})}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 text-left w-full">
+                    <label>KDM?</label>
+                    <Select value={formatYesNo(formData.kdm)} onValueChange={val => setFormData({...formData, kdm: val})}>
                       <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Yes">Yes</SelectItem>
@@ -367,8 +377,8 @@ export default function CallTrackingDetails({
                 <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500 bg-slate-50 p-2 rounded">
                   <div>Contact: {log.contact_name}</div>
                   <div>Phone: {log.phone_number}</div>
-                  <div>Emailed: {formatYesNo(log.emailed)} | Picked up: {formatYesNo(log.picked_up)}</div>
-                  <div>Analyst: {getAnalystName(log.analyst)}</div>
+                  <div>KDM: {formatYesNo(log.kdm)} | Picked up: {formatYesNo(log.picked_up)}</div>
+                  <div>Emailed: {formatYesNo(log.emailed)} | Analyst: {getAnalystName(log.analyst)}</div>
                 </div>
               </div>
             ))}

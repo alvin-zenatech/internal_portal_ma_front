@@ -474,6 +474,7 @@ export default function CallLogImportPreviewModal({
                 <TableHead className="w-[140px]">Contact</TableHead>
                 <TableHead className="w-[120px]">Phone</TableHead>
                 <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead className="w-[80px]">KDM</TableHead>
                 <TableHead className="w-[80px]">Emailed?</TableHead>
                 <TableHead className="w-[90px]">Picked Up?</TableHead>
                 <TableHead className="w-[140px]">Outcome</TableHead>
@@ -595,6 +596,7 @@ export default function CallLogImportPreviewModal({
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{row.phone_number || '-'}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{row.date_of_call || '-'}</TableCell>
+                  <TableCell className="text-xs font-medium">{row.kdm || row.raw_kdm || '-'}</TableCell>
                   <TableCell className="text-xs font-medium">{row.emailed || '-'}</TableCell>
                   <TableCell className="text-xs font-medium">{row.picked_up || '-'}</TableCell>
                   <TableCell className="text-xs">{row.outcome || '-'}</TableCell>

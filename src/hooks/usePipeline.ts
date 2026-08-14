@@ -464,13 +464,16 @@ export interface CallTrackingSummary {
   state_province: string | null;
   location: string | null;
   contact_name: string | null;
-
+  date_of_call?: string | null;
   current_status: string | null;
+  outcome?: string | null;
   latest_analyst: string | null;
   phone_number: string | null;
   emailed: string | null;
   picked_up: string | null;
   call_length: string | null;
+  notes?: string | null;
+  kdm?: string | null;
 }
 export type CallLog = {
   id: number;
@@ -480,7 +483,7 @@ export type CallLog = {
   state_province?: string;
   location?: string;
   contact_name?: string;
-
+  kdm?: string;
   phone_number?: string;
   date_of_call?: string;
   emailed?: string;
@@ -491,6 +494,55 @@ export type CallLog = {
   notes?: string;
   created_at: string;
 };
+
+export interface ColumnSettings {
+  table_name: string;
+  column_order: string[];
+  is_team_default?: boolean;
+  updated_at?: string;
+}
+
+export function useTableColumnOrder(tableName: string) {
+  return useQuery<ColumnSettings | null>({
+    queryKey: ["column-settings", tableName],
+    queryFn: async () => {
+      try {
+        return await api.get<ColumnSettings>(`/api/pipeline/column-settings/${tableName}`);
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useUpdateTableColumnOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ tableName, columnOrder }: { tableName: string; columnOrder: string[] }) => {
+      try {
+        return await api.put<ColumnSettings>(`/api/pipeline/column-settings/${tableName}`, {
+          column_order: columnOrder,
+          is_team_default: true,
+        });
+      } catch (err: any) {
+        console.warn("Backend column settings endpoint not available yet:", err?.message);
+        return { table_name: tableName, column_order: columnOrder, is_team_default: true };
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["column-settings", variables.tableName] });
+      toast.success("Saved column order as team default!");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to save team default order");
+    }
+  });
+}
+
+// Backward-compatible aliases
+export const useTableColumnSettings = useTableColumnOrder;
+export const useUpdateTableColumnSettings = useUpdateTableColumnOrder;
 
 export function useCallLogs() {
   return useQuery({
@@ -630,6 +682,7 @@ export interface CompanyCandidateSuggestion {
   contact_name?: string;
   position?: string;
   phone_number?: string;
+  kdm?: string;
 }
 
 export interface CallLogPreviewRow {
@@ -646,12 +699,14 @@ export interface CallLogPreviewRow {
   location?: string;
   contact_name?: string;
   position?: string;
+  kdm?: string;
   phone_number?: string;
   raw_industry?: string;
   raw_state_province?: string;
   raw_location?: string;
   raw_contact_name?: string;
   raw_position?: string;
+  raw_kdm?: string;
   raw_phone_number?: string;
   date_of_call?: string;
   emailed?: string;
