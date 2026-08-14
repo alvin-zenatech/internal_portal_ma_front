@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useEffect, useMemo } from "react";
 import { Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -45,17 +45,14 @@ export function AutocompleteCombobox({
   // Perform fuzzy search
   const results = useMemo(() => {
     if (!search.trim()) {
-      return options.map(opt => ({ ...opt, score: 0 })).slice(0, 50); // Just show top 50
+      return options.map(opt => ({ ...opt, score: 0 })).slice(0, 50);
     }
     const fuzz_results = fuzzysort.go(search, options as any, { key: "name", all: true } as any);
     return (fuzz_results as any).map((res: any) => {
-      // fuzzysort score is negative, closer to 0 is better.
-      // normalize it to 0-100% roughly for display.
       const rawScore = res.score;
-      // score of 0 is perfect. -100 is ok. -1000 is bad.
       let matchPercent = 100;
       if (rawScore < 0) {
-          matchPercent = Math.max(0, 100 + Math.floor(rawScore / 10)); // simple approximation
+          matchPercent = Math.max(0, 100 + Math.floor(rawScore / 10));
       }
       return {
         id: res.obj.id,
@@ -69,7 +66,14 @@ export function AutocompleteCombobox({
     return options.some(opt => opt.name.toLowerCase() === search.trim().toLowerCase());
   }, [search, options]);
 
-  const selectedOption = options.find((opt) => opt.id === value);
+  const selectedOption = useMemo(() => {
+    const found = options.find((opt) => opt.id === value || (typeof value === "string" && opt.name.toLowerCase() === value.toLowerCase()));
+    if (found) return found;
+    if (value !== undefined && value !== null && value !== "") {
+      return { id: value, name: String(value) };
+    }
+    return undefined;
+  }, [options, value]);
 
   const handleCreate = async () => {
     if (!onCreate || !search.trim()) return;
@@ -110,6 +114,20 @@ export function AutocompleteCombobox({
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (results.length > 0 && results[0].score >= 90) {
+                    onChange(results[0].id);
+                    setOpen(false);
+                  } else if (onCreate && search.trim() && !exactMatch) {
+                    handleCreate();
+                  } else if (results.length > 0) {
+                    onChange(results[0].id);
+                    setOpen(false);
+                  }
+                }
+              }}
             />
           </div>
           <div className="max-h-[300px] overflow-y-auto p-1">

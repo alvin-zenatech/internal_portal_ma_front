@@ -1,13 +1,27 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Upload, CalendarClock, User } from "lucide-react";
+import { Plus, Loader2, Upload, CalendarClock, User, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
-import { usePipelineTasks, usePriorities, type PipelineTask, useImportPipeline, useDeleteTask, useAnalysts } from "@/hooks/usePipeline";
+import { 
+  usePipelineTasks, 
+  usePriorities, 
+  type PipelineTask, 
+  useImportPipeline, 
+  useDeleteTask, 
+  useAnalysts, 
+  useCreateCompany, 
+  useCountries, 
+  useCreateCountry, 
+  useStates, 
+  useCreateState 
+} from "@/hooks/usePipeline";
+import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -25,11 +39,51 @@ export default function PipelineDashboard() {
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
 
+  // Add Company Modal state
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newContactName, setNewContactName] = useState("");
+  const [newCompanyEmail, setNewCompanyEmail] = useState("");
+  const [newCompanyPhone, setNewCompanyPhone] = useState("");
+  const [newCompanyStateId, setNewCompanyStateId] = useState<number | "">("");
+  const [newCompanyCountryId, setNewCompanyCountryId] = useState<number | "">("");
+
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { isLoading: prioritiesLoading } = usePriorities();
-  /** Selectable analysts. The endpoint already excludes super admins and, unlike the
-   *  users endpoint, does not require the CONFIG_USERS_READ permission. */
   const { data: analystOptions } = useAnalysts();
+
+  const { data: countries } = useCountries();
+  const { mutateAsync: createCountry } = useCreateCountry();
+  const { data: states } = useStates();
+  const { mutateAsync: createState } = useCreateState();
+  const { mutate: createCompany, isPending: isCreatingCompany } = useCreateCompany();
+
+  const handleCreateCompany = () => {
+    if (!newCompanyName.trim()) return;
+
+    createCompany({
+      name: newCompanyName.trim(),
+      phone: newCompanyPhone.trim() || null,
+      state_id: newCompanyStateId || null,
+      country_id: newCompanyCountryId || null,
+      contact_name: newContactName.trim() || null,
+      email: newCompanyEmail.trim() || null,
+    }, {
+      onSuccess: () => {
+        toast.success("Company created successfully");
+        setIsCompanyModalOpen(false);
+        setNewCompanyName("");
+        setNewContactName("");
+        setNewCompanyEmail("");
+        setNewCompanyPhone("");
+        setNewCompanyStateId("");
+        setNewCompanyCountryId("");
+      },
+      onError: (err: any) => {
+        toast.error(err.response?.data?.detail || "Failed to create company");
+      }
+    });
+  };
 
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
@@ -92,7 +146,6 @@ export default function PipelineDashboard() {
     if (file) {
       setImportFile(file);
     }
-    // reset input so the same file can be selected again if needed
     e.target.value = '';
   };
 
@@ -105,8 +158,6 @@ export default function PipelineDashboard() {
     setEditingTask(priorityId ? { priority_id: priorityId } as unknown as PipelineTask : null);
     setIsFormOpen(true);
   }, []);
-
-
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
@@ -149,6 +200,15 @@ export default function PipelineDashboard() {
                 </span>
               )}
             </Link>
+          </Button>
+
+          <Button 
+            variant="outline" 
+            onClick={() => setIsCompanyModalOpen(true)} 
+            className="gap-2 h-9"
+          >
+            <Building2 className="h-4 w-4 text-primary" />
+            <span>Add Company</span>
           </Button>
 
           <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
@@ -209,6 +269,98 @@ export default function PipelineDashboard() {
         onEdit={handleEdit}
       />
 
+      {/* Add Company Dialog */}
+      <Dialog open={isCompanyModalOpen} onOpenChange={setIsCompanyModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" /> Add Company
+            </DialogTitle>
+            <DialogDescription>Create a new company record.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Company Name <span className="text-red-500">*</span></label>
+              <Input
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
+                placeholder="e.g. Acme Corp"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Contact Name</label>
+              <Input
+                value={newContactName}
+                onChange={(e) => setNewContactName(e.target.value)}
+                placeholder="Primary contact name"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 min-w-0">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  value={newCompanyEmail}
+                  onChange={(e) => setNewCompanyEmail(e.target.value)}
+                  placeholder="contact@company.com"
+                />
+              </div>
+              <div className="space-y-2 min-w-0">
+                <label className="text-sm font-medium">Phone</label>
+                <Input
+                  value={newCompanyPhone}
+                  onChange={(e) => setNewCompanyPhone(e.target.value)}
+                  placeholder="Phone number"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2 min-w-0">
+                <label className="text-sm font-medium">State/Province</label>
+                <AutocompleteCombobox
+                  value={newCompanyStateId}
+                  onChange={(v) => setNewCompanyStateId(v)}
+                  options={states || []}
+                  onCreate={async (name) => {
+                    const res = await createState({ name });
+                    return (res as any).id;
+                  }}
+                  placeholder="Select or create..."
+                />
+              </div>
+
+              <div className="grid gap-2 min-w-0">
+                <label className="text-sm font-medium">Country</label>
+                <AutocompleteCombobox
+                  value={newCompanyCountryId}
+                  onChange={(v) => setNewCompanyCountryId(v)}
+                  options={countries || []}
+                  onCreate={async (name) => {
+                    const res = await createCountry({ name, code: "" });
+                    return (res as any).id;
+                  }}
+                  placeholder="Select or create..."
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCompanyModalOpen(false)} disabled={isCreatingCompany}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateCompany}
+              disabled={!newCompanyName.trim() || isCreatingCompany}
+            >
+              {isCreatingCompany && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isCreatingCompany ? "Saving..." : "Save Company"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ConfirmDialog 
         open={taskToDelete !== null} 
         onOpenChange={(open) => !open && setTaskToDelete(null)}
@@ -252,5 +404,3 @@ export default function PipelineDashboard() {
     </div>
   );
 }
-
-

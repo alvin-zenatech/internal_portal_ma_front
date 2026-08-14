@@ -42,13 +42,6 @@ export default function CallLogImportPreviewModal({
   previewData,
   onSuccess
 }: Props) {
-  const getInitials = (name: string | null) => {
-    if (!name) return "";
-    const parts = name.split(" ").filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return "";
-  };
 
   const [rows, setRows] = useState<CallLogPreviewRow[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
@@ -141,7 +134,7 @@ export default function CallLogImportPreviewModal({
       return {
         ...r,
         analyst_id: analystId === "unassigned" ? null : analystId,
-        analyst: selectedAnalyst ? selectedAnalyst.full_name : r.analyst,
+        analyst: (selectedAnalyst?.full_name ?? r.analyst) || undefined,
       };
     }));
   };

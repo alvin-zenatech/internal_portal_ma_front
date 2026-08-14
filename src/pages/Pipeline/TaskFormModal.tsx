@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,28 @@ import { toast } from "sonner";
 import { CalendarIcon, X, Loader2 } from "lucide-react";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useCreateTask, useUpdateTask, type PipelineTask, useIndustries, usePriorities, useCountries, useAnalysts, useStates, useCreateState, useCreateCountry, useCreateIndustry, useCompanies } from "@/hooks/usePipeline";
+import { 
+  useCreateTask, 
+  useUpdateTask, 
+  type PipelineTask, 
+  useIndustries, 
+  usePriorities, 
+  useCountries, 
+  useAnalysts, 
+  useStates, 
+  useCreateState, 
+  useCreateCountry, 
+  useCreateIndustry, 
+  useCompanies,
+  useCreateCompany 
+} from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
   const { mutateAsync: createIndustry } = useCreateIndustry();
   const { data: companies } = useCompanies();
+  const { mutateAsync: createCompany } = useCreateCompany();
   const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
 
   const { data: priorities } = usePriorities();
@@ -66,7 +81,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         !formData.company_name || !formData.name || !formData.email || 
         !formData.phone?.replace(/ \((Personal|Office)\)$/, '').trim() || 
         !formData.priority_id || !formData.analyst_id || !formData.industry_id || 
-        !formData.country_id || !formData.state_id || !formData.follow_up_date || 
+        !formData.country_id || !formData.state_id || 
         (!task && !formData.notes)
       ) {
         toast.error("Please fill out all required fields.");
@@ -113,20 +128,45 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               <Label>Company Name *</Label>
               <AutocompleteCombobox
                 value={formData.company_name}
-                onChange={v => setFormData({...formData, company_name: v as string})}
+                onChange={v => {
+                  const companyNameStr = (v as string) || "";
+                  const matchingCompany = companies?.find(c => c.name.toLowerCase() === companyNameStr.toLowerCase());
+                  if (matchingCompany) {
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      company_name: matchingCompany.name,
+                      phone: prev.phone || matchingCompany.phone || "",
+                      email: prev.email || matchingCompany.email || "",
+                      name: prev.name || matchingCompany.contact_name || "",
+                      country_id: prev.country_id || (matchingCompany.country_id ? matchingCompany.country_id.toString() : ""),
+                      state_id: prev.state_id || (matchingCompany.state_id ? matchingCompany.state_id.toString() : ""),
+                    }));
+                  } else {
+                    setFormData((prev: any) => ({ ...prev, company_name: companyNameStr }));
+                  }
+                }}
                 options={companyOptions}
-                onCreate={async (name) => name}
-                placeholder="e.g. Acme Corp"
+                onCreate={async (name) => {
+                  try {
+                    const res = await createCompany({ name });
+                    return (res as any)?.name || name;
+                  } catch (err) {
+                    return name;
+                  }
+                }}
+                placeholder="Select or create company..."
               />
             </div>
             <div className="space-y-2 min-w-0">
               <Label>Contact Name *</Label>
-              <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <Input required placeholder="Contact name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
+
             <div className="space-y-2 min-w-0">
               <Label>Email *</Label>
-              <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <Input required type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
+
             <div className="space-y-2 min-w-0">
               <Label>Phone *</Label>
               <div className="flex gap-2">
@@ -253,7 +293,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="space-y-2">
-              <Label>Follow-up Date *</Label>
+              <Label>Follow-up Date</Label>
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>

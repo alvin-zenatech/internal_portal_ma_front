@@ -1,4 +1,4 @@
-import React, { useState, useDeferredValue } from "react";
+﻿import React, { useState, useDeferredValue } from "react";
 import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, useCreateCountry, useStates, useCreateState, type CompanyData } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ export default function CompaniesListView() {
   const { mutateAsync: createState } = useCreateState();
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredSearchQuery = useDeferredValue(globalFilter);
-  const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyData | null>(null);
@@ -118,21 +117,27 @@ export default function CompaniesListView() {
               {row.original.phone}
             </div>
           )}
-          {!row.original.email && !row.original.phone && <span className="text-muted-foreground">-</span>}
+          {!row.original.email && !row.original.phone && (
+            <span className="text-muted-foreground">-</span>
+          )}
         </div>
       )
     },
-    { 
-      accessorKey: "state_name", 
-      header: "State/Province",
-      size: 150,
-      cell: ({ row }: any) => <span className="truncate block w-full">{row.original.state_name || row.original.location || "-"}</span> 
+    {
+      accessorKey: "location",
+      header: "Location",
+      cell: ({ row }: any) => {
+        const parts: string[] = [];
+        if (row.original.state_name || row.original.state_code) parts.push(row.original.state_name || row.original.state_code);
+        if (row.original.country_name || row.original.country_code) parts.push(row.original.country_name || row.original.country_code);
+        return parts.length > 0 ? parts.join(", ") : <span className="text-muted-foreground">-</span>;
+      }
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Actions</div>,
+      header: "Actions",
       cell: ({ row }: any) => (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => handleOpenModal(row.original)}>
             <Edit2 className="h-4 w-4 text-slate-500" />
           </Button>
@@ -140,23 +145,20 @@ export default function CompaniesListView() {
             <Trash2 className="h-4 w-4 text-red-500" />
           </Button>
         </div>
-      ),
+      )
     }
-  ], []);
+  ], [companies]);
 
   const table = useReactTable({
     data: companies || [],
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onGlobalFilterChange: setGlobalFilter,
     state: {
       globalFilter: deferredSearchQuery,
     },
-    initialState: {
-      sorting: [{ id: "name", desc: false }],
-    }
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -165,18 +167,17 @@ export default function CompaniesListView() {
   const rowVirtualizer = useVirtualizer({
     count: allRows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 64, // Approximate height for Companies table rows
+    estimateSize: () => 53,
     overscan: 10,
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
-  const paddingBottom = virtualRows.length > 0
-    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
-    : 0;
+  const totalSize = rowVirtualizer.getTotalSize();
+  const paddingTop = virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
+  const paddingBottom = virtualRows.length > 0 ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0) : 0;
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950/50">
+    <div className="h-full flex flex-col w-full bg-slate-50/50 dark:bg-zinc-950/50">
       <div className="border-b dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
           <div>
@@ -267,12 +268,11 @@ export default function CompaniesListView() {
           <div className="py-4 space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Company Name <span className="text-red-500">*</span></label>
-              <AutocompleteCombobox
+              <Input
                 value={companyName}
-                onChange={(v) => setCompanyName(v as string)}
-                options={companyOptions}
-                onCreate={async (name) => name}
+                onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="e.g. Lescure Surveying"
+                autoFocus
               />
             </div>
             
