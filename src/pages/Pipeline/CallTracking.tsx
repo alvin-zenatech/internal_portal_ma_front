@@ -1,4 +1,4 @@
-import { formatNameWithInitial } from '@/lib/utils';
+
 import React, { useState, useDeferredValue, useRef } from 'react';
 import { useCallTrackingSummary, type CallTrackingSummary, useUsers, usePreviewCallLog, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
@@ -20,23 +20,12 @@ import { ArrowUpDown, Filter, Upload } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
+
 import CallTrackingDetails from './CallTrackingDetails';
 import CallLogImportPreviewModal from './CallLogImportPreviewModal';
 import { formatYesNo } from "@/lib/utils";
 
-const STATE_MAP: Record<string, string> = {
-  "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
-  "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
-  "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
-  "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
-  "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
-  "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
-  "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
-  "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
-  "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
-  "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming"
-};
+
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
   const uniqueValues = React.useMemo(() => {
@@ -112,7 +101,7 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 
 export default function CallTracking() {
   const { data: summaries, isLoading, refetch } = useCallTrackingSummary();
-  const { data: users } = useUsers();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -140,18 +129,32 @@ export default function CallTracking() {
   };
 
   
-  const getAnalystDetails = React.useCallback((initials: string | null) => {
-    if (!initials) return { name: '-', avatar: '?' };
-    const upperInit = initials.toUpperCase();
-    if (!users) return { name: upperInit, avatar: upperInit };
-    const user = users.find(u => {
-      const parts = u.full_name.trim().split(/\s+/);
-      const computed = parts.length >= 2 
-        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : u.full_name[0].toUpperCase();
-      return computed === upperInit;
-    });
-    return user ? { name: formatNameWithInitial(user.full_name), avatar: upperInit } : { name: upperInit, avatar: upperInit };
+  const getAnalystDetails = React.useCallback((val: string | null) => {
+    if (!val) return { name: '-', avatar: '?' };
+    
+    const getInitials = (str: string) => {
+      const parts = str.trim().split(/\s+/);
+      return parts.length >= 2 
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() 
+        : str.substring(0, 2).toUpperCase();
+    };
+
+    const upperVal = val.toUpperCase();
+    const valInitials = getInitials(val);
+
+    if (!users) return { name: val, avatar: valInitials };
+
+    let user = users.find(u => u.full_name.toUpperCase() === upperVal);
+    
+    if (!user) {
+      user = users.find(u => getInitials(u.full_name) === upperVal);
+    }
+
+    if (user) {
+      return { name: user.full_name, avatar: getInitials(user.full_name) };
+    }
+
+    return { name: val, avatar: valInitials };
   }, [users]);
 
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -196,7 +199,7 @@ export default function CallTracking() {
         cell: ({ row }) => {
           const val = row.original.state_province;
           if (!val) return <span>-</span>;
-          return <span>{STATE_MAP[val.toUpperCase()] || val}</span>;
+          return <span>{val}</span>;
         }
       },
       { 
@@ -237,7 +240,7 @@ export default function CallTracking() {
         size: 140
       },
     ],
-    []
+    [getAnalystDetails]
   );
 
   const table = useReactTable({
@@ -271,19 +274,24 @@ export default function CallTracking() {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
   
-  const rowVirtualizer = useVirtualizer({
-    count: allRows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 52, // Typical row height for CallTracking
-    overscan: 10,
-  });
+  const [visibleCount, setVisibleCount] = React.useState(50);
 
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
-  const paddingBottom = virtualRows.length > 0
-    ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end || 0)
-    : 0;
-  if (isLoading) {
+  React.useEffect(() => {
+    setVisibleCount(50);
+  }, [deferredGlobalFilter, columnFilters, sorting]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 200) {
+      if (visibleCount < allRows.length) {
+        setVisibleCount(prev => Math.min(prev + 50, allRows.length));
+      }
+    }
+  };
+
+  const visibleRows = allRows.slice(0, visibleCount);
+
+  if (isLoading || isUsersLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
@@ -310,9 +318,7 @@ export default function CallTracking() {
             <Upload className="h-4 w-4 mr-2" />
             Upload Call Log
           </Button>
-          <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
-            Add Call Log
-          </Button>
+
         </div>
       </div>
 
@@ -330,7 +336,7 @@ export default function CallTracking() {
           </div>
 
           <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
-            <div className="flex-1 overflow-auto relative" ref={parentRef}>
+            <div className="flex-1 overflow-auto relative" ref={parentRef} onScroll={handleScroll}>
               <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1800px]">
                 <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
                   {table.getHeaderGroups().map((hg) => (
@@ -344,14 +350,8 @@ export default function CallTracking() {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {paddingTop > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} style={{ height: `${paddingTop}px`, padding: 0 }} />
-                    </TableRow>
-                  )}
-                  {virtualRows.length ? (
-                    virtualRows.map(virtualRow => {
-                      const row = allRows[virtualRow.index];
+                  {visibleRows.length ? (
+                    visibleRows.map(row => {
                       return (
                         <TableRow 
                           key={row.id} 
@@ -373,9 +373,11 @@ export default function CallTracking() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {paddingBottom > 0 && (
+                  {visibleRows.length < allRows.length && (
                     <TableRow>
-                      <TableCell colSpan={columns.length} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                      <TableCell colSpan={columns.length} className="py-4 text-center text-muted-foreground">
+                        Loading more...
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>

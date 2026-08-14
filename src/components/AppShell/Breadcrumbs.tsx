@@ -45,6 +45,18 @@ export default function Breadcrumbs() {
     return true;
   });
 
+  const finalBreadcrumbItems: Array<{ value: string; to: string; isLast: boolean }> = [];
+  for (const item of breadcrumbItems) {
+    if (item.value.toLowerCase() === 'companies') {
+      finalBreadcrumbItems.push({
+        value: 'master-data',
+        to: '/pipeline/master-data',
+        isLast: false,
+      });
+    }
+    finalBreadcrumbItems.push(item);
+  }
+
   return (
     <nav className="flex items-center text-sm text-muted-foreground mb-6 overflow-x-auto whitespace-nowrap pt-1 pb-2 scrollbar-none min-h-[36px]">
       <Link 
@@ -55,17 +67,25 @@ export default function Breadcrumbs() {
         <Home className="h-4 w-4" />
       </Link>
       
-      {breadcrumbItems.map((item) => {
+      {finalBreadcrumbItems.map((item) => {
         let displayName = customTitles[item.to] || formatName(item.value);
         if (item.value.toLowerCase() === 'master-data') {
           displayName = 'Configurations';
+        } else if (item.value.toLowerCase() === 'industry') {
+          displayName = 'Industries';
+        } else if (item.value.toLowerCase() === 'priority') {
+          displayName = 'Priorities';
+        } else if (item.value.toLowerCase() === 'state') {
+          displayName = 'States';
         }
+
+        const isUnclickable = item.value.toLowerCase() === 'master-data';
 
         return (
           <div key={item.to} className="flex items-center">
             <ChevronRight className="h-4 w-4 mx-1 opacity-50 shrink-0" />
-            {item.isLast ? (
-              <span className="font-semibold text-foreground" aria-current="page">
+            {item.isLast || isUnclickable ? (
+              <span className={item.isLast ? "font-semibold text-foreground" : ""} aria-current={item.isLast ? "page" : undefined}>
                 {displayName}
               </span>
             ) : (

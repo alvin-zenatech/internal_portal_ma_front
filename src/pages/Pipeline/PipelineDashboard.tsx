@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, Upload, CalendarClock, User, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -17,15 +17,13 @@ import {
   useAnalysts, 
   useCreateCompany, 
   useCountries, 
-  useCreateCountry, 
-  useStates, 
-  useCreateState 
+  useStates 
 } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 
 const DEFAULT_SORT = [{ id: "priority_name", desc: false }];
@@ -38,6 +36,7 @@ export default function PipelineDashboard() {
   const [selectedTask, setSelectedTask] = useState<PipelineTask | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Add Company Modal state
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
@@ -45,17 +44,15 @@ export default function PipelineDashboard() {
   const [newContactName, setNewContactName] = useState("");
   const [newCompanyEmail, setNewCompanyEmail] = useState("");
   const [newCompanyPhone, setNewCompanyPhone] = useState("");
-  const [newCompanyStateId, setNewCompanyStateId] = useState<number | "">("");
-  const [newCompanyCountryId, setNewCompanyCountryId] = useState<number | "">("");
+  const [newCompanyStateCode, setNewCompanyStateCode] = useState<string>("");
+  const [newCompanyCountryCode, setNewCompanyCountryCode] = useState<string>("");
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { isLoading: prioritiesLoading } = usePriorities();
   const { data: analystOptions } = useAnalysts();
 
   const { data: countries } = useCountries();
-  const { mutateAsync: createCountry } = useCreateCountry();
-  const { data: states } = useStates();
-  const { mutateAsync: createState } = useCreateState();
+  const { data: states } = useStates(newCompanyCountryCode || undefined);
   const { mutate: createCompany, isPending: isCreatingCompany } = useCreateCompany();
 
   const handleCreateCompany = () => {
@@ -64,8 +61,8 @@ export default function PipelineDashboard() {
     createCompany({
       name: newCompanyName.trim(),
       phone: newCompanyPhone.trim() || null,
-      state_id: newCompanyStateId || null,
-      country_id: newCompanyCountryId || null,
+      state_code: newCompanyStateCode || null,
+      country_code: newCompanyCountryCode || null,
       contact_name: newContactName.trim() || null,
       email: newCompanyEmail.trim() || null,
     }, {
@@ -76,8 +73,8 @@ export default function PipelineDashboard() {
         setNewContactName("");
         setNewCompanyEmail("");
         setNewCompanyPhone("");
-        setNewCompanyStateId("");
-        setNewCompanyCountryId("");
+        setNewCompanyStateCode("");
+        setNewCompanyCountryCode("");
       },
       onError: (err: any) => {
         toast.error(err.response?.data?.detail || "Failed to create company");
@@ -112,6 +109,18 @@ export default function PipelineDashboard() {
   }, [tasks, analystFilter]);
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
+
+  useEffect(() => {
+    const taskId = searchParams.get('taskId');
+    if (taskId && tasks && !selectedTask) {
+      const task = tasks.find(t => t.id === parseInt(taskId));
+      if (task) {
+        setSelectedTask(task);
+        searchParams.delete('taskId');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [searchParams, tasks, selectedTask]);
 
   const dueFollowUpCount = useMemo(() => {
     if (!tasks) return 0;
@@ -226,7 +235,7 @@ export default function PipelineDashboard() {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isPending ? importMessage || "Importing..." : "Import XLSX"}</TooltipContent>
+            <TooltipContent>Import XLSX</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -320,28 +329,24 @@ export default function PipelineDashboard() {
               <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">State/Province</label>
                 <AutocompleteCombobox
-                  value={newCompanyStateId}
-                  onChange={(v) => setNewCompanyStateId(v)}
-                  options={states || []}
-                  onCreate={async (name) => {
-                    const res = await createState({ name });
-                    return (res as any).id;
-                  }}
-                  placeholder="Select or create..."
+                  value={newCompanyStateCode}
+                  onChange={(v) => setNewCompanyStateCode(v?.toString() || "")}
+                  options={(states || []).map(s => ({ id: s.name, name: s.name }))}
+                  placeholder="Select state/province..."
+                  disabled={!newCompanyCountryCode}
                 />
               </div>
 
               <div className="grid gap-2 min-w-0">
                 <label className="text-sm font-medium">Country</label>
                 <AutocompleteCombobox
-                  value={newCompanyCountryId}
-                  onChange={(v) => setNewCompanyCountryId(v)}
-                  options={countries || []}
-                  onCreate={async (name) => {
-                    const res = await createCountry({ name, code: "" });
-                    return (res as any).id;
+                  value={newCompanyCountryCode}
+                  onChange={(v) => {
+                    setNewCompanyCountryCode(v?.toString() || "");
+                    setNewCompanyStateCode("");
                   }}
-                  placeholder="Select or create..."
+                  options={(countries || []).map(c => ({ id: c.name, name: c.name }))}
+                  placeholder="Select country..."
                 />
               </div>
             </div>

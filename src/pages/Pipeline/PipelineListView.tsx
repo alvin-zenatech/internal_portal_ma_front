@@ -143,23 +143,6 @@ const PipelineListView = React.memo(function PipelineListView({
 
   const columns = React.useMemo(() => [
     { 
-      accessorKey: "analyst_name", 
-      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" />,
-      cell: ({ row }: { row: { original: PipelineTask } }) => {
-        const initials = getInitials(row.original.analyst_name || '');
-        return (
-          <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src="" />
-              <AvatarFallback className="text-[10px] bg-primary/10">{initials}</AvatarFallback>
-            </Avatar>
-            <span className="truncate">{row.original.analyst_name}</span>
-          </div>
-        );
-      },
-      size: 160
-    },
-    { 
       accessorKey: "company_name", 
       header: ({ column }) => <ColumnHeader column={column} title="Company Name" />, 
       size: 220,
@@ -171,37 +154,6 @@ const PipelineListView = React.memo(function PipelineListView({
           )}
         </div>
       )
-    },
-    { accessorKey: "state_name", header: ({ column }) => <ColumnHeader column={column} title="State/Province" />, size: 180 },
-    { accessorKey: "country_name", header: ({ column }) => <ColumnHeader column={column} title="Country" />, size: 140 },
-    { 
-      accessorKey: "revenue", 
-      header: ({ column }) => <ColumnHeader column={column} title="Revenue" />,
-      size: 150,
-      sortingFn: (rowA, rowB) => {
-        const parseRevenue = (rev: string | null) => {
-          if (!rev) return 0;
-          const normalized = rev.replace(/,/g, "");
-          const matches = normalized.match(/\d+/g);
-          if (!matches) return 0;
-          return Math.max(...matches.map(m => parseInt(m, 10)));
-        };
-        const revA = parseRevenue(rowA.original.revenue);
-        const revB = parseRevenue(rowB.original.revenue);
-        return revA - revB;
-      }
-    },
-    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 140 },
-    { 
-      accessorKey: "latest_note", 
-      header: () => <div className="px-2 font-medium text-sm text-foreground">Note</div>,
-      size: 250,
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => {
-        const note = row.original.latest_note || "-";
-        return <span className="text-muted-foreground truncate block w-full" title={note}>{note}</span>;
-      }
     },
     { 
       accessorKey: "priority_name", 
@@ -246,8 +198,54 @@ const PipelineListView = React.memo(function PipelineListView({
         return p1.localeCompare(p2);
       }
     },
-    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 120 },
-    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 120 },
+    { 
+      accessorKey: "latest_note", 
+      header: () => <div className="px-2 font-medium text-sm text-foreground">Note</div>,
+      size: 250,
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => {
+        const note = row.original.latest_note || "-";
+        return <span className="text-muted-foreground truncate block w-full" title={note}>{note}</span>;
+      }
+    },
+    { accessorKey: "state_name", header: ({ column }) => <ColumnHeader column={column} title="State/Province" />, size: 180 },
+    { accessorKey: "country_name", header: ({ column }) => <ColumnHeader column={column} title="Country" />, size: 140 },
+    { 
+      accessorKey: "analyst_name", 
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" />,
+      cell: ({ row }: { row: { original: PipelineTask } }) => {
+        const initials = getInitials(row.original.analyst_name || '');
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarImage src="" />
+              <AvatarFallback className="text-[10px] bg-primary/10">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="truncate">{row.original.analyst_name}</span>
+          </div>
+        );
+      },
+      size: 160
+    },
+    { 
+      accessorKey: "revenue", 
+      header: ({ column }) => <ColumnHeader column={column} title="Revenue" />,
+      size: 150,
+      sortingFn: (rowA, rowB) => {
+        const parseRevenue = (rev: string | null) => {
+          if (!rev) return 0;
+          const normalized = rev.replace(/,/g, "");
+          const matches = normalized.match(/\d+/g);
+          if (!matches) return 0;
+          return Math.max(...matches.map(m => parseInt(m, 10)));
+        };
+        const revA = parseRevenue(rowA.original.revenue);
+        const revB = parseRevenue(rowB.original.revenue);
+        return revA - revB;
+      }
+    },
+    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 140 },
     {
       accessorKey: "follow_up_date" as const,
       header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up Date" />,
@@ -260,7 +258,9 @@ const PipelineListView = React.memo(function PipelineListView({
         const b = rowB.original.follow_up_date || "";
         return a.localeCompare(b);
       },
-    }
+    },
+    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 120 },
+    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 120 }
   ], [onEdit]);
 
   const table = useReactTable({
@@ -336,7 +336,7 @@ const PipelineListView = React.memo(function PipelineListView({
                 variant="ghost" 
                 size="sm"
                 onClick={() => {
-                  if (!hideSearchBar) setActualGlobalFilter("");
+                  setActualGlobalFilter("");
                   setColumnFilters([]);
                 }}
                 className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"

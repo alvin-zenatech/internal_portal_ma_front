@@ -72,8 +72,6 @@ export const navigation = [
       { label: "Industries", path: "/pipeline/master-data/industry", navigationCode: "PIPELINE_INDUSTRIES" },
 
       { label: "Priorities", path: "/pipeline/master-data/priority", navigationCode: "PIPELINE_PRIORITIES" },
-      { label: "Countries", path: "/pipeline/master-data/country", navigationCode: "PIPELINE_COUNTRIES" },
-      { label: "State/Province", path: "/pipeline/master-data/state", navigationCode: "PIPELINE_STATES" },
     ]
   },
 

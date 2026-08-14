@@ -13,11 +13,11 @@ export interface CompanyData {
   name: string;
   phone?: string | null;
   location?: string | null;
-  country_id?: number | null;
+  country_code?: string | null;
   country_name?: string | null;
   contact_name?: string | null;
   email?: string | null;
-  state_id?: number | null;
+  state_code?: string | null;
   state_name?: string | null;
   created_at: string;
 }
@@ -66,9 +66,9 @@ export interface PipelineTask {
   analyst_email: string | null;
   revenue: string | null;
   team_size: string | null;
-  country_id: number | null;
+  country_code: string | null;
   country_name: string | null;
-  state_id?: number | null;
+  state_code?: string | null;
   state_name?: string | null;
   latest_note: string | null;
   is_dnc?: boolean;
@@ -204,34 +204,11 @@ export const useDeletePriority = () => { const qc = useQueryClient(); return use
 export const useUpdatePriorityOrder = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (data: {id: number, sort_order: number}[]) => api.put("/api/pipeline/priorities/order", data), onSuccess: () => qc.invalidateQueries({ queryKey: ["priorities"] }) }); };
 
 export const useCountries = () => useQuery({ queryKey: ["countries"], queryFn: () => api.get<CountryData[]>("/api/pipeline/countries") });
-export function useCreateCountry() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: { name: string, code?: string }) => {
-      return await api.post("/api/pipeline/countries", data);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["countries"] }),
-  });
-}
-export function useUpdateCountry() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: { name: string, code: string } }) => {
-      return await api.put(`/api/pipeline/countries/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["countries"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
-  });
-}
-export const useDeleteCountry = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/countries/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["countries"] }); qc.invalidateQueries({ queryKey: ["tasks"] }); } }); };
-
-export const useStates = () => useQuery({ queryKey: ["states"], queryFn: () => api.get<StateData[]>("/api/pipeline/states") });
+export const useStates = (country_code?: string) => useQuery({ queryKey: ["states", { country_code }], queryFn: () => api.get<StateData[]>("/api/pipeline/states" + (country_code ? `?country_code=${country_code}` : "")) });
 export function useCreateState() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string }) => {
+    mutationFn: async (data: { name: string, country_id?: number }) => {
       return await api.post("/api/pipeline/states", data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["states"] }),
@@ -240,7 +217,7 @@ export function useCreateState() {
 export function useUpdateState() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: { name: string } }) => {
+    mutationFn: async ({ id, data }: { id: number, data: { name: string, country_id?: number } }) => {
       return await api.put(`/api/pipeline/states/${id}`, data);
     },
     onSuccess: () => {

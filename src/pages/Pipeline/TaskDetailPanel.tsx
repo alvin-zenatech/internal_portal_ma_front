@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
 import CallTrackingDetails from "./CallTrackingDetails";
-import { formatYesNo, formatNameWithInitial } from "@/lib/utils";
+import { formatYesNo } from "@/lib/utils";
 import { FollowUpActions } from "./FollowUpActions";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
@@ -113,15 +113,15 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Analyst</dt>
-                    <dd className="font-medium">{formatNameWithInitial(task.analyst_name)}</dd>
+                    <dd className="font-medium">{task.analyst_name || 'Unassigned'}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Location</dt>
-                    <dd className="font-medium">{task.location || '-'}</dd>
+                    <dt className="text-muted-foreground">State/Province</dt>
+                    <dd className="font-medium">{task.state_code || task.state_name || '-'}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Country</dt>
-                    <dd className="font-medium">{task.country_name || '-'}</dd>
+                    <dd className="font-medium">{task.country_code || task.country_name || '-'}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Follow-up Date</dt>

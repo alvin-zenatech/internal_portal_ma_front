@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,6 @@ import {
   useCountries, 
   useAnalysts, 
   useStates, 
-  useCreateState, 
-  useCreateCountry, 
   useCreateIndustry, 
   useCompanies,
   useCreateCompany 
@@ -37,10 +35,14 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const { data: priorities } = usePriorities();
   
   const { data: countries } = useCountries();
-  const { mutateAsync: createCountry } = useCreateCountry();
   
-  const { data: states } = useStates();
-  const { mutateAsync: createState } = useCreateState();
+  const [formData, setFormData] = useState<any>({
+    company_name: "", name: "", email: "", priority_id: "", industry_id: "",
+    country_code: "", state_code: "", phone: "", first_poc: "", nda: "", p_and_l: "",
+    revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
+  });
+
+  const { data: states } = useStates(formData.country_code || undefined);
   
   const { data: analysts } = useAnalysts();
 
@@ -48,19 +50,13 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const { mutateAsync: updateTask, isPending: isUpdating } = useUpdateTask();
   const isPending = isCreating || isUpdating;
 
-  const [formData, setFormData] = useState<any>({
-    company_name: "", name: "", email: "", priority_id: "", industry_id: "",
-    country_id: "", state_id: "", phone: "", first_poc: "", nda: "", p_and_l: "",
-    revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
-  });
-
   useEffect(() => {
     if (task) {
       setFormData({
         company_name: task.company_name, name: task.name, email: task.email, 
         priority_id: task.priority_id?.toString() || "", industry_id: task.industry_id?.toString() || "", 
-        country_id: task.country_id?.toString() || "",
-        state_id: task.state_id?.toString() || "", phone: task.phone || "", first_poc: task.first_poc || "", 
+        country_code: task.country_code || task.country_name || "",
+        state_code: task.state_code || task.state_name || "", phone: task.phone || "", first_poc: task.first_poc || "", 
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
         team_size: task.team_size || "", no_of_calls: task.no_of_calls || "", notes: "",
         analyst_id: task.analyst_id || "unassigned", follow_up_date: task.follow_up_date || ""
@@ -68,7 +64,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
     } else {
       setFormData({
         company_name: "", name: "", email: "", priority_id: priorities?.find(p => p.name.toLowerCase() === "new")?.id?.toString() || priorities?.[0]?.id?.toString() || "", 
-        industry_id: "", country_id: "", state_id: "", phone: "", first_poc: "", 
+        industry_id: "", country_code: "", state_code: "", phone: "", first_poc: "", 
         nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
       });
     }
@@ -81,7 +77,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         !formData.company_name || !formData.name || !formData.email || 
         !formData.phone?.replace(/ \((Personal|Office)\)$/, '').trim() || 
         !formData.priority_id || !formData.analyst_id || !formData.industry_id || 
-        !formData.country_id || !formData.state_id || 
+        !formData.country_code || !formData.state_code || 
         (!task && !formData.notes)
       ) {
         toast.error("Please fill out all required fields.");
@@ -92,8 +88,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         ...formData,
         priority_id: parseInt(formData.priority_id),
         industry_id: formData.industry_id ? parseInt(formData.industry_id) : undefined,
-        country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
-        state_id: formData.state_id ? parseInt(formData.state_id) : undefined,
+        country_code: formData.country_code || null,
+        state_code: formData.state_code || null,
         analyst_id: formData.analyst_id === "unassigned" ? null : formData.analyst_id,
         follow_up_date: formData.follow_up_date || null,
       };
@@ -138,8 +134,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       phone: prev.phone || matchingCompany.phone || "",
                       email: prev.email || matchingCompany.email || "",
                       name: prev.name || matchingCompany.contact_name || "",
-                      country_id: prev.country_id || (matchingCompany.country_id ? matchingCompany.country_id.toString() : ""),
-                      state_id: prev.state_id || (matchingCompany.state_id ? matchingCompany.state_id.toString() : ""),
+                      country_code: prev.country_code || matchingCompany.country_code || matchingCompany.country_name || "",
+                      state_code: prev.state_code || matchingCompany.state_code || matchingCompany.state_name || "",
                     }));
                   } else {
                     setFormData((prev: any) => ({ ...prev, company_name: companyNameStr }));
@@ -155,6 +151,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                   }
                 }}
                 placeholder="Select or create company..."
+                disabled={!!task}
               />
             </div>
             <div className="space-y-2 min-w-0">
@@ -220,7 +217,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               <Label>Industry *</Label>
               <AutocompleteCombobox
                 value={formData.industry_id ? parseInt(formData.industry_id) : ""}
-                onChange={v => setFormData({...formData, industry_id: v.toString()})}
+                onChange={v => setFormData({...formData, industry_id: v?.toString() || ""})}
                 options={industries || []}
                 onCreate={async (name) => {
                   const res = await createIndustry({ name });
@@ -233,28 +230,21 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             <div className="space-y-2 min-w-0">
               <Label>Country *</Label>
               <AutocompleteCombobox
-                value={formData.country_id ? parseInt(formData.country_id) : ""}
-                onChange={v => setFormData({...formData, country_id: v.toString()})}
-                options={countries || []}
-                onCreate={async (name) => {
-                  const res = await createCountry({ name, code: "" });
-                  return (res as any).id;
-                }}
-                placeholder="Select or create country..."
+                value={formData.country_code}
+                onChange={v => setFormData({...formData, country_code: v?.toString() || "", state_code: ""})}
+                options={(countries || []).map(c => ({ id: c.name, name: c.name }))}
+                placeholder="Select country..."
               />
             </div>
 
             <div className="space-y-2 min-w-0">
               <Label>State / Province *</Label>
               <AutocompleteCombobox
-                value={formData.state_id ? parseInt(formData.state_id) : ""}
-                onChange={v => setFormData({...formData, state_id: v.toString()})}
-                options={states || []}
-                onCreate={async (name) => {
-                  const res = await createState({ name });
-                  return (res as any).id;
-                }}
-                placeholder="Select or create state/province..."
+                value={formData.state_code}
+                onChange={v => setFormData({...formData, state_code: v?.toString() || ""})}
+                options={(states || []).map(s => ({ id: s.name, name: s.name }))}
+                placeholder="Select state/province..."
+                disabled={!formData.country_code}
               />
             </div>
 
