@@ -222,13 +222,7 @@ export default function CallTracking() {
         header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />,
         size: 160
       },
-      { 
-        accessorKey: 'emailed', 
-        header: ({ column }) => <ColumnHeader column={column} title="Emailed" />,
-        size: 130,
-        cell: ({ row }) => <span>{formatYesNo(row.original.emailed)}</span>
-      },
-      { 
+            { 
         accessorKey: 'picked_up', 
         header: ({ column }) => <ColumnHeader column={column} title="Picked Up" />,
         size: 130,
