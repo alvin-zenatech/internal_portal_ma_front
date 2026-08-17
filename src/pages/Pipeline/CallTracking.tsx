@@ -1,6 +1,7 @@
+import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallTrackingSummary, useCallLogs, useTableColumnOrder, useUpdateTableColumnOrder, type CallTrackingSummary, type CallLog, useUsers, usePreviewCallLog, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useCallTrackingSummary, useCallLogs, useTableColumnOrder, useUpdateTableColumnOrder, type CallTrackingSummary, type CallLog, useUsers, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,8 +17,9 @@ import {
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save } from "lucide-react";
+import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import CallLogUploadQueuePanel from "@/components/Pipeline/CallLogUploadQueuePanel";
 import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
 
@@ -121,16 +123,48 @@ export default function CallTracking() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<CallLogPreviewResponse | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const previewTaskId = searchParams.get("preview_task_id");
 
-  const previewCallLog = usePreviewCallLog();
+  useEffect(() => {
+    if (previewTaskId) {
+      toast.loading("Loading call log preview...", { id: "load-preview" });
+      fetchPreviewCallLogResult(previewTaskId)
+        .then((data) => {
+          toast.dismiss("load-preview");
+          setPreviewData(data);
+          setPreviewOpen(true);
+        })
+        .catch((err) => {
+          toast.dismiss("load-preview");
+          toast.error(err?.message || "Failed to load preview for this job.");
+        });
+    }
+  }, [previewTaskId]);
+
+  const deleteTask = useDeleteImportTask();
+  const previewCallLog = usePreviewCallLog((progress, message) => {
+    toast.loading(message || `Analyzing call log ${progress}%...`, { id: "preview-loading" });
+  });
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      toast.loading("Analyzing call log file...", { id: "preview-loading" });
+      toast.loading("Analyzing call log in background...", { id: "preview-loading" });
       previewCallLog.mutate(file, {
         onSuccess: (data) => {
           toast.dismiss("preview-loading");
+          toast.success("Call log analysis ready!", {
+            description: `Parsed rows for '${file.name}'.`,
+            action: {
+              label: "Open Preview",
+              onClick: () => {
+                setPreviewData(data);
+                setPreviewOpen(true);
+              }
+            },
+            duration: 8000
+          });
           setPreviewData(data);
           setPreviewOpen(true);
         },
@@ -561,12 +595,30 @@ export default function CallTracking() {
             <Upload className="h-4 w-4 mr-2" />
             Upload Call Log
           </Button>
-
+          <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Call Log
+          </Button>
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden relative bg-muted/20">
         <div className="h-full flex flex-col p-6 space-y-4">
+          <CallLogUploadQueuePanel
+            onOpenPreview={(taskId) => {
+              toast.loading("Loading preview...", { id: "load-preview" });
+              fetchPreviewCallLogResult(taskId)
+                .then((data) => {
+                  toast.dismiss("load-preview");
+                  setPreviewData(data);
+                  setPreviewOpen(true);
+                })
+                .catch((err) => {
+                  toast.dismiss("load-preview");
+                  toast.error(err?.message || "Failed to load preview.");
+                });
+            }}
+          />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 flex-1 flex-wrap">
               <Input
@@ -701,10 +753,26 @@ export default function CallTracking() {
 
       <CallLogImportPreviewModal
         open={previewOpen}
-        onOpenChange={setPreviewOpen}
+        onOpenChange={(isOpen) => {
+          setPreviewOpen(isOpen);
+          if (!isOpen && searchParams.has("preview_task_id")) {
+            const p = new URLSearchParams(searchParams);
+            p.delete("preview_task_id");
+            setSearchParams(p);
+          }
+        }}
         previewData={previewData}
         onSuccess={() => {
           setPreviewData(null);
+          if (searchParams.has("preview_task_id")) {
+            const tid = searchParams.get("preview_task_id");
+            if (tid) {
+              deleteTask.mutate(tid);
+            }
+            const p = new URLSearchParams(searchParams);
+            p.delete("preview_task_id");
+            setSearchParams(p);
+          }
           refetch();
         }}
       />

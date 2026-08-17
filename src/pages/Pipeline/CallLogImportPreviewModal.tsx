@@ -29,6 +29,7 @@ import {
 import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check, Edit3 } from 'lucide-react';
 import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts, useCountries, useStates } from '@/hooks/usePipeline';
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
+import { formatYesNo } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -47,6 +48,8 @@ export default function CallLogImportPreviewModal({
 
   const [rows, setRows] = useState<CallLogPreviewRow[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   const [editingRowForCompany, setEditingRowForCompany] = useState<CallLogPreviewRow | null>(null);
   const [companyForm, setCompanyForm] = useState({
@@ -116,6 +119,16 @@ export default function CallLogImportPreviewModal({
       (r.notes && r.notes.toLowerCase().includes(term))
     );
   }, [rows, searchFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchFilter, previewData]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, page, pageSize]);
 
   const stats = useMemo(() => {
     const selectedCount = rows.filter(r => r.selected_for_import).length;
@@ -485,7 +498,7 @@ export default function CallLogImportPreviewModal({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRows.map((row) => (
+              {paginatedRows.map((row) => (
                 <TableRow
                   key={row.row_index}
                   className={`hover:bg-muted/50 ${!row.selected_for_import ? 'opacity-50 bg-muted/20' : row.is_duplicate ? 'bg-rose-500/5' : ''}`}
@@ -585,6 +598,26 @@ export default function CallLogImportPreviewModal({
                         </Button>
                       </div>
                     )}
+
+                    {/* Close Match Suggestion Subtitle (> 70%) */}
+                    {!row.is_confirmed && !row.matched_company_id && row.suggestions && row.suggestions.length > 0 && row.suggestions[0].score >= 0.70 && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-0.5 mt-1">
+                        <span className="text-[10px] font-medium text-muted-foreground">Close match:</span>
+                        <span className="font-semibold truncate max-w-[150px]" title={row.suggestions[0].name}>
+                          {row.suggestions[0].name}
+                        </span>
+                        <span className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-200 rounded px-1.5 py-0 font-bold shrink-0">
+                          {Math.round(row.suggestions[0].score * 100)}% match
+                        </span>
+                        <button
+                          type="button"
+                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold ml-auto shrink-0 cursor-pointer"
+                          onClick={() => handleCompanyChange(row.row_index, String(row.suggestions![0].id))}
+                        >
+                          Use
+                        </button>
+                      </div>
+                    )}
                   </TableCell>
 
                   <TableCell className="text-xs truncate" title={row.industry}>{row.industry || '-'}</TableCell>
@@ -596,9 +629,9 @@ export default function CallLogImportPreviewModal({
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{row.phone_number || '-'}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{row.date_of_call || '-'}</TableCell>
-                  <TableCell className="text-xs font-medium">{row.kdm || row.raw_kdm || '-'}</TableCell>
-                  <TableCell className="text-xs font-medium">{row.emailed || '-'}</TableCell>
-                  <TableCell className="text-xs font-medium">{row.picked_up || '-'}</TableCell>
+                  <TableCell className="text-xs font-medium">{formatYesNo(row.kdm || row.raw_kdm) || '-'}</TableCell>
+                  <TableCell className="text-xs font-medium">{formatYesNo(row.emailed) || '-'}</TableCell>
+                  <TableCell className="text-xs font-medium">{formatYesNo(row.picked_up) || '-'}</TableCell>
                   <TableCell className="text-xs">{row.outcome || '-'}</TableCell>
                   <TableCell className="text-xs font-mono">{row.call_length || '-'}</TableCell>
                   <TableCell className="min-w-[140px]">
@@ -644,6 +677,78 @@ export default function CallLogImportPreviewModal({
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 py-2 border rounded-lg bg-muted/20 text-xs text-muted-foreground mt-1">
+          <div className="flex items-center gap-2">
+            <span>
+              Showing {filteredRows.length === 0 ? 0 : (page - 1) * pageSize + 1} to{" "}
+              {Math.min(page * pageSize, filteredRows.length)} of {filteredRows.length} rows
+            </span>
+            <div className="flex items-center gap-1.5 ml-3">
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="h-7 text-xs rounded border border-border bg-background px-1.5 focus:outline-none"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+            >
+              First
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              Prev
+            </Button>
+            <span className="px-2 font-medium text-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+            >
+              Last
+            </Button>
+          </div>
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t mt-2">

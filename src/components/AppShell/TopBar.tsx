@@ -1,5 +1,6 @@
+import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Search, Building2, FileText, Loader2, LogOut, User, Mail, BellRing, Settings2 } from "lucide-react";
+import { Search, Bell, CheckCheck, Building2, FileText, Loader2, LogOut, User, Mail, BellRing, Settings2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ import { useNavigate } from "react-router-dom";
 import ThemeSwitch from "./ThemeSwitch";
 import { useGlobalSearch } from "@/hooks/useSearch";
 import { useAuth } from "@/lib/AuthContext";
+import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearReadNotifications } from "@/hooks/useNotifications";
 
 
 
@@ -62,6 +64,7 @@ export default function TopBar() {
   const [inputValue, setInputValue] = useState("");
   const [debouncedValue, setDebouncedValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
@@ -69,6 +72,40 @@ export default function TopBar() {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user, roles, logout } = useAuth();
+  const { data: notifications = [] } = useNotifications({ refetchInterval: 8000 });
+  const { data: unreadCountData } = useUnreadNotificationCount({ refetchInterval: 8000 });
+  const { mutate: markAsRead } = useMarkNotificationAsRead();
+  const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
+  const { mutate: clearRead } = useClearReadNotifications();
+  const unreadCount = unreadCountData?.count ?? 0;
+  const notifiedIdsRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (notifications.length > 0) {
+      notifications.forEach((n) => {
+        if (!n.is_read && !notifiedIdsRef.current.has(n.id)) {
+          notifiedIdsRef.current.add(n.id);
+          if (n.type === "call_log_preview") {
+            toast.dismiss("preview-loading");
+            toast.success(n.title, {
+              description: n.message,
+              action: {
+                label: "Open Preview",
+                onClick: () => {
+                  markAsRead(n.id);
+                  if (n.link_url) {
+                    navigate(n.link_url);
+                  }
+                },
+              },
+              duration: 12000,
+            });
+          }
+        }
+      });
+    }
+  }, [notifications, navigate, markAsRead]);
+  const hasReadNotifications = notifications.some(n => n.is_read);
   // Debounce input
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -166,6 +203,8 @@ export default function TopBar() {
       
       <div className="flex items-center gap-2 sm:gap-4 md:gap-5 shrink-0">
         <TopBarClock />
+
+
         <TooltipProvider delayDuration={0}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -176,6 +215,88 @@ export default function TopBar() {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        <div className="hidden sm:flex items-center gap-1.5 border-r pr-2 sm:pr-4 md:pr-5 mr-1">
+          <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-10 w-10 outline-none focus-visible:ring-0">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-card" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[420px] p-0 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">Notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="text-xs font-medium text-blue-600 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 px-2 py-0.5 rounded-full whitespace-nowrap">{unreadCount} new</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAllAsRead(); }} disabled={isMarkingAll}>
+                      <CheckCheck className={`h-3.5 w-3.5 mr-1 ${isMarkingAll ? "animate-pulse" : ""}`} />
+                      Mark all as read
+                    </Button>
+                  )}
+                  {hasReadNotifications && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearRead(); }}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="max-h-[340px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    You have no notifications.
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      onClick={() => {
+                        if (!notification.is_read) {
+                          markAsRead(notification.id);
+                        }
+                        if (notification.link_url) {
+                          setIsNotificationsOpen(false);
+                          navigate(notification.link_url);
+                        }
+                      }}
+                      className={`p-4 border-b last:border-0 cursor-pointer transition-colors duration-500 ${
+                        !notification.is_read ? "bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p className={`text-sm leading-snug transition-colors duration-500 ${!notification.is_read ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>
+                              {notification.title}
+                            </p>
+                            {notification.type === "call_log_preview" && (
+                              <span className="text-[10px] bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold px-1.5 py-0.5 rounded">
+                                Ready
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1.5 font-medium uppercase tracking-wider">
+                            {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <div className={`w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0 shadow-sm transition-all duration-500 ${!notification.is_read ? "opacity-100 scale-100" : "opacity-0 scale-0"}`} />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

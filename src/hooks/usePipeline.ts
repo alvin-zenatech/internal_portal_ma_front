@@ -739,13 +739,78 @@ export interface CallLogPreviewResponse {
   existing_logs?: ExistingCallLogItem[];
 }
 
-export function usePreviewCallLog() {
+export function usePreviewCallLog(onProgress?: (progress: number, message: string) => void) {
   return useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return await api.post<CallLogPreviewResponse>("/api/pipeline/preview-call-log", formData);
+      const res = await api.post<{ task_id?: string; summary?: CallLogPreviewSummary; rows?: CallLogPreviewRow[] }>("/api/pipeline/preview-call-log", formData);
+      
+      if (res.task_id) {
+        const taskId = res.task_id;
+        while (true) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          const statusRes = await api.get<{ status: string; progress: number; message: string; result?: CallLogPreviewResponse }>(`/api/pipeline/import/status/${taskId}`);
+          
+          if (onProgress) {
+            onProgress(statusRes.progress, statusRes.message);
+          }
+          
+          if (statusRes.status === "completed" && statusRes.result) {
+            return statusRes.result;
+          } else if (statusRes.status === "failed" || statusRes.status === "error") {
+            throw new Error(statusRes.message || "Failed to parse call log file");
+          }
+        }
+      }
+      return res as unknown as CallLogPreviewResponse;
     }
+  });
+}
+
+
+
+export interface ImportTaskItem {
+  task_id: string;
+  filename: string;
+  status: "processing" | "completed" | "failed";
+  progress: number;
+  message: string;
+  created_at: string;
+  total_rows?: number;
+}
+
+export function useImportTasks() {
+  return useQuery<ImportTaskItem[]>({
+    queryKey: ["pipeline-import-tasks"],
+    queryFn: () => api.get<ImportTaskItem[]>("/api/pipeline/import-tasks"),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasActive = data?.some(t => t.status === "processing");
+      return hasActive ? 1500 : 8000;
+    }
+  });
+}
+
+export function useDeleteImportTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => api.delete(`/api/pipeline/import-tasks/${taskId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipeline-import-tasks"] });
+    }
+  });
+}
+
+export async function fetchPreviewCallLogResult(taskId: string): Promise<CallLogPreviewResponse> {
+  return await api.get<CallLogPreviewResponse>(`/api/pipeline/preview-call-log/result/${taskId}`);
+}
+
+export function usePreviewCallLogResult(taskId: string | null) {
+  return useQuery<CallLogPreviewResponse>({
+    queryKey: ["preview-call-log-result", taskId],
+    queryFn: () => fetchPreviewCallLogResult(taskId!),
+    enabled: !!taskId,
   });
 }
 
