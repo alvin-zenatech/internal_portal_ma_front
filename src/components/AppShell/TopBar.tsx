@@ -72,20 +72,30 @@ export default function TopBar() {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user, roles, logout } = useAuth();
-  const { data: notifications = [] } = useNotifications({ refetchInterval: 8000 });
+  const { data: notifications = [], isFetched: isNotificationsFetched } = useNotifications({ refetchInterval: 8000 });
   const { data: unreadCountData } = useUnreadNotificationCount({ refetchInterval: 8000 });
   const { mutate: markAsRead } = useMarkNotificationAsRead();
   const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
   const { mutate: clearRead } = useClearReadNotifications();
   const unreadCount = unreadCountData?.count ?? 0;
+  const initialLoadedRef = useRef(false);
   const notifiedIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
+    if (!isNotificationsFetched) return;
+
+    if (!initialLoadedRef.current) {
+      // First load / refresh: remember all existing notification IDs so we don't spam toasts
+      notifications.forEach((n) => notifiedIdsRef.current.add(n.id));
+      initialLoadedRef.current = true;
+      return;
+    }
+
     if (notifications.length > 0) {
       notifications.forEach((n) => {
         if (!n.is_read && !notifiedIdsRef.current.has(n.id)) {
           notifiedIdsRef.current.add(n.id);
-          if (n.type === "call_log_preview") {
+          if (inAppAlerts && n.type === "call_log_preview") {
             toast.dismiss("preview-loading");
             toast.success(n.title, {
               description: n.message,
@@ -104,7 +114,7 @@ export default function TopBar() {
         }
       });
     }
-  }, [notifications, navigate, markAsRead]);
+  }, [notifications, isNotificationsFetched, inAppAlerts, navigate, markAsRead]);
   const hasReadNotifications = notifications.some(n => n.is_read);
   // Debounce input
   useEffect(() => {

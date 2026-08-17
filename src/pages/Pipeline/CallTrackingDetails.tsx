@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { useIndustries, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useAnalysts } from '@/hooks/usePipeline';
+import { useIndustries, useCallTrackingSummary, useCompanyCallLogs, useCreateCallLog, useUpdateCallLog, useDeleteCallLog, type CallLog, useAnalysts, useCompanies, useCreateCompany } from '@/hooks/usePipeline';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { formatYesNo } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2 } from "lucide-react";
+import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 
 export default function CallTrackingDetails({ 
   companyName, 
@@ -61,7 +62,29 @@ export default function CallTrackingDetails({
     }
     return dateStr.split(/[T ]/)[0];
   };
-  useCallTrackingSummary();
+  const { data: companies } = useCompanies();
+  const { data: summaries } = useCallTrackingSummary();
+  const { mutateAsync: createCompany } = useCreateCompany();
+
+  const companyOptions = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    if (companies) {
+      for (const c of companies) {
+        if (c.name?.trim()) {
+          map.set(c.name.toLowerCase().trim(), { id: c.name, name: c.name });
+        }
+      }
+    }
+    if (summaries) {
+      for (const s of summaries) {
+        if (s.company_name?.trim() && !map.has(s.company_name.toLowerCase().trim())) {
+          map.set(s.company_name.toLowerCase().trim(), { id: s.company_name, name: s.company_name });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [companies, summaries]);
+
   const existingOutcomes = [
     "Follow Up",
     "Voicemail",
@@ -77,6 +100,39 @@ export default function CallTrackingDetails({
   const [editingId, setEditingId] = useState<number | 'NEW' | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<CallLog>>({});
+
+  const handleCompanySelect = (val: string | number) => {
+    const selectedName = String(val || "");
+    const matchingCompany = companies?.find(
+      c => c.name.toLowerCase() === selectedName.toLowerCase()
+    );
+    const matchingSummary = summaries?.find(
+      s => s.company_name.toLowerCase() === selectedName.toLowerCase() ||
+           s.normalized_company_name.toLowerCase() === selectedName.toLowerCase()
+    );
+
+    setFormData(prev => {
+      const newName = matchingCompany?.name || matchingSummary?.company_name || selectedName;
+      const newIndustry = prev.industry || matchingSummary?.industry || "";
+      const newContact = prev.contact_name || matchingCompany?.contact_name || matchingSummary?.contact_name || "";
+      
+      let newPhone = prev.phone_number;
+      if (!newPhone) {
+        const rawPhone = matchingCompany?.phone || matchingSummary?.phone_number;
+        if (rawPhone) {
+          newPhone = (rawPhone.includes('(Personal)') || rawPhone.includes('(Office)')) ? rawPhone : `${rawPhone} (Office)`;
+        }
+      }
+
+      return {
+        ...prev,
+        company_name: newName,
+        industry: newIndustry,
+        contact_name: newContact,
+        phone_number: newPhone || "",
+      };
+    });
+  };
 
   const currentOutcome = formData.outcome || '';
 
@@ -128,11 +184,29 @@ export default function CallTrackingDetails({
         return;
       }
 
-      const payload = {
-        ...formData
-      };
+      const trimmedName = formData.company_name.trim();
 
       if (editingId === 'NEW') {
+        const existsInCompanies = companies?.some(
+          c => c.name.toLowerCase() === trimmedName.toLowerCase()
+        );
+        if (!existsInCompanies && trimmedName) {
+          try {
+            await createCompany({
+              name: trimmedName,
+              contact_name: formData.contact_name || undefined,
+              phone: formData.phone_number?.replace(/ \((Personal|Office)\)$/, '').trim() || undefined,
+            });
+          } catch (e) {
+            console.error("Failed to auto-create company on save", e);
+          }
+        }
+
+        const payload = {
+          ...formData,
+          company_name: trimmedName
+        };
+
         await createLog(payload);
         toast.success("Call log created!");
         if (!normalizedName) {
@@ -140,6 +214,10 @@ export default function CallTrackingDetails({
            return;
         }
       } else if (editingId) {
+        const payload = {
+          ...formData,
+          company_name: trimmedName
+        };
         await updateLog({ id: editingId, payload });
         toast.success("Call log updated!");
       }
@@ -203,11 +281,20 @@ export default function CallTrackingDetails({
                     {/* Row 1: Company Name, Industry */}
                   <div className="space-y-1 text-left w-full">
                     <label>Company Name *</label>
-                    <Input 
-                      value={formData.company_name || ''} 
-                      onChange={e => setFormData({...formData, company_name: e.target.value})}
-                      disabled={normalizedName !== null} // Lock name if editing an existing company
-                    />
+                    {normalizedName !== null ? (
+                      <Input 
+                        value={formData.company_name || ''} 
+                        disabled={true}
+                      />
+                    ) : (
+                      <AutocompleteInput
+                        value={formData.company_name || ''}
+                        onChange={(name) => setFormData(prev => ({ ...prev, company_name: name }))}
+                        onSelectOption={(opt) => handleCompanySelect(opt.name)}
+                        options={companyOptions}
+                        placeholder="Type company name..."
+                      />
+                    )}
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label>Industry</label>

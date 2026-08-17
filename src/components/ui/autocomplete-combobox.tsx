@@ -15,6 +15,7 @@ interface AutocompleteComboboxProps {
   onChange: (value: any) => void;
   options: AutocompleteOption[];
   onCreate?: (name: string) => Promise<number | string>;
+  createLabel?: (search: string) => string;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -24,6 +25,7 @@ export function AutocompleteCombobox({
   onChange,
   options,
   onCreate,
+  createLabel,
   placeholder = "Select an option...",
   disabled = false,
 }: AutocompleteComboboxProps) {
@@ -173,7 +175,7 @@ export function AutocompleteCombobox({
                 ) : (
                   <Plus className="mr-2 h-4 w-4" />
                 )}
-                Create "{search}"
+                {createLabel ? createLabel(search) : `Create "${search}"`}
               </div>
             )}
           </div>
