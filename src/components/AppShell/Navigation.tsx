@@ -1,6 +1,5 @@
-﻿import {
+import {
   LayoutDashboard,
-  Building2,
   ShieldCheck,
   FileClock,
   Briefcase,
@@ -18,13 +17,6 @@ export const navigation = [
     icon: LayoutDashboard,
     section: "MAIN",
     navigationCode: "PIPELINE_DASHBOARD",
-  },
-  {
-    label: "Companies",
-    path: "/pipeline/companies",
-    icon: Building2,
-    section: "MAIN",
-    navigationCode: "PIPELINE_COMPANIES",
   },
   {
     label: "Follow-ups",
