@@ -105,54 +105,58 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
               {/* Left Column: Details */}
               <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-card">
                 <div className="flex-1 min-h-0 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
-                <h3 className="font-semibold text-lg mb-4">Task Details</h3>
-                <dl className="space-y-4 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Priority</dt>
-                    <dd className="font-medium">{task.priority_name}</dd>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  <div className="space-y-4">
+                    <div>
+                      <dt className="text-muted-foreground">Priority</dt>
+                      <dd className="font-medium">{task.priority_name}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Analyst</dt>
+                      <dd className="font-medium">{task.analyst_name || 'Unassigned'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">State/Province</dt>
+                      <dd className="font-medium">{task.state_code || task.state_name || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Country</dt>
+                      <dd className="font-medium">{task.country_code || task.country_name || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Follow-up Date</dt>
+                      <dd className="font-medium flex items-center gap-4">
+                        <span>
+                          {task.follow_up_date
+                            ? new Date(task.follow_up_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+                            : '-'}
+                        </span>
+                        {task.follow_up_date && <FollowUpActions task={task} />}
+                      </dd>
+                    </div>
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Analyst</dt>
-                    <dd className="font-medium">{task.analyst_name || 'Unassigned'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">State/Province</dt>
-                    <dd className="font-medium">{task.state_code || task.state_name || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Country</dt>
-                    <dd className="font-medium">{task.country_code || task.country_name || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Follow-up Date</dt>
-                    <dd className="font-medium flex items-center gap-4">
-                      <span>
-                        {task.follow_up_date
-                          ? new Date(task.follow_up_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
-                          : '-'}
-                      </span>
-                      {task.follow_up_date && <FollowUpActions task={task} />}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Revenue</dt>
-                    <dd className="font-medium">{task.revenue || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Team Size</dt>
-                    <dd className="font-medium">{task.team_size || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">NDA Status</dt>
-                    <dd className="font-medium">{task.nda || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">P&L Status</dt>
-                    <dd className="font-medium">{task.p_and_l || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Created At</dt>
-                    <dd className="font-medium">{new Date(task.created_at).toLocaleString()}</dd>
+
+                  <div className="space-y-4">
+                    <div>
+                      <dt className="text-muted-foreground">Revenue</dt>
+                      <dd className="font-medium">{task.revenue || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Team Size</dt>
+                      <dd className="font-medium">{task.team_size || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">NDA Status</dt>
+                      <dd className="font-medium">{task.nda || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">P&L Status</dt>
+                      <dd className="font-medium">{task.p_and_l || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Created At</dt>
+                      <dd className="font-medium">{new Date(task.created_at).toLocaleString()}</dd>
+                    </div>
                   </div>
                 </dl>
 
