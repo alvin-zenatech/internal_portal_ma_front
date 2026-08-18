@@ -584,12 +584,28 @@ export default function CallTracking() {
     });
   };
 
+  const normalizeOrder = React.useCallback((order: string[]) => {
+    const list = order.filter(id => defaultColumnOrder.includes(id));
+    for (const id of defaultColumnOrder) {
+      if (!list.includes(id)) {
+        if (id === 'call_count') {
+          list.unshift(id);
+        } else {
+          list.push(id);
+        }
+      }
+    }
+    return list;
+  }, [defaultColumnOrder]);
+
   const isCustomOrder = React.useMemo(() => {
-    const savedBaseline = dbColumnSettings?.column_order && Array.isArray(dbColumnSettings.column_order) && dbColumnSettings.column_order.length > 0
+    const rawBaseline = dbColumnSettings?.column_order && Array.isArray(dbColumnSettings.column_order) && dbColumnSettings.column_order.length > 0
       ? dbColumnSettings.column_order
       : defaultColumnOrder;
-    return JSON.stringify(columnOrder) !== JSON.stringify(savedBaseline);
-  }, [columnOrder, dbColumnSettings, defaultColumnOrder]);
+    const savedBaseline = normalizeOrder(rawBaseline);
+    const currentOrder = normalizeOrder(columnOrder);
+    return JSON.stringify(currentOrder) !== JSON.stringify(savedBaseline);
+  }, [columnOrder, dbColumnSettings, defaultColumnOrder, normalizeOrder]);
 
   const resetColumnOrder = () => {
     handleColumnOrderChange(defaultColumnOrder);
