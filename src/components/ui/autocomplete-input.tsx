@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import fuzzysort from "fuzzysort";
-import { Building2 } from "lucide-react";
+import { Building2, Plus, Loader2 } from "lucide-react";
 
 export interface AutocompleteInputOption {
   id: string | number;
@@ -14,6 +14,7 @@ interface AutocompleteInputProps {
   value: string;
   onChange: (value: string) => void;
   onSelectOption?: (option: AutocompleteInputOption) => void;
+  onCreate?: (name: string) => Promise<any> | void;
   options: AutocompleteInputOption[];
   placeholder?: string;
   disabled?: boolean;
@@ -26,6 +27,7 @@ export function AutocompleteInput({
   value,
   onChange,
   onSelectOption,
+  onCreate,
   options,
   placeholder = "Type company name...",
   disabled = false,
@@ -34,6 +36,7 @@ export function AutocompleteInput({
   minChars = 1,
 }: AutocompleteInputProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +54,6 @@ export function AutocompleteInput({
     } as any);
     
     if (fuzzResults.length === 0) {
-      // fallback to substring search
       return options
         .filter((o) => o.name.toLowerCase().includes(trimmed.toLowerCase()))
         .slice(0, 50);
@@ -59,6 +61,11 @@ export function AutocompleteInput({
 
     return (fuzzResults as any).map((res: any) => res.obj as AutocompleteInputOption).slice(0, 50);
   }, [value, options, minChars]);
+
+  const exactMatch = useMemo(() => {
+    if (!value) return false;
+    return options.some(opt => opt.name.toLowerCase() === value.trim().toLowerCase());
+  }, [value, options]);
 
   // Handle clicking outside to close suggestions
   useEffect(() => {
@@ -84,6 +91,20 @@ export function AutocompleteInput({
     setIsOpen(false);
   };
 
+  const handleCreate = async () => {
+    if (!onCreate || !value.trim()) return;
+    setIsCreating(true);
+    try {
+      await onCreate(value.trim());
+      onChange(value.trim());
+      setIsOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -93,20 +114,26 @@ export function AutocompleteInput({
       return;
     }
 
+    const hasCreate = onCreate && value.trim() && !exactMatch;
+    const totalSelectable = suggestions.length + (hasCreate ? 1 : 0);
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHighlightedIndex((prev) =>
-        prev < suggestions.length - 1 ? prev + 1 : 0
+        prev < totalSelectable - 1 ? prev + 1 : 0
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setHighlightedIndex((prev) =>
-        prev > 0 ? prev - 1 : suggestions.length - 1
+        prev > 0 ? prev - 1 : totalSelectable - 1
       );
     } else if (e.key === "Enter") {
       if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
         e.preventDefault();
         handleSelect(suggestions[highlightedIndex]);
+      } else if (highlightedIndex === suggestions.length && hasCreate) {
+        e.preventDefault();
+        handleCreate();
       } else {
         setIsOpen(false);
       }
@@ -114,6 +141,10 @@ export function AutocompleteInput({
       setIsOpen(false);
     }
   };
+
+  const showDropdown = isOpen && !disabled && (
+    suggestions.length > 0 || (onCreate && value.trim().length >= minChars && !exactMatch)
+  );
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -127,7 +158,7 @@ export function AutocompleteInput({
           setHighlightedIndex(-1);
         }}
         onFocus={() => {
-          if (suggestions.length > 0) {
+          if (value?.trim().length >= minChars) {
             setIsOpen(true);
           }
         }}
@@ -139,11 +170,18 @@ export function AutocompleteInput({
         autoComplete="off"
       />
 
-      {isOpen && suggestions.length > 0 && !disabled && (
-        <div className="absolute left-0 top-full z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
-          <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Suggestions ({suggestions.length})
-          </div>
+      {showDropdown && (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+          {suggestions.length > 0 ? (
+            <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Suggestions ({suggestions.length})
+            </div>
+          ) : (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              No matching company found
+            </div>
+          )}
+
           {suggestions.map((option, index) => {
             const isSelected = option.name.toLowerCase() === value.trim().toLowerCase();
             const isHighlighted = index === highlightedIndex;
@@ -152,7 +190,7 @@ export function AutocompleteInput({
               <div
                 key={option.id}
                 onMouseDown={(e) => {
-                  e.preventDefault(); // Prevent input blur before selection
+                  e.preventDefault();
                   handleSelect(option);
                 }}
                 onMouseEnter={() => setHighlightedIndex(index)}
@@ -173,6 +211,27 @@ export function AutocompleteInput({
               </div>
             );
           })}
+
+          {onCreate && value.trim().length >= minChars && !exactMatch && (
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleCreate();
+              }}
+              onMouseEnter={() => setHighlightedIndex(suggestions.length)}
+              className={cn(
+                "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2.5 py-2 text-sm outline-none transition-colors mt-1 border-t border-border text-primary font-medium",
+                highlightedIndex === suggestions.length ? "bg-primary/15" : "hover:bg-primary/10"
+              )}
+            >
+              {isCreating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-primary" />
+              ) : (
+                <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
+              )}
+              <span className="truncate flex-1">Create "{value.trim()}"</span>
+            </div>
+          )}
         </div>
       )}
     </div>

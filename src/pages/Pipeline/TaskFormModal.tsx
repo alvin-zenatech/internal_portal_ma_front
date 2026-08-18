@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,19 +21,30 @@ import {
   useStates, 
   useCreateIndustry, 
   useCompanies,
-  useCreateCompany 
+  useCreateCompany,
 } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
+import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
   const { mutateAsync: createIndustry } = useCreateIndustry();
   const { data: companies } = useCompanies();
   const { mutateAsync: createCompany } = useCreateCompany();
-  const companyOptions = companies?.map(c => ({ id: c.name, name: c.name })) || [];
+
+  const companyOptions = useMemo(() => {
+    return (companies || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone || "",
+      email: c.email || "",
+      contact_name: c.contact_name || "",
+      country_code: c.country_code || c.country_name || "",
+      state_code: c.state_code || c.state_name || ""
+    }));
+  }, [companies]);
 
   const { data: priorities } = usePriorities();
-  
   const { data: countries } = useCountries();
   
   const [formData, setFormData] = useState<any>({
@@ -43,7 +54,6 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   });
 
   const { data: states } = useStates(formData.country_code || undefined);
-  
   const { data: analysts } = useAnalysts();
 
   const { mutateAsync: createTask, isPending: isCreating } = useCreateTask();
@@ -95,7 +105,6 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
       };
 
       if (task) {
-        // Remove notes from payload for updates, as they are handled separately
         const { notes, ...updatePayload } = payload;
         await updateTask({ id: task.id, data: updatePayload });
         toast.success("Task updated");
@@ -119,176 +128,143 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 min-w-0">
-              <Label>Company Name *</Label>
-              <AutocompleteCombobox
-                value={formData.company_name}
-                onChange={v => {
-                  const companyNameStr = (v as string) || "";
-                  const matchingCompany = companies?.find(c => c.name.toLowerCase() === companyNameStr.toLowerCase());
-                  if (matchingCompany) {
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 min-w-0">
+                <Label>Company Name *</Label>
+                <AutocompleteInput
+                  value={formData.company_name || ""}
+                  onChange={(val) => setFormData((prev: any) => ({ ...prev, company_name: val }))}
+                  onSelectOption={(matchingCompany) => {
                     setFormData((prev: any) => ({
                       ...prev,
                       company_name: matchingCompany.name,
                       phone: prev.phone || matchingCompany.phone || "",
                       email: prev.email || matchingCompany.email || "",
                       name: prev.name || matchingCompany.contact_name || "",
-                      country_code: prev.country_code || matchingCompany.country_code || matchingCompany.country_name || "",
-                      state_code: prev.state_code || matchingCompany.state_code || matchingCompany.state_name || "",
+                      country_code: prev.country_code || matchingCompany.country_code || "",
+                      state_code: prev.state_code || matchingCompany.state_code || "",
                     }));
-                  } else {
-                    setFormData((prev: any) => ({ ...prev, company_name: companyNameStr }));
-                  }
-                }}
-                options={companyOptions}
-                onCreate={async (name) => {
-                  try {
-                    const res = await createCompany({ name });
-                    return (res as any)?.name || name;
-                  } catch (err) {
-                    return name;
-                  }
-                }}
-                placeholder="Select or create company..."
-                disabled={!!task}
-              />
-            </div>
-            <div className="space-y-2 min-w-0">
-              <Label>Contact Name *</Label>
-              <Input required placeholder="Contact name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-            </div>
-
-            <div className="space-y-2 min-w-0">
-              <Label>Email *</Label>
-              <Input required type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-            </div>
-
-            <div className="space-y-2 min-w-0">
-              <Label>Phone *</Label>
-              <div className="flex gap-2">
-                <Input 
-                  required 
-                  value={formData.phone?.replace(/ \((Personal|Office)\)$/, '') || ''} 
-                  onChange={e => {
-                    const type = formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
-                    setFormData({...formData, phone: e.target.value ? `${e.target.value} (${type})` : ` (${type})`})
                   }}
-                  className="flex-1"
+                  onCreate={async (name) => {
+                    try {
+                      const res = await createCompany({
+                        name,
+                        contact_name: formData.name?.trim() || undefined,
+                        email: formData.email?.trim() || undefined,
+                        phone: formData.phone?.replace(/ \((Personal|Office)\)$/, '').trim() || undefined,
+                        location: [formData.state_code, formData.country_code].filter(Boolean).join(", ") || undefined,
+                        state_name: formData.state_code?.trim() || undefined,
+                        country_code: formData.country_code?.trim() || undefined,
+                      });
+                      toast.success(`Company "${name}" created`);
+                      return (res as any)?.name || name;
+                    } catch (e) {
+                      return name;
+                    }
+                  }}
+                  options={companyOptions}
+                  placeholder="Type or search company name..."
                 />
-                <Select 
-                  value={formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
-                  onValueChange={val => {
-                    const num = formData.phone?.replace(/ \((Personal|Office)\)$/, '') || '';
-                    setFormData({...formData, phone: num ? `${num} (${val})` : ` (${val})`})
-                  }}
-                >
-                  <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              </div>
+              <div className="space-y-2 min-w-0">
+                <Label>Contact Name *</Label>
+                <Input required placeholder="Contact name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              </div>
+
+              <div className="space-y-2 min-w-0">
+                <Label>Email *</Label>
+                <Input required type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              </div>
+
+              <div className="space-y-2 min-w-0">
+                <Label>Phone *</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    required 
+                    value={formData.phone?.replace(/ \((Personal|Office)\)$/, '') || ''} 
+                    onChange={e => {
+                      const type = formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
+                      setFormData({...formData, phone: e.target.value ? `${e.target.value} (${type})` : ` (${type})`})
+                    }}
+                    className="flex-1"
+                  />
+                  <Select 
+                    value={formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
+                    onValueChange={val => {
+                      const num = formData.phone?.replace(/ \((Personal|Office)\)$/, '') || '';
+                      setFormData({...formData, phone: num ? `${num} (${val})` : ` (${val})`})
+                    }}
+                  >
+                    <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Personal">Personal</SelectItem>
+                      <SelectItem value="Office">Office</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2 min-w-0">
+                <Label>Priority *</Label>
+                <Select required value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Personal">Personal</SelectItem>
-                    <SelectItem value="Office">Office</SelectItem>
+                    {priorities?.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="space-y-2 min-w-0">
-              <Label>Priority *</Label>
-              <Select required value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
-                <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
-                <SelectContent>
-                  {priorities?.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2 min-w-0">
+                <Label>Assigned Analyst *</Label>
+                <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {analysts?.map(a => <SelectItem key={a.id} value={a.id}>{a.full_name || a.email}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2 min-w-0">
-              <Label>Analyst *</Label>
-              <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
-                <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {analysts?.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2 min-w-0">
+                <Label>Industry *</Label>
+                <AutocompleteCombobox
+                  value={parseInt(formData.industry_id) || ""}
+                  onChange={v => setFormData({...formData, industry_id: v?.toString() || ""})}
+                  options={(industries || []).map(i => ({ id: i.id, name: i.name }))}
+                  onCreate={async (name) => {
+                    const res = await createIndustry({ name }) as any;
+                    return res?.id || res;
+                  }}
+                  placeholder="Select industry..."
+                />
+              </div>
 
-            <div className="space-y-2 min-w-0">
-              <Label>Industry *</Label>
-              <AutocompleteCombobox
-                value={formData.industry_id ? parseInt(formData.industry_id) : ""}
-                onChange={v => setFormData({...formData, industry_id: v?.toString() || ""})}
-                options={industries || []}
-                onCreate={async (name) => {
-                  const res = await createIndustry({ name });
-                  return (res as any).id;
-                }}
-                placeholder="Select or create industry..."
-              />
-            </div>
+              <div className="space-y-2 min-w-0">
+                <Label>State/Province *</Label>
+                <AutocompleteCombobox
+                  value={formData.state_code || ""}
+                  onChange={v => setFormData({...formData, state_code: v?.toString() || ""})}
+                  options={(states || []).map(s => ({ id: s.name, name: s.name }))}
+                  placeholder="Select state/province..."
+                  disabled={!formData.country_code}
+                />
+              </div>
 
-            <div className="space-y-2 min-w-0">
-              <Label>Country *</Label>
-              <AutocompleteCombobox
-                value={formData.country_code}
-                onChange={v => setFormData({...formData, country_code: v?.toString() || "", state_code: ""})}
-                options={(countries || []).map(c => ({ id: c.name, name: c.name }))}
-                placeholder="Select country..."
-              />
-            </div>
+              <div className="space-y-2 min-w-0">
+                <Label>Country *</Label>
+                <AutocompleteCombobox
+                  value={formData.country_code || ""}
+                  onChange={v => setFormData({...formData, country_code: v?.toString() || "", state_code: ""})}
+                  options={(countries || []).map(c => ({ id: c.name, name: c.name }))}
+                  placeholder="Select country..."
+                />
+              </div>
 
-            <div className="space-y-2 min-w-0">
-              <Label>State / Province *</Label>
-              <AutocompleteCombobox
-                value={formData.state_code}
-                onChange={v => setFormData({...formData, state_code: v?.toString() || ""})}
-                options={(states || []).map(s => ({ id: s.name, name: s.name }))}
-                placeholder="Select state/province..."
-                disabled={!formData.country_code}
-              />
-            </div>
-
-            <div className="space-y-2 min-w-0">
-              <Label>Revenue</Label>
-              <Input value={formData.revenue} onChange={e => setFormData({...formData, revenue: e.target.value})} />
-            </div>
-
-            <div className="space-y-2 min-w-0">
-              <Label>Team Size</Label>
-              <Input value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
-            </div>
-
-            <div className="space-y-2 min-w-0">
-              <Label>NDA Status</Label>
-              <Select value={formData.nda} onValueChange={v => setFormData({...formData, nda: v === "none" ? "" : v})}>
-                <SelectTrigger><SelectValue placeholder="Select NDA status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="Signed">Signed</SelectItem>
-                  <SelectItem value="Not Signed">Not Signed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>P&L Status</Label>
-              <Select value={formData.p_and_l} onValueChange={v => setFormData({...formData, p_and_l: v === "none" ? "" : v})}>
-                <SelectTrigger><SelectValue placeholder="Select P&L status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="Received">Received</SelectItem>
-                  <SelectItem value="Requested">Requested</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Follow-up Date</Label>
-              <div className="flex items-center gap-2">
+              <div className="space-y-2 min-w-0">
+                <Label>Follow-up Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      type="button"
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
@@ -296,50 +272,78 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.follow_up_date
-                        ? format(parse(formData.follow_up_date, "yyyy-MM-dd", new Date()), "PPP")
-                        : "Pick a date"}
+                      {formData.follow_up_date ? (
+                        format(parse(formData.follow_up_date, "yyyy-MM-dd", new Date()), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                      {formData.follow_up_date && (
+                        <X
+                          className="ml-auto h-4 w-4 opacity-50 hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFormData({ ...formData, follow_up_date: "" });
+                          }}
+                        />
+                      )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={formData.follow_up_date ? parse(formData.follow_up_date, "yyyy-MM-dd", new Date()) : undefined}
-                      onSelect={(date) =>
-                        setFormData({ ...formData, follow_up_date: date ? format(date, "yyyy-MM-dd") : "" })
-                      }
+                      onSelect={(date) => {
+                        setFormData({
+                          ...formData,
+                          follow_up_date: date ? format(date, "yyyy-MM-dd") : "",
+                        });
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
-                {formData.follow_up_date && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                    onClick={() => setFormData({ ...formData, follow_up_date: "" })}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
-              <p className="text-xs text-muted-foreground">Emails the assigned analyst the day before and on this date.</p>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>1st POC</Label>
+                <Input placeholder="1st POC" value={formData.first_poc} onChange={e => setFormData({...formData, first_poc: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>NDA</Label>
+                <Input placeholder="NDA" value={formData.nda} onChange={e => setFormData({...formData, nda: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>P&L</Label>
+                <Input placeholder="P&L" value={formData.p_and_l} onChange={e => setFormData({...formData, p_and_l: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Revenue</Label>
+                <Input placeholder="Revenue" value={formData.revenue} onChange={e => setFormData({...formData, revenue: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Team Size</Label>
+                <Input placeholder="Team Size" value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>No. of Calls</Label>
+                <Input placeholder="No. of Calls" value={formData.no_of_calls} onChange={e => setFormData({...formData, no_of_calls: e.target.value})} />
+              </div>
+            </div>
+
+            {!task && (
+              <div className="space-y-2">
+                <Label>Initial Notes *</Label>
+                <Input required placeholder="Initial notes for the task..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
+              </div>
+            )}
           </div>
 
-          {!task && (
-            <div className="space-y-2 pt-2 border-t">
-              <Label>Initial Note *</Label>
-              <Input required placeholder="Initial note..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
-            </div>
-          )}
-
-          </div>
-          <DialogFooter className="px-6 py-6 border-t bg-white m-0 z-10 rounded-b-lg">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
+          <DialogFooter className="px-6 py-4 border-t bg-gray-50/50">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isPending ? "Saving..." : "Save Task"}
+              {task ? "Save Changes" : "Create Task"}
             </Button>
           </DialogFooter>
         </form>
