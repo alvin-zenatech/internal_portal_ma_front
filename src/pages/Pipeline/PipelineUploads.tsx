@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import React, { useState, useMemo } from 'react';
 import { usePipelineAttachments, type PipelineAttachment } from '@/hooks/usePipeline';
 import { 
@@ -87,6 +89,31 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 }
 
 export default function PipelineUploads() {
+
+
+  const handleExportUploads = () => {
+    try {
+      const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
+      const columnMap: Record<string, ExportColumn<PipelineAttachment>> = {
+        attachment_name: { header: "File Name", accessor: (r) => r.attachment_name || "" },
+        company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
+        location: { header: "State/Location", accessor: (r) => r.location || "" },
+        date: { header: "Date", accessor: (r) => r.date ? format(new Date(r.date), 'MMM d, yyyy') : "" },
+        actions: { header: "Download URL", accessor: (r) => r.attachment_url || "" },
+      };
+
+      const cols = table.getVisibleLeafColumns()
+        .map(col => columnMap[col.id])
+        .filter(Boolean);
+
+      exportToCsv(dataToExport.length > 0 ? dataToExport : (attachments || []), cols, "pipeline_uploaded_files");
+      toast.success("Uploads list exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export uploads");
+    }
+  };
+
+
   const token = sessionStorage.getItem("token");
   const { data: attachments, isLoading } = usePipelineAttachments();
   const [actualGlobalFilter, setActualGlobalFilter] = useState("");
@@ -177,6 +204,15 @@ export default function PipelineUploads() {
               onChange={e => setActualGlobalFilter(e.target.value)}
             />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportUploads}
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Export CSV</span>
+          </Button>
           {(actualGlobalFilter || table.getState().columnFilters.length > 0) && (
             <Button 
               variant="ghost" 

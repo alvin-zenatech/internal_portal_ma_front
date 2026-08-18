@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -26,7 +28,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check, Edit3 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check, Edit3, Download } from 'lucide-react';
 import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts, useCountries, useStates } from '@/hooks/usePipeline';
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { formatYesNo } from "@/lib/utils";
@@ -39,6 +41,9 @@ interface Props {
 }
 
 export default function CallLogImportPreviewModal({
+
+
+
   open,
   onOpenChange,
   previewData,
@@ -47,6 +52,37 @@ export default function CallLogImportPreviewModal({
 
 
   const [rows, setRows] = useState<CallLogPreviewRow[]>([]);
+
+  const handleExportPreview = () => {
+    try {
+      const dataToExport = filteredRows.length > 0 ? filteredRows : rows;
+      const cols: ExportColumn<CallLogPreviewRow>[] = [
+        { header: "Company Matching", accessor: (r) => r.company_name || r.raw_company_name || "" },
+        { header: "File Company Name", accessor: (r) => r.raw_company_name || "" },
+        { header: "Match Type", accessor: (r) => r.match_type },
+        { header: "Industry", accessor: (r) => r.industry || r.raw_industry || "" },
+        { header: "State/Province", accessor: (r) => r.state_province || r.raw_state_province || "" },
+        { header: "Country", accessor: (r) => r.location || r.raw_location || "" },
+        { header: "Contact", accessor: (r) => r.contact_name || r.raw_contact_name || "" },
+        { header: "Position", accessor: (r) => r.position || r.raw_position || "" },
+        { header: "Phone", accessor: (r) => r.phone_number || r.raw_phone_number || "" },
+        { header: "Date", accessor: (r) => r.date_of_call || "" },
+        { header: "KDM", accessor: (r) => r.kdm || r.raw_kdm || "" },
+        { header: "Emailed?", accessor: (r) => r.emailed || "" },
+        { header: "Picked Up?", accessor: (r) => r.picked_up || "" },
+        { header: "Outcome", accessor: (r) => r.outcome || "" },
+        { header: "Length", accessor: (r) => r.call_length || "" },
+        { header: "Analyst", accessor: (r) => r.analyst || "" },
+        { header: "Notes", accessor: (r) => r.notes || "" },
+        { header: "Duplicate Check", accessor: (r) => r.is_duplicate ? "Duplicate" : "Unique" },
+      ];
+      exportToCsv(dataToExport, cols, "call_log_job_preview");
+      toast.success("Job preview rows exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export job preview");
+    }
+  };
+
   const [searchFilter, setSearchFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -450,6 +486,15 @@ export default function CallLogImportPreviewModal({
                 Deselect Duplicates ({stats.duplicateCount})
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={handleExportPreview}
+            >
+              <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Export CSV ({filteredRows.length})</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"

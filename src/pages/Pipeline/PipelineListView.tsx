@@ -1,3 +1,5 @@
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import React, { useState, useDeferredValue } from "react";
 import { cn } from "@/lib/utils";
 import { 
@@ -263,6 +265,35 @@ const PipelineListView = React.memo(function PipelineListView({
     { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 120 }
   ], [onEdit]);
 
+
+  const handleExport = () => {
+    try {
+      const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
+      const columnMap: Record<string, ExportColumn<PipelineTask>> = {
+        company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
+        priority_name: { header: "Priority", accessor: (r) => r.priority_name || "" },
+        latest_note: { header: "Note", accessor: (r) => r.latest_note || "" },
+        state_name: { header: "State/Province", accessor: (r) => r.state_name || r.state_code || "" },
+        country_name: { header: "Country", accessor: (r) => r.country_name || r.country_code || "" },
+        analyst_name: { header: "Analyst", accessor: (r) => r.analyst_name || "" },
+        revenue: { header: "Revenue", accessor: (r) => r.revenue || "" },
+        team_size: { header: "Team Size", accessor: (r) => r.team_size || "" },
+        follow_up_date: { header: "Follow-up Date", accessor: (r) => r.follow_up_date || "" },
+        nda: { header: "NDA", accessor: (r) => r.nda || "" },
+        p_and_l: { header: "P&L", accessor: (r) => r.p_and_l || "" },
+      };
+
+      const cols = table.getVisibleLeafColumns()
+        .map(col => columnMap[col.id])
+        .filter(Boolean);
+
+      exportToCsv(dataToExport.length > 0 ? dataToExport : tasks, cols, "pipeline_tasks");
+      toast.success("Tasks exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export tasks");
+    }
+  };
+
   const table = useReactTable({
     data: tasks,
     columns,
@@ -320,6 +351,16 @@ const PipelineListView = React.memo(function PipelineListView({
               className="w-64 max-w-sm" 
             />
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Export CSV</span>
+          </Button>
+
           {(actualGlobalFilter || columnFilters.length > 0) && (
             <div className="flex items-center gap-2 flex-wrap">
               {!hideSearchBar && actualGlobalFilter && (

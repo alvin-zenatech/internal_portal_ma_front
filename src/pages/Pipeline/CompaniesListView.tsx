@@ -1,3 +1,6 @@
+import { toast } from "sonner";
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import React, { useState, useDeferredValue, useEffect } from "react";
 import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useCountries, useStates, type CompanyData } from "@/hooks/usePipeline";
 import { useSearchParams } from "react-router-dom";
@@ -11,6 +14,43 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
 
 export default function CompaniesListView() {
+
+  const handleExportCompanies = () => {
+    try {
+      const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
+      const columnMap: Record<string, ExportColumn<any>> = {
+        name: { header: "Company Name", accessor: (r) => r.name || "" },
+        contact_name: { header: "Contact Name", accessor: (r) => r.contact_name || "" },
+        contact_info: { header: "Email", accessor: (r) => r.email || "" },
+        phone: { header: "Phone", accessor: (r) => r.phone || "" },
+        state_code: { header: "State/Province", accessor: (r) => r.state_code || r.state_name || "" },
+        country_code: { header: "Country", accessor: (r) => r.country_code || r.country_name || r.location || "" },
+      };
+
+      const cols: ExportColumn<any>[] = [];
+      table.getVisibleLeafColumns().forEach(col => {
+        if (col.id === 'contact_info') {
+          cols.push({ header: "Email", accessor: (r) => r.email || "" });
+          cols.push({ header: "Phone", accessor: (r) => r.phone || "" });
+        } else if (columnMap[col.id]) {
+          cols.push(columnMap[col.id]);
+        }
+      });
+
+      exportToCsv(dataToExport.length > 0 ? dataToExport : (companies || []), cols.length > 0 ? cols : [
+        { header: "Company Name", accessor: (r) => r.name || "" },
+        { header: "Contact Name", accessor: (r) => r.contact_name || "" },
+        { header: "Email", accessor: (r) => r.email || "" },
+        { header: "Phone", accessor: (r) => r.phone || "" },
+        { header: "State/Province", accessor: (r) => r.state_code || r.state_name || "" },
+        { header: "Country", accessor: (r) => r.country_code || r.country_name || r.location || "" },
+      ], "pipeline_companies");
+      toast.success("Companies exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export companies");
+    }
+  };
+
   const { data: companies, isLoading } = useCompanies();
   const { data: countries } = useCountries();
   const [countryCode, setCountryCode] = useState<string>("");
@@ -205,6 +245,9 @@ export default function CompaniesListView() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCompanies} className="whitespace-nowrap gap-1.5">
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Export CSV
+          </Button>
           <Button onClick={() => handleOpenModal()} className="whitespace-nowrap">
             <Plus className="mr-2 h-4 w-4" /> Add Company
           </Button>

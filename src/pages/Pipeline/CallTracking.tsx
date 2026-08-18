@@ -1,3 +1,5 @@
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
@@ -492,6 +494,41 @@ export default function CallTracking() {
     } catch {}
   };
 
+
+  const handleExportCallTracking = () => {
+    try {
+      const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
+      const columnMap: Record<string, ExportColumn<CallTrackingSummary>> = {
+        company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
+        industry: { header: "Industry", accessor: (r) => r.industry || "" },
+        state_province: { header: "State/Province", accessor: (r) => r.state_province || "" },
+        location: { header: "Country", accessor: (r) => r.location || "" },
+        contact_name: { header: "Contact Name", accessor: (r) => r.contact_name || "" },
+        phone_number: { header: "Phone Number", accessor: (r) => r.phone_number || "" },
+        date_of_call: { header: "Date of Call", accessor: (r) => getLatestCallDate(r) },
+        kdm: { header: "KDM", accessor: (r) => {
+          if (r.kdm !== undefined && r.kdm !== null && r.kdm !== '') return formatYesNo(r.kdm);
+          const log = getMatchingCallLog(r);
+          return log?.kdm !== undefined && log?.kdm !== null && log?.kdm !== '' ? formatYesNo(log.kdm) : '-';
+        }},
+        picked_up: { header: "Picked Up", accessor: (r) => formatYesNo(r.picked_up) },
+        current_status: { header: "Outcome", accessor: (r) => r.current_status || r.outcome || "" },
+        latest_analyst: { header: "Analyst", accessor: (r) => getAnalystDetails(r.latest_analyst).name },
+        call_length: { header: "Call Length", accessor: (r) => r.call_length || "" },
+        notes: { header: "Notes", accessor: (r) => getCallNotes(r) },
+      };
+
+      const cols = table.getVisibleLeafColumns()
+        .map(col => columnMap[col.id])
+        .filter(Boolean);
+
+      exportToCsv(dataToExport.length > 0 ? dataToExport : (summaries || []), cols, "call_tracking");
+      toast.success("Call tracking exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export call tracking");
+    }
+  };
+
   const handleSaveForTeam = () => {
     updateColumnOrder.mutate({
       tableName: 'call-tracking',
@@ -640,6 +677,15 @@ export default function CallTracking() {
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 className="w-64 max-w-sm"
               />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCallTracking}
+                className="text-xs h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Export CSV</span>
+              </Button>
               {isCustomOrder && (
                 <>
                   <Button

@@ -1,3 +1,5 @@
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import { formatNameWithInitial } from "@/lib/utils";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { usePipelineTasks, useBackfillFollowUpDates, useAnalysts, type PipelineTask } from "@/hooks/usePipeline";
@@ -211,6 +213,29 @@ export default function FollowUps() {
     setAnalystId(ALL_ANALYSTS);
   };
 
+
+  const handleExportFollowUps = () => {
+    try {
+      const dataToExport = visibleTasks || tasks || [];
+      const cols: ExportColumn<PipelineTask>[] = [
+        { header: "Company Name", accessor: (r) => r.company_name || "" },
+        { header: "Contact Name", accessor: (r) => r.name || "" },
+        { header: "Email", accessor: (r) => r.email || "" },
+        { header: "Phone", accessor: (r) => r.phone || "" },
+        { header: "Follow-up Date", accessor: (r) => r.follow_up_date || "" },
+        { header: "Assigned Analyst", accessor: (r) => r.analyst_name || "" },
+        { header: "Priority", accessor: (r) => r.priority_name || "" },
+        { header: "Industry", accessor: (r) => r.industry_name || "" },
+        { header: "Location", accessor: (r) => [r.state_name || r.state_code, r.country_name || r.country_code].filter(Boolean).join(", ") },
+        { header: "Latest Note", accessor: (r) => r.latest_note || "" },
+      ];
+      exportToCsv(dataToExport, cols, "pipeline_follow_ups");
+      toast.success("Follow-ups exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export follow-ups");
+    }
+  };
+
   const openTask = (task: PipelineTask) => {
     setDayInPopup(null);
     setSelectedTask(task);
@@ -316,6 +341,16 @@ export default function FollowUps() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportFollowUps}
+            className="h-10 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Export CSV</span>
+          </Button>
+
           {hasFilters && (
             <Button variant="ghost" size="sm" className="gap-1" onClick={clearFilters}>
               <X className="h-4 w-4" />

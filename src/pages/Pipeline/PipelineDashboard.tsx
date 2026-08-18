@@ -1,3 +1,5 @@
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, Upload, CalendarClock, User, Building2 } from "lucide-react";
@@ -150,6 +152,37 @@ export default function PipelineDashboard() {
   
   const { mutateAsync: deleteTask } = useDeleteTask();
 
+
+  const handleExportTasks = () => {
+    try {
+      const dataToExport = tasks || [];
+      const cols: ExportColumn<PipelineTask>[] = [
+        { header: "Company Name", accessor: (r) => r.company_name || "" },
+        { header: "Priority", accessor: (r) => r.priority_name || "" },
+        { header: "Outcome", accessor: (r) => r.outcome_name || "" },
+        { header: "Latest Note", accessor: (r) => r.latest_note || "" },
+        { header: "State/Province", accessor: (r) => r.state_name || r.state_code || "" },
+        { header: "Country", accessor: (r) => r.country_name || r.country_code || "" },
+        { header: "Assigned Analyst", accessor: (r) => r.analyst_name || "" },
+        { header: "Revenue", accessor: (r) => r.revenue || "" },
+        { header: "Team Size", accessor: (r) => r.team_size || "" },
+        { header: "Follow-up Date", accessor: (r) => r.follow_up_date || "" },
+        { header: "NDA", accessor: (r) => r.nda || "" },
+        { header: "P&L", accessor: (r) => r.p_and_l || "" },
+        { header: "Industry", accessor: (r) => r.industry_name || "" },
+        { header: "Contact Name", accessor: (r) => r.name || "" },
+        { header: "Email", accessor: (r) => r.email || "" },
+        { header: "Phone", accessor: (r) => r.phone || "" },
+        { header: "1st POC", accessor: (r) => r.first_poc || "" },
+        { header: "No. of Calls", accessor: (r) => r.no_of_calls || "" },
+      ];
+      exportToCsv(dataToExport, cols, "pipeline_tasks");
+      toast.success("Tasks exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export tasks");
+    }
+  };
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -222,6 +255,15 @@ export default function PipelineDashboard() {
 
           <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
           <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleExportTasks}>
+                <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export CSV</TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={isPending}>

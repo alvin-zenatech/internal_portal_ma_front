@@ -1,3 +1,6 @@
+import { toast } from "sonner";
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import { 
   useDoNotContactList, 
@@ -18,6 +21,22 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function DoNotContact() {
+
+  const handleExportDnc = () => {
+    try {
+      const dataToExport = filteredList || [];
+      const cols: ExportColumn<any>[] = [
+        { header: "Company Name", accessor: (r) => r.company_name || "" },
+        { header: "Reason / Notes", accessor: (r) => r.reason || "" },
+        { header: "Date Added", accessor: (r) => r.created_at || "" },
+      ];
+      exportToCsv(dataToExport.length > 0 ? dataToExport : (dncList || []), cols, "do_not_contact_list");
+      toast.success("Do Not Contact list exported successfully");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export Do Not Contact list");
+    }
+  };
+
   const { data: dncList, isLoading } = useDoNotContactList();
   const createDnc = useCreateDoNotContact();
   const updateDnc = useUpdateDoNotContact();
@@ -93,12 +112,16 @@ export default function DoNotContact() {
           />
         </div>
 
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> Add Record
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportDnc} className="gap-1.5">
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Export CSV
+          </Button>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" /> Add Record
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Do Not Contact Record</DialogTitle>
@@ -131,6 +154,7 @@ export default function DoNotContact() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="rounded-md border bg-card flex-1 shadow-sm overflow-hidden flex flex-col">

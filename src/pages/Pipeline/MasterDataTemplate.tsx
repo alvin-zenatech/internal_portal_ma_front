@@ -1,3 +1,5 @@
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +125,26 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
     </div>
   );
 
+
+  const handleExportData = () => {
+    try {
+      const dataToExport = filteredData || [];
+      const cols: ExportColumn<any>[] = [
+        { header: "ID", accessor: (r) => r.id },
+        { header: `${title} Name`, accessor: (r) => r.name || "" },
+      ];
+      if (hasCode) cols.push({ header: "Code", accessor: (r) => r.code || "" });
+      if (hasColor) cols.push({ header: "Color", accessor: (r) => r.color || "" });
+      if (hasSortOrder) cols.push({ header: "Sort Order", accessor: (r) => r.sort_order ?? 0 });
+      cols.push({ header: "Created At", accessor: (r) => r.created_at || "" });
+
+      exportToCsv(dataToExport.length > 0 ? dataToExport : (data || []), cols, `master_data_${title.toLowerCase()}`);
+      toast.success(`${title} list exported successfully`);
+    } catch (e: any) {
+      toast.error(e?.message || `Failed to export ${title}`);
+    }
+  };
+
   const filteredData = useMemo(() => {
     if (!data) return [];
     if (!searchQuery.trim()) return data;
@@ -140,14 +162,19 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
           <h1 className="text-3xl font-bold tracking-tight">{title} Management</h1>
           <p className="text-muted-foreground mt-2">Manage available options for {title.toLowerCase()}s in the pipeline.</p>
         </div>
-        <div className="w-64 relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder={`Search ${title.toLowerCase()}s...`}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 bg-card h-9"
-          />
+        <div className="flex items-center gap-2">
+          <div className="w-64 relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder={`Search ${title.toLowerCase()}s...`}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 bg-card h-9"
+            />
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExportData} className="h-9 gap-1.5 text-xs">
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Export CSV
+          </Button>
         </div>
       </div>
 
