@@ -380,7 +380,7 @@ export default function CallLogImportPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[95vw] sm:max-w-[95vw] lg:max-w-[92vw] max-h-[92vh] flex flex-col p-6">
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="max-w-[95vw] w-[95vw] sm:max-w-[95vw] lg:max-w-[92vw] max-h-[92vh] flex flex-col p-6">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -779,7 +779,7 @@ export default function CallLogImportPreviewModal({
 
       {/* Set Up Company Details Modal (Matches Add Company Dialog Schema) */}
       <Dialog open={!!editingRowForCompany} onOpenChange={(o) => !o && setEditingRowForCompany(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />

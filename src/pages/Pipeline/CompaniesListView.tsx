@@ -282,7 +282,7 @@ export default function CompaniesListView() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editingCompany ? "Edit Company" : "Add Company"}</DialogTitle>
             <DialogDescription className="sr-only">Company details form</DialogDescription>
