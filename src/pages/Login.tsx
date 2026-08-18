@@ -46,9 +46,13 @@ export default function Login() {
           sessionStorage.removeItem("token");
           sessionStorage.removeItem("user");
           sessionStorage.removeItem("ms_id_token");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("ms_id_token");
           const token = searchParams.get("token");
           if (token) {
             sessionStorage.setItem("token", token);
+            localStorage.setItem("token", token);
           }
           await refreshPermissions();
           toast.success("Successfully logged in");

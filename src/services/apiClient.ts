@@ -4,7 +4,7 @@ const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 export const BASE_URL = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
 const getAuthHeaders = (): Record<string, string> => {
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   return token ? { "Authorization": `Bearer ${token}` } : {};
 };
 

@@ -73,22 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchPermissions();
-
-    const handleBeforeUnload = () => {
-      const token = sessionStorage.getItem('token');
-      if (token) {
-        const data = new FormData();
-        data.append('token', token);
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
-        const url = `${baseUrl.replace(/\/$/, '')}/api/auth/logout`;
-        navigator.sendBeacon(url, data);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
   }, [fetchPermissions]);
 
 

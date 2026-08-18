@@ -11,7 +11,7 @@ import { formatYesNo } from "@/lib/utils";
 import { FollowUpActions } from "./FollowUpActions";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   const { data: notes } = useTaskNotes(task?.id || null);
 
   const { mutateAsync: createNote, isPending: isCreatingNote } = useCreateTaskNote();

@@ -114,7 +114,7 @@ export default function PipelineUploads() {
   };
 
 
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   const { data: attachments, isLoading } = usePipelineAttachments();
   const [actualGlobalFilter, setActualGlobalFilter] = useState("");
   const deferredGlobalFilter = React.useDeferredValue(actualGlobalFilter);
