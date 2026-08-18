@@ -460,6 +460,7 @@ export function useDeleteCompany() {
 export interface CallTrackingSummary {
   normalized_company_name: string;
   company_name: string;
+  call_count?: number;
   industry: string | null;
   state_province: string | null;
   location: string | null;

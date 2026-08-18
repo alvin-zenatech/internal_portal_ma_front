@@ -279,6 +279,21 @@ export default function CallTracking() {
     return bestLog;
   }, [companyLogsMap]);
 
+  const getCallCount = React.useCallback((row: CallTrackingSummary) => {
+    if (row.call_count !== undefined && row.call_count !== null && row.call_count > 0) {
+      return row.call_count;
+    }
+    const rowCompNorm = (row.normalized_company_name || row.company_name || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, '');
+    const compLogs = companyLogsMap.get(rowCompNorm);
+    if (compLogs && compLogs.length > 0) {
+      return compLogs.length;
+    }
+    return 1;
+  }, [companyLogsMap]);
+
   const getLatestCallDate = React.useCallback((row: CallTrackingSummary) => {
     // 1. Direct field on row if available from backend
     const direct =
@@ -320,6 +335,34 @@ export default function CallTracking() {
   const columns = React.useMemo<ColumnDef<CallTrackingSummary>[]>(
     () => [
 
+      {
+        accessorKey: 'call_count',
+        accessorFn: (row) => getCallCount(row),
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2 h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            <span>Calls</span>
+            <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+          </Button>
+        ),
+        size: 55,
+        minSize: 45,
+        maxSize: 65,
+        sortingFn: (rowA, rowB) => {
+          const a = getCallCount(rowA.original);
+          const b = getCallCount(rowB.original);
+          return a - b;
+        },
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground font-medium tabular-nums pl-1">
+            {getCallCount(row.original)}
+          </span>
+        )
+      },
       {
         accessorKey: 'company_name',
         header: ({ column }) => <ColumnHeader column={column} title="Company Name" />,
@@ -452,6 +495,7 @@ export default function CallTracking() {
   );
 
   const defaultColumnOrder = React.useMemo(() => [
+    'call_count',
     'company_name',
     'industry',
     'state_province',
@@ -483,7 +527,10 @@ export default function CallTracking() {
 
   useEffect(() => {
     if (dbColumnSettings?.column_order && Array.isArray(dbColumnSettings.column_order) && dbColumnSettings.column_order.length > 0) {
-      setColumnOrder(dbColumnSettings.column_order);
+      const order = dbColumnSettings.column_order.includes('call_count')
+        ? dbColumnSettings.column_order
+        : ['call_count', ...dbColumnSettings.column_order];
+      setColumnOrder(order);
     }
   }, [dbColumnSettings]);
 
@@ -499,6 +546,7 @@ export default function CallTracking() {
     try {
       const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
       const columnMap: Record<string, ExportColumn<CallTrackingSummary>> = {
+        call_count: { header: "Calls", accessor: (r) => getCallCount(r) },
         company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
         industry: { header: "Industry", accessor: (r) => r.industry || "" },
         state_province: { header: "State/Province", accessor: (r) => r.state_province || "" },
