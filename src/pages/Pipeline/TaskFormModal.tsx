@@ -49,8 +49,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   
   const [formData, setFormData] = useState<any>({
     company_name: "", name: "", email: "", priority_id: "", industry_id: "",
-    country_code: "", state_code: "", phone: "", first_poc: "", nda: "", p_and_l: "",
-    revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
+    country_code: "", state_code: "", phone: "", nda: "", p_and_l: "",
+    revenue: "", team_size: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
   });
 
   const { data: states } = useStates(formData.country_code || undefined);
@@ -66,16 +66,16 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         company_name: task.company_name, name: task.name, email: task.email, 
         priority_id: task.priority_id?.toString() || "", industry_id: task.industry_id?.toString() || "", 
         country_code: task.country_code || task.country_name || "",
-        state_code: task.state_code || task.state_name || "", phone: task.phone || "", first_poc: task.first_poc || "", 
+        state_code: task.state_code || task.state_name || "", phone: task.phone || "",
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
-        team_size: task.team_size || "", no_of_calls: task.no_of_calls || "", notes: "",
+        team_size: task.team_size || "", notes: "",
         analyst_id: task.analyst_id || "unassigned", follow_up_date: task.follow_up_date || ""
       });
     } else {
       setFormData({
         company_name: "", name: "", email: "", priority_id: priorities?.find(p => p.name.toLowerCase() === "new")?.id?.toString() || priorities?.[0]?.id?.toString() || "", 
-        industry_id: "", country_code: "", state_code: "", phone: "", first_poc: "", 
-        nda: "", p_and_l: "", revenue: "", team_size: "", no_of_calls: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
+        industry_id: "", country_code: "", state_code: "", phone: "", 
+        nda: "", p_and_l: "", revenue: "", team_size: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
       });
     }
   }, [task, open, priorities]);
@@ -158,24 +158,24 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       });
                       toast.success(`Company "${name}" created`);
                       return (res as any)?.name || name;
-                    } catch (e) {
+                    } catch (e: any) {
+                      toast.error(e?.response?.data?.detail || "Failed to create company");
                       return name;
                     }
                   }}
                   options={companyOptions}
-                  placeholder="Type or search company name..."
+                  placeholder="e.g. Acme Corp"
                 />
               </div>
               <div className="space-y-2 min-w-0">
                 <Label>Contact Name *</Label>
-                <Input required placeholder="Contact name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
-
+              
               <div className="space-y-2 min-w-0">
                 <Label>Email *</Label>
-                <Input required type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
               </div>
-
               <div className="space-y-2 min-w-0">
                 <Label>Phone *</Label>
                 <div className="flex gap-2">
@@ -184,7 +184,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                     value={formData.phone?.replace(/ \((Personal|Office)\)$/, '') || ''} 
                     onChange={e => {
                       const type = formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
-                      setFormData({...formData, phone: e.target.value ? `${e.target.value} (${type})` : ` (${type})`})
+                      setFormData({...formData, phone: `${e.target.value} (${type})`})
                     }}
                     className="flex-1"
                   />
@@ -305,29 +305,35 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>1st POC</Label>
-                <Input placeholder="1st POC" value={formData.first_poc} onChange={e => setFormData({...formData, first_poc: e.target.value})} />
+              <div className="space-y-2 min-w-0">
+                <Label>NDA Status</Label>
+                <Select value={formData.nda || "none"} onValueChange={v => setFormData({...formData, nda: v === "none" ? "" : v})}>
+                  <SelectTrigger><SelectValue placeholder="Select NDA status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="Signed">Signed</SelectItem>
+                    <SelectItem value="Not Signed">Not Signed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <Label>NDA</Label>
-                <Input placeholder="NDA" value={formData.nda} onChange={e => setFormData({...formData, nda: e.target.value})} />
+              <div className="space-y-2 min-w-0">
+                <Label>P&L Status</Label>
+                <Select value={formData.p_and_l || "none"} onValueChange={v => setFormData({...formData, p_and_l: v === "none" ? "" : v})}>
+                  <SelectTrigger><SelectValue placeholder="Select P&L status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="Received">Received</SelectItem>
+                    <SelectItem value="Requested">Requested</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <Label>P&L</Label>
-                <Input placeholder="P&L" value={formData.p_and_l} onChange={e => setFormData({...formData, p_and_l: e.target.value})} />
-              </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label>Revenue</Label>
                 <Input placeholder="Revenue" value={formData.revenue} onChange={e => setFormData({...formData, revenue: e.target.value})} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label>Team Size</Label>
                 <Input placeholder="Team Size" value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>No. of Calls</Label>
-                <Input placeholder="No. of Calls" value={formData.no_of_calls} onChange={e => setFormData({...formData, no_of_calls: e.target.value})} />
               </div>
             </div>
 
