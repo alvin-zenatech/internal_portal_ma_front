@@ -308,7 +308,7 @@ export default function CallTracking() {
     return log?.notes || '-';
   }, [getMatchingCallLog]);
 
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "date_of_call", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
@@ -359,6 +359,16 @@ export default function CallTracking() {
         accessorFn: (row) => getLatestCallDate(row),
         header: ({ column }) => <ColumnHeader column={column} title="Date of Call" />,
         size: 160,
+        sortingFn: (rowA, rowB) => {
+          const valA = getLatestCallDate(rowA.original);
+          const valB = getLatestCallDate(rowB.original);
+          const timeA = valA && valA !== '-' ? new Date(valA).getTime() : 0;
+          const timeB = valB && valB !== '-' ? new Date(valB).getTime() : 0;
+          if (isNaN(timeA) && isNaN(timeB)) return 0;
+          if (isNaN(timeA)) return -1;
+          if (isNaN(timeB)) return 1;
+          return timeA - timeB;
+        },
         cell: ({ row }) => {
           const val = getLatestCallDate(row.original);
           return <span>{val && val !== '-' ? val : '-'}</span>;
@@ -490,8 +500,11 @@ export default function CallTracking() {
   };
 
   const isCustomOrder = React.useMemo(() => {
-    return JSON.stringify(columnOrder) !== JSON.stringify(defaultColumnOrder);
-  }, [columnOrder, defaultColumnOrder]);
+    const savedBaseline = dbColumnSettings?.column_order && Array.isArray(dbColumnSettings.column_order) && dbColumnSettings.column_order.length > 0
+      ? dbColumnSettings.column_order
+      : defaultColumnOrder;
+    return JSON.stringify(columnOrder) !== JSON.stringify(savedBaseline);
+  }, [columnOrder, dbColumnSettings, defaultColumnOrder]);
 
   const resetColumnOrder = () => {
     handleColumnOrderChange(defaultColumnOrder);
@@ -627,26 +640,28 @@ export default function CallTracking() {
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 className="w-64 max-w-sm"
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSaveForTeam}
-                disabled={updateColumnOrder.isPending}
-                className="text-xs h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
-              >
-                <Save className="h-3.5 w-3.5 mr-1.5" />
-                {updateColumnOrder.isPending ? "Saving..." : "Save as Team Default"}
-              </Button>
               {isCustomOrder && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetColumnOrder}
-                  className="text-xs text-muted-foreground hover:text-foreground h-9"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                  Reset Columns
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveForTeam}
+                    disabled={updateColumnOrder.isPending}
+                    className="text-xs h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary animate-in fade-in"
+                  >
+                    <Save className="h-3.5 w-3.5 mr-1.5" />
+                    {updateColumnOrder.isPending ? "Saving..." : "Save as Team Default"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetColumnOrder}
+                    className="text-xs text-muted-foreground hover:text-foreground h-9 animate-in fade-in"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                    Reset Columns
+                  </Button>
+                </>
               )}
             </div>
           </div>
