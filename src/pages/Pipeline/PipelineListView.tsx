@@ -42,14 +42,14 @@ function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
   );
 }
 
-function ColumnHeader({ column, title }: { column: any, title: string }) {
+function ColumnHeader({ column, title, customOptions }: { column: any, title: string, customOptions?: { label: string, value: string }[] }) {
   const uniqueValues = React.useMemo(() => {
     return Array.from(column.getFacetedUniqueValues().keys())
       .filter(Boolean)
       .sort() as string[];
   }, [column.getFacetedUniqueValues()]);
 
-  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 300;
+  const isDropdown = (uniqueValues.length > 0 && uniqueValues.length <= 300) || customOptions !== undefined;
   
   const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
   
@@ -61,6 +61,10 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
       column.setFilterValue([...filterArray, val]);
     }
   };
+
+  const renderOptions = customOptions 
+    ? customOptions 
+    : uniqueValues.map(val => ({ label: val, value: val }));
 
   return (
     <div className="inline-flex items-center gap-1 group whitespace-nowrap px-1">
@@ -82,15 +86,15 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
         <PopoverContent className="w-56 p-2" align="start">
           {isDropdown ? (
             <div className="max-h-60 overflow-y-auto space-y-2 p-1">
-              {uniqueValues.map(val => (
-                <div key={val} className="flex items-center space-x-2">
+              {renderOptions.map(opt => (
+                <div key={opt.value} className="flex items-center space-x-2">
                   <Checkbox 
-                    id={`filter-${title}-${val}`} 
-                    checked={filterArray.includes(val)} 
-                    onCheckedChange={() => toggleOption(val)} 
+                    id={`filter-${title}-${opt.value}`} 
+                    checked={filterArray.includes(opt.value)} 
+                    onCheckedChange={() => toggleOption(opt.value)} 
                   />
-                  <Label htmlFor={`filter-${title}-${val}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
-                    {val}
+                  <Label htmlFor={`filter-${title}-${opt.value}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
+                    {opt.label}
                   </Label>
                 </div>
               ))}
@@ -236,7 +240,13 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "execution_analyst", 
-      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Execution Analysts" />,
+      header: ({ column }: { column: any }) => (
+        <ColumnHeader 
+          column={column} 
+          title="Execution Analysts" 
+          customOptions={executionAnalystOptions.map(o => ({ label: o.name, value: o.initials.toUpperCase() }))}
+        />
+      ),
       cell: ({ row }: { row: { original: PipelineTask } }) => {
         const val = row.original.execution_analyst;
         if (!val) return <span className="text-muted-foreground">-</span>;
@@ -310,7 +320,10 @@ const PipelineListView = React.memo(function PipelineListView({
       multiSelect: (row: any, columnId: string, filterValue: any) => {
         if (!filterValue || filterValue.length === 0) return true;
         const val = row.getValue(columnId);
-        if (Array.isArray(filterValue)) return filterValue.includes(String(val));
+        if (Array.isArray(filterValue)) {
+          const lowerVal = String(val).toLowerCase();
+          return filterValue.some(f => String(f).toLowerCase() === lowerVal);
+        }
         return String(val).toLowerCase().includes(String(filterValue).toLowerCase());
       }
     },
