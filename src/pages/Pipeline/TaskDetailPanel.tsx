@@ -116,6 +116,21 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                       <dd className="font-medium">{task.analyst_name || 'Unassigned'}</dd>
                     </div>
                     <div>
+                      <dt className="text-muted-foreground">Execution Analyst</dt>
+                      <dd className="font-medium">
+                        {task.execution_analyst ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                              {task.execution_analyst}
+                            </span>
+                            <span className="text-sm">{getAnalystName(task.execution_analyst)}</span>
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </dd>
+                    </div>
+                    <div>
                       <dt className="text-muted-foreground">State/Province</dt>
                       <dd className="font-medium">{task.state_code || task.state_name || '-'}</dd>
                     </div>

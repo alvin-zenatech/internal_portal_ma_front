@@ -1,5 +1,3 @@
-import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
-import { Download } from "lucide-react";
 import React, { useState, useDeferredValue } from "react";
 import { cn } from "@/lib/utils";
 import { 
@@ -19,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getPriorityColors } from "./KanbanCard";
+import { useExecutionAnalystOptions } from "@/components/Pipeline/ExecutionAnalystSelect";
 
 const getInitials = (name: string) => {
   if (!name) return "";
@@ -64,11 +63,11 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
   };
 
   return (
-    <div className="inline-flex items-center gap-0 group whitespace-nowrap">
+    <div className="inline-flex items-center gap-1 group whitespace-nowrap px-1">
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-3 h-8 flex justify-start data-[state=open]:bg-accent px-2"
+        className="h-8 flex justify-start data-[state=open]:bg-accent px-1.5"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         <span>{title}</span>
@@ -76,7 +75,7 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
       </Button>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-6 shrink-0 -ml-1">
+          <Button variant="ghost" size="icon" className="h-8 w-6 shrink-0">
             <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
@@ -142,6 +141,11 @@ const PipelineListView = React.memo(function PipelineListView({
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const { mutate: removeTask } = useDeleteTask();
   const parentRef = React.useRef<HTMLDivElement>(null);
+
+  const { options: executionAnalystOptions } = useExecutionAnalystOptions();
+  const analystNameMap = React.useMemo(() => {
+    return new Map(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
+  }, [executionAnalystOptions]);
 
   const columns = React.useMemo(() => [
     { 
@@ -231,9 +235,29 @@ const PipelineListView = React.memo(function PipelineListView({
       size: 160
     },
     { 
+      accessorKey: "execution_analyst", 
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Execution Analysts" />,
+      cell: ({ row }: { row: { original: PipelineTask } }) => {
+        const val = row.original.execution_analyst;
+        if (!val) return <span className="text-muted-foreground">-</span>;
+        const name = analystNameMap.get(val.toUpperCase()) || val;
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200 font-bold">
+                {val}
+              </AvatarFallback>
+            </Avatar>
+            <span className="truncate">{name}</span>
+          </div>
+        );
+      },
+      size: 210
+    },
+    { 
       accessorKey: "revenue", 
       header: ({ column }) => <ColumnHeader column={column} title="Revenue" />,
-      size: 150,
+      size: 160,
       sortingFn: (rowA, rowB) => {
         const parseRevenue = (rev: string | null) => {
           if (!rev) return 0;
@@ -263,36 +287,7 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 120 },
     { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 120 }
-  ], [onEdit]);
-
-
-  const handleExport = () => {
-    try {
-      const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
-      const columnMap: Record<string, ExportColumn<PipelineTask>> = {
-        company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
-        priority_name: { header: "Priority", accessor: (r) => r.priority_name || "" },
-        latest_note: { header: "Note", accessor: (r) => r.latest_note || "" },
-        state_name: { header: "State/Province", accessor: (r) => r.state_name || r.state_code || "" },
-        country_name: { header: "Country", accessor: (r) => r.country_name || r.country_code || "" },
-        analyst_name: { header: "Analyst", accessor: (r) => r.analyst_name || "" },
-        revenue: { header: "Revenue", accessor: (r) => r.revenue || "" },
-        team_size: { header: "Team Size", accessor: (r) => r.team_size || "" },
-        follow_up_date: { header: "Follow-up Date", accessor: (r) => r.follow_up_date || "" },
-        nda: { header: "NDA", accessor: (r) => r.nda || "" },
-        p_and_l: { header: "P&L", accessor: (r) => r.p_and_l || "" },
-      };
-
-      const cols = table.getVisibleLeafColumns()
-        .map(col => columnMap[col.id])
-        .filter(Boolean);
-
-      exportToCsv(dataToExport.length > 0 ? dataToExport : tasks, cols, "pipeline_tasks");
-      toast.success("Tasks exported successfully");
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to export tasks");
-    }
-  };
+  ], [onEdit, analystNameMap]);
 
   const table = useReactTable({
     data: tasks,
@@ -341,62 +336,49 @@ const PipelineListView = React.memo(function PipelineListView({
 
   return (
     <div className="h-full flex flex-col p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-1">
-          {!hideSearchBar && (
-            <Input 
-              placeholder="Search everything..." 
-              value={actualGlobalFilter} 
-              onChange={(event) => setActualGlobalFilter(event.target.value)} 
-              className="w-64 max-w-sm" 
-            />
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
-          >
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Export CSV</span>
-          </Button>
+      {(!hideSearchBar || (columnFilters.length > 0)) && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-1">
+            {!hideSearchBar && (
+              <Input 
+                placeholder="Search everything..." 
+                value={actualGlobalFilter} 
+                onChange={(event) => setActualGlobalFilter(event.target.value)} 
+                className="w-64 max-w-sm" 
+              />
+            )}
 
-          {(actualGlobalFilter || columnFilters.length > 0) && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {!hideSearchBar && actualGlobalFilter && (
-                <Badge variant="secondary" className="h-6 font-normal">
-                  Search: {actualGlobalFilter}
-                </Badge>
-              )}
-              {columnFilters.map((filter) => (
-                <Badge key={filter.id} variant="secondary" className="h-6 font-normal capitalize">
-                  {filter.id.replace(/_/g, " ")}: {filter.value as string}
-                </Badge>
-              ))}
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => {
-                  setActualGlobalFilter("");
-                  setColumnFilters([]);
-                }}
-                className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
-              >
-                Reset
-                <X className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          )}
+            {columnFilters.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {columnFilters.map((filter) => (
+                  <Badge key={filter.id} variant="secondary" className="h-6 font-normal capitalize">
+                    {filter.id.replace(/_/g, " ")}: {filter.value as string}
+                  </Badge>
+                ))}
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setColumnFilters([]);
+                  }}
+                  className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+                >
+                  Reset
+                  <X className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
         <div className="flex-1 overflow-auto relative" id="pipeline-list-scroll" ref={parentRef} onScroll={handleScroll}>
-        <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[2000px]">
+        <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[2200px]">
           <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
             {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
                 {hg.headers.map(h => (
-                  <TableHead key={h.id} className="bg-muted/50" style={{ width: h.column.getSize() }}>
+                  <TableHead key={h.id} className="bg-muted/50 px-3 py-2" style={{ width: h.column.getSize() }}>
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
@@ -418,7 +400,7 @@ const PipelineListView = React.memo(function PipelineListView({
                     onClick={() => onTaskClick(row.original)}
                   >
                     {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id} className="truncate" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
+                      <TableCell key={cell.id} className="truncate px-3 py-2.5" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

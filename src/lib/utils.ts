@@ -18,3 +18,10 @@ export const formatNameWithInitial = (name: string | null | undefined): string =
   const parts = name.trim().split(/\s+/);
   return parts.map(p => p.charAt(0)).join('').toUpperCase();
 };
+
+export const getUserInitials = (name: string | null | undefined): string => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};

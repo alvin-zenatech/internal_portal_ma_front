@@ -22,6 +22,7 @@ import {
   useStates 
 } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
+import ExecutionAnalystKPICards from "@/components/Pipeline/ExecutionAnalystKPICards";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -164,6 +165,7 @@ export default function PipelineDashboard() {
         { header: "State/Province", accessor: (r) => r.state_name || r.state_code || "" },
         { header: "Country", accessor: (r) => r.country_name || r.country_code || "" },
         { header: "Assigned Analyst", accessor: (r) => r.analyst_name || "" },
+        { header: "Execution Analyst", accessor: (r) => r.execution_analyst || "" },
         { header: "Revenue", accessor: (r) => r.revenue || "" },
         { header: "Team Size", accessor: (r) => r.team_size || "" },
         { header: "Follow-up Date", accessor: (r) => r.follow_up_date || "" },
@@ -203,12 +205,19 @@ export default function PipelineDashboard() {
 
   return (
     <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
-      <div className="px-8 py-4 border-b bg-card flex justify-end items-center shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center">
+      {/* 1. Top Section: Execution Analysts KPI Cards Banner with Carousel Arrows */}
+      <div className="px-6 py-2.5 border-b bg-card shrink-0">
+        <ExecutionAnalystKPICards tasks={tasks || []} />
+      </div>
+
+      {/* 2. Bottom Section: Filter & Action Controls Bar */}
+      <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3">
+        {/* Left Side: Filter Analysts, Search, and Export CSV */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center shrink-0">
             <Select value={analystFilter} onValueChange={setAnalystFilter}>
-              <SelectTrigger className="w-[180px] h-9 bg-white">
-                <User className="h-4 w-4 text-muted-foreground mr-2" />
+              <SelectTrigger className="w-[170px] h-9 bg-white dark:bg-card">
+                <User className="h-4 w-4 text-muted-foreground mr-1.5" />
                 <SelectValue placeholder="All Analysts" />
               </SelectTrigger>
               <SelectContent>
@@ -221,73 +230,76 @@ export default function PipelineDashboard() {
             </Select>
           </div>
           
-          <div className="flex items-center">
+          <div className="flex items-center shrink-0">
              <Input 
                 placeholder="Search pipeline..." 
                 value={globalFilter} 
                 onChange={(event) => setGlobalFilter(event.target.value)} 
-                className="w-64 max-w-sm h-9" 
+                className="w-56 max-w-sm h-9" 
               />
           </div>
 
-          <TooltipProvider delayDuration={300}>
-          
-          <Button variant="outline" asChild className="hidden md:flex gap-2">
-            <Link to="/pipeline/follow-ups">
-              <CalendarClock className="h-4 w-4 text-blue-500" />
-              Follow-ups
-              {dueFollowUpCount > 0 && (
-                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
-                  {dueFollowUpCount}
-                </span>
-              )}
-            </Link>
-          </Button>
-
           <Button 
             variant="outline" 
-            onClick={() => setIsCompanyModalOpen(true)} 
-            className="gap-2 h-9"
+            onClick={handleExportTasks} 
+            className="gap-1.5 h-9 shrink-0"
           >
-            <Building2 className="h-4 w-4 text-primary" />
-            <span>Add Company</span>
+            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Export CSV</span>
           </Button>
+        </div>
 
-          <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
-          <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleExportTasks}>
-                <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Export CSV</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={isPending}>
-                {isPending ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-xs font-medium">{importProgress}%</span>
-                  </div>
-                ) : (
-                  <Upload className="h-4 w-4" />
+        {/* Right Side: Follow-ups, Add Company, Import, New Task */}
+        <div className="flex items-center gap-3 flex-wrap ml-auto">
+          <TooltipProvider delayDuration={300}>
+            <Button variant="outline" asChild className="hidden md:flex gap-1.5 h-9 shrink-0 px-3">
+              <Link to="/pipeline/follow-ups">
+                <CalendarClock className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-medium">Follow-ups</span>
+                {dueFollowUpCount > 0 && (
+                  <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                    {dueFollowUpCount}
+                  </span>
                 )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Import XLSX</TooltipContent>
-          </Tooltip>
+              </Link>
+            </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon" onClick={() => handleCreate()}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>New Task</TooltipContent>
-          </Tooltip>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCompanyModalOpen(true)} 
+              className="gap-2 h-9"
+            >
+              <Building2 className="h-4 w-4 text-primary" />
+              <span>Add Company</span>
+            </Button>
+
+            <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
+            <input type="file" accept=".xlsx,.xls" className="hidden" ref={fileInputRef} onChange={handleImport} />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={isPending} className="h-9">
+                  {isPending ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-xs font-medium">{importProgress}%</span>
+                    </div>
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Import XLSX</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" onClick={() => handleCreate()} className="h-9 w-9">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New Task</TooltipContent>
+            </Tooltip>
           </TooltipProvider>
         </div>
       </div>

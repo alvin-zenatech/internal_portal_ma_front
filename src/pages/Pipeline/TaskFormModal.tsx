@@ -25,6 +25,7 @@ import {
 } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { AutocompleteInput } from "@/components/ui/autocomplete-input";
+import ExecutionAnalystSelect from "@/components/Pipeline/ExecutionAnalystSelect";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
@@ -50,7 +51,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const [formData, setFormData] = useState<any>({
     company_name: "", name: "", email: "", priority_id: "", industry_id: "",
     country_code: "", state_code: "", phone: "", nda: "", p_and_l: "",
-    revenue: "", team_size: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
+    revenue: "", team_size: "", notes: "", analyst_id: "unassigned", execution_analyst: "", follow_up_date: ""
   });
 
   const { data: states } = useStates(formData.country_code || undefined);
@@ -69,13 +70,15 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         state_code: task.state_code || task.state_name || "", phone: task.phone || "",
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
         team_size: task.team_size || "", notes: "",
-        analyst_id: task.analyst_id || "unassigned", follow_up_date: task.follow_up_date || ""
+        analyst_id: task.analyst_id || "unassigned",
+        execution_analyst: task.execution_analyst || "",
+        follow_up_date: task.follow_up_date || ""
       });
     } else {
       setFormData({
         company_name: "", name: "", email: "", priority_id: priorities?.find(p => p.name.toLowerCase() === "new")?.id?.toString() || priorities?.[0]?.id?.toString() || "", 
         industry_id: "", country_code: "", state_code: "", phone: "", 
-        nda: "", p_and_l: "", revenue: "", team_size: "", notes: "", analyst_id: "unassigned", follow_up_date: ""
+        nda: "", p_and_l: "", revenue: "", team_size: "", notes: "", analyst_id: "unassigned", execution_analyst: "", follow_up_date: ""
       });
     }
   }, [task, open, priorities]);
@@ -101,6 +104,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
         country_code: formData.country_code || null,
         state_code: formData.state_code || null,
         analyst_id: formData.analyst_id === "unassigned" ? null : formData.analyst_id,
+        execution_analyst: formData.execution_analyst?.trim() || null,
         follow_up_date: formData.follow_up_date || null,
       };
 
@@ -215,6 +219,20 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </div>
 
               <div className="space-y-2 min-w-0">
+                <Label>Industry *</Label>
+                <AutocompleteCombobox
+                  value={parseInt(formData.industry_id) || ""}
+                  onChange={v => setFormData({...formData, industry_id: v?.toString() || ""})}
+                  options={(industries || []).map(i => ({ id: i.id, name: i.name }))}
+                  onCreate={async (name) => {
+                    const res = await createIndustry({ name }) as any;
+                    return res?.id || res;
+                  }}
+                  placeholder="Select industry..."
+                />
+              </div>
+
+              <div className="space-y-2 min-w-0">
                 <Label>Assigned Analyst *</Label>
                 <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
                   <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
@@ -226,16 +244,11 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </div>
 
               <div className="space-y-2 min-w-0">
-                <Label>Industry *</Label>
-                <AutocompleteCombobox
-                  value={parseInt(formData.industry_id) || ""}
-                  onChange={v => setFormData({...formData, industry_id: v?.toString() || ""})}
-                  options={(industries || []).map(i => ({ id: i.id, name: i.name }))}
-                  onCreate={async (name) => {
-                    const res = await createIndustry({ name }) as any;
-                    return res?.id || res;
-                  }}
-                  placeholder="Select industry..."
+                <Label>Execution Analysts</Label>
+                <ExecutionAnalystSelect
+                  value={formData.execution_analyst}
+                  onChange={(val) => setFormData({ ...formData, execution_analyst: val })}
+                  placeholder="Select execution analyst..."
                 />
               </div>
 

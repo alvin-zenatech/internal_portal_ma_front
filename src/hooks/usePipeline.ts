@@ -64,6 +64,7 @@ export interface PipelineTask {
   analyst_id: string | null;
   analyst_name: string | null;
   analyst_email: string | null;
+  execution_analyst?: string | null;
   revenue: string | null;
   team_size: string | null;
   country_code: string | null;
