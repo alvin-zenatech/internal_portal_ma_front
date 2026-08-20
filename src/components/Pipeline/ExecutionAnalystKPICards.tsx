@@ -11,23 +11,23 @@ interface ExecutionAnalystKPICardsProps {
   selectedAnalyst?: string;
 }
 
-// Utility to parse revenue string into numeric value
+// Utility to parse revenue string into numeric value (in '000s)
 export function parseRevenueNumeric(rev: string | null | undefined): number {
   if (!rev) return 0;
   const clean = rev.trim().toLowerCase().replace(/[$,]/g, '');
   if (!clean) return 0;
 
+  if (clean.endsWith('b')) {
+    const num = parseFloat(clean.replace('b', ''));
+    return isNaN(num) ? 0 : num * 1_000_000;
+  }
   if (clean.endsWith('m')) {
     const num = parseFloat(clean.replace('m', ''));
-    return isNaN(num) ? 0 : num * 1_000_000;
+    return isNaN(num) ? 0 : num * 1_000;
   }
   if (clean.endsWith('k')) {
     const num = parseFloat(clean.replace('k', ''));
-    return isNaN(num) ? 0 : num * 1_000;
-  }
-  if (clean.endsWith('b')) {
-    const num = parseFloat(clean.replace('b', ''));
-    return isNaN(num) ? 0 : num * 1_000_000_000;
+    return isNaN(num) ? 0 : num;
   }
 
   const matches = clean.match(/\d+(\.\d+)?/g);
@@ -37,16 +37,16 @@ export function parseRevenueNumeric(rev: string | null | undefined): number {
 }
 
 export function formatCurrencyShort(amount: number): string {
-  if (amount >= 1_000_000_000) {
-    return `$${(amount / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
-  }
   if (amount >= 1_000_000) {
-    return `$${(amount / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    return `$${(amount / 1_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
   if (amount >= 1_000) {
-    return `$${(amount / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+    return `$${(amount / 1_000).toFixed(1).replace(/\.0$/, '')}M`;
   }
-  return `$${amount.toLocaleString()}`;
+  if (amount > 0) {
+    return `$${amount.toLocaleString()}K`;
+  }
+  return `$0`;
 }
 
 export default function ExecutionAnalystKPICards({
