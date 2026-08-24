@@ -11,10 +11,8 @@ interface ExecutionAnalystKPICardsProps {
   selectedAnalyst?: string;
 }
 
-// Utility to parse revenue string into numeric value (in '000s)
-export function parseRevenueNumeric(rev: string | null | undefined): number {
-  if (!rev) return 0;
-  const clean = rev.trim().toLowerCase().replace(/[$,]/g, '');
+function parseSingleRevenue(valStr: string): number {
+  const clean = valStr.trim().toLowerCase().replace(/[$,]/g, '');
   if (!clean) return 0;
 
   if (clean.endsWith('b')) {
@@ -34,6 +32,28 @@ export function parseRevenueNumeric(rev: string | null | undefined): number {
   if (!matches) return 0;
   const parsed = parseFloat(matches[0]);
   return isNaN(parsed) ? 0 : parsed;
+}
+
+// Utility to parse revenue string into numeric value (in '000s)
+// If the revenue is a range (e.g. "3500-4000"), it returns the average of the range.
+export function parseRevenueNumeric(rev: string | null | undefined): number {
+  if (!rev) return 0;
+  const trimmed = rev.trim();
+  if (!trimmed) return 0;
+
+  if (trimmed.includes('-')) {
+    const parts = trimmed.split('-').map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const val1 = parseSingleRevenue(parts[0]);
+      const val2 = parseSingleRevenue(parts[1]);
+      if (val1 > 0 && val2 > 0) {
+        return (val1 + val2) / 2;
+      }
+      return val1 || val2 || 0;
+    }
+  }
+
+  return parseSingleRevenue(trimmed);
 }
 
 export function formatCurrencyShort(amount: number): string {

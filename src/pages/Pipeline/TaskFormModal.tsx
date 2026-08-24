@@ -99,6 +99,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
 
       const payload = {
         ...formData,
+        revenue: formData.revenue?.trim() || null,
         priority_id: parseInt(formData.priority_id),
         industry_id: formData.industry_id ? parseInt(formData.industry_id) : undefined,
         country_code: formData.country_code || null,
@@ -340,9 +341,22 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 min-w-0">
+              <div className="space-y-1.5 min-w-0">
                 <Label>Revenue</Label>
-                <Input placeholder="Revenue" value={formData.revenue} onChange={e => setFormData({...formData, revenue: e.target.value})} />
+                <Input 
+                  placeholder="e.g. 3500-4000" 
+                  value={formData.revenue} 
+                  onChange={e => {
+                    const raw = e.target.value.replace(/[^0-9-]/g, '').replace(/\s+/g, '');
+                    const parts = raw.split('-');
+                    const formatted = parts.length > 1 ? `${parts[0]}-${parts.slice(1).join('')}` : parts[0];
+                    setFormData({
+                      ...formData, 
+                      revenue: formatted
+                    });
+                  }} 
+                />
+                <p className="text-[11px] text-muted-foreground">Use <strong>-</strong> for a range (e.g. 3500-4000)</p>
               </div>
               <div className="space-y-2 min-w-0">
                 <Label>Team Size</Label>
