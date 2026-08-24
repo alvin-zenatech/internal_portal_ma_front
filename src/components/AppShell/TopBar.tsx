@@ -157,7 +157,7 @@ export default function TopBar() {
   return (
     <header className="h-20 border-b border-border bg-card text-card-foreground flex items-center justify-between px-4 sm:px-6 md:px-8 shrink-0 transition-all duration-300 gap-4">
       <div className="flex-1 flex items-center min-w-0">
-        <div ref={containerRef} className="relative w-full max-w-md z-50">
+        <div ref={containerRef} className="relative w-full max-w-md z-20">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search for anything here..." 

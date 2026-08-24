@@ -1,3 +1,28 @@
+import { cn } from "@/lib/utils";
+const getCountryFullName = (codeOrName: string): string => {
+  const clean = codeOrName.trim().toUpperCase();
+  const iso2 = clean === "USA" ? "US" : (clean === "UK" ? "GB" : clean);
+  try {
+    if (iso2.length === 2) {
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      const name = regionNames.of(iso2);
+      if (name) return name;
+    }
+  } catch {}
+  return codeOrName;
+};
+
+function formatCallLocation(stateProvince?: string | null, rawCountry?: string | null): string {
+  const state = (stateProvince || "").trim();
+  const rawC = (rawCountry || "").trim().toUpperCase();
+  const country = (rawC === "US" || rawC === "USA" || rawC === "UNITED STATES")
+    ? "USA"
+    : (rawC === "CAN" || rawC === "CANADA" ? "CA" : (rawC === "AUS" || rawC === "AUSTRALIA" ? "AU" : (rawCountry || "").trim()));
+  
+  if (state && country) return `${state}, ${country}`;
+  return state || country || "-";
+}
+
 import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -19,7 +44,7 @@ import {
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus } from "lucide-react";
+import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import CallLogUploadQueuePanel from "@/components/Pipeline/CallLogUploadQueuePanel";
 import { Input } from "@/components/ui/input";
@@ -45,14 +70,43 @@ const formatDate = (dateStr?: string | null) => {
 };
 
 function ColumnHeader({ column, title }: { column: any, title: string }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const uniqueValues = React.useMemo(() => {
     return Array.from(column.getFacetedUniqueValues().keys())
       .filter(Boolean)
       .sort() as string[];
   }, [column.getFacetedUniqueValues()]);
 
-  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 300;
+  const isLocation = title === "Country / Province" || title === "State / Country" || column.id === "location";
 
+  const { countries, states } = React.useMemo(() => {
+    if (!isLocation) return { countries: [], states: [] };
+    const countryMap = new Map<string, { code: string, fullName: string }>();
+    const stateList: string[] = [];
+
+    uniqueValues.forEach(val => {
+      stateList.push(val);
+      let cCode = val.trim();
+      if (val.includes(",")) {
+        const parts = val.split(",");
+        cCode = parts[parts.length - 1].trim();
+      }
+      if (cCode && !countryMap.has(cCode)) {
+        const fullName = getCountryFullName(cCode);
+        countryMap.set(cCode, { code: cCode, fullName });
+      }
+    });
+
+    const countryList = Array.from(countryMap.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+    return {
+      countries: countryList,
+      states: stateList.sort()
+    };
+  }, [isLocation, uniqueValues]);
+
+  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 300 || isLocation;
   const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
 
   const toggleOption = (val: string) => {
@@ -64,13 +118,42 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
     }
   };
 
+  const renderOptions = uniqueValues.map(val => ({ label: val, value: val }));
+
+  const filteredOptions = renderOptions.filter(opt =>
+    opt.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  const filteredCountries = countries.filter(c =>
+    c.fullName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+    c.code.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  // Active selected countries
+  const selectedCountryCodes = filterArray.filter(f => countries.some(c => c.code === f));
+
+  // If one or more countries are checked, only show provinces belonging to those countries
+  const filteredStates = states.filter(s => {
+    if (selectedCountryCodes.length > 0) {
+      const sLower = s.toLowerCase();
+      const belongsToSelectedCountry = selectedCountryCodes.some(cCode => {
+        const codeLower = cCode.toLowerCase();
+        return sLower.endsWith(`, ${codeLower}`) || sLower === codeLower;
+      });
+      if (!belongsToSelectedCountry) return false;
+    }
+    return s.toLowerCase().includes(searchQuery.toLowerCase().trim());
+  });
+
+  const isLocationColumn = title === "Country / Province" || title === "State / Country" || column.id === "location";
+
   return (
-    <div className="inline-flex items-center gap-0.5 group whitespace-nowrap">
+    <div className={cn("inline-flex items-center gap-0.5 group whitespace-nowrap", isLocationColumn ? "justify-center w-full text-center" : "justify-start text-left")}>
       <GripVertical className="h-3.5 w-3.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 cursor-grab active:cursor-grabbing text-muted-foreground shrink-0 -ml-1 transition-opacity" />
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-1 h-8 flex justify-start data-[state=open]:bg-accent px-2"
+        className={cn("-ml-1 h-8 flex data-[state=open]:bg-accent px-2", isLocationColumn ? "justify-center" : "justify-start")}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         <span>{title}</span>
@@ -82,24 +165,101 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
             <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-56 p-2" align="start">
+                <PopoverContent className={isLocation ? "w-[500px] p-3" : "w-56 p-2"} align="start">
           {isDropdown ? (
-            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
-              {uniqueValues.map(val => (
-                <div key={val} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`filter-${title}-${val}`}
-                    checked={filterArray.includes(val)}
-                    onCheckedChange={() => toggleOption(val)}
-                  />
-                  <Label htmlFor={`filter-${title}-${val}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
-                    {val}
-                  </Label>
+            <div className="space-y-2.5">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder={isLocation ? "Search countries or provinces..." : `Search ${title.toLowerCase()}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-muted/30"
+                />
+              </div>
+
+              {isLocation ? (
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  {/* Left Column: Countries */}
+                  <div className="flex flex-col border rounded-md bg-card overflow-hidden">
+                    <div className="px-2.5 py-1.5 bg-muted/60 border-b flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                        Countries
+                      </span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium">
+                        {filteredCountries.length}
+                      </span>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-2 space-y-1.5">
+                      {filteredCountries.length > 0 ? (
+                        filteredCountries.map(c => (
+                          <div key={`country-${c.code}`} className="flex items-center space-x-2 py-0.5">
+                            <Checkbox 
+                              id={`filter-country-${c.code}`} 
+                              checked={filterArray.includes(c.code)} 
+                              onCheckedChange={() => toggleOption(c.code)} 
+                            />
+                            <Label htmlFor={`filter-country-${c.code}`} className="text-xs font-medium cursor-pointer leading-tight flex-1 truncate" title={c.fullName}>
+                              {c.fullName} <span className="text-[10px] text-muted-foreground font-normal">({c.code})</span>
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-muted-foreground text-center py-4">No countries</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Provinces */}
+                  <div className="flex flex-col border rounded-md bg-card overflow-hidden">
+                    <div className="px-2.5 py-1.5 bg-muted/60 border-b flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                        Provinces
+                      </span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium">
+                        {filteredStates.length}
+                      </span>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-2 space-y-1.5">
+                      {filteredStates.length > 0 ? (
+                        filteredStates.map(stateVal => (
+                          <div key={`state-${stateVal}`} className="flex items-center space-x-2 py-0.5">
+                            <Checkbox 
+                              id={`filter-state-${stateVal}`} 
+                              checked={filterArray.includes(stateVal)} 
+                              onCheckedChange={() => toggleOption(stateVal)} 
+                            />
+                            <Label htmlFor={`filter-state-${stateVal}`} className="text-xs font-normal cursor-pointer leading-tight flex-1 truncate" title={stateVal}>
+                              {stateVal}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-muted-foreground text-center py-4">No provinces</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {filteredOptions.map(opt => (
+                    <div key={opt.value} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`filter-${title}-${opt.value}`} 
+                        checked={filterArray.includes(opt.value)} 
+                        onCheckedChange={() => toggleOption(opt.value)} 
+                      />
+                      <Label htmlFor={`filter-${title}-${opt.value}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
+                        {opt.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {filterArray.length > 0 && (
-                <Button variant="ghost" size="sm" className="w-full mt-2 h-8 text-xs" onClick={() => column.setFilterValue(undefined)}>
-                  Clear filters
+                <Button variant="ghost" size="sm" className="w-full mt-1.5 h-7 text-xs text-muted-foreground hover:text-foreground border-t pt-1" onClick={() => column.setFilterValue(undefined)}>
+                  Clear filters ({filterArray.length})
                 </Button>
               )}
             </div>
@@ -358,9 +518,7 @@ export default function CallTracking() {
           return a - b;
         },
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground font-medium tabular-nums pl-1">
-            {getCallCount(row.original)}
-          </span>
+          <span className="text-xs text-muted-foreground font-medium tabular-nums pl-1">{getCallCount(row.original)}</span>
         )
       },
       {
@@ -374,19 +532,17 @@ export default function CallTracking() {
         size: 180
       },
       {
-        accessorKey: 'state_province',
-        header: ({ column }) => <ColumnHeader column={column} title="State/Province" />,
-        size: 180,
+        id: 'location',
+        accessorFn: (row: CallTrackingSummary) => {
+          const val = formatCallLocation(row.state_province, row.location);
+          return val === "-" ? "" : val;
+        },
+        header: ({ column }) => <ColumnHeader column={column} title="Country / Province" />,
+        size: 190,
         cell: ({ row }) => {
-          const val = row.original.state_province;
-          if (!val) return <span>-</span>;
-          return <span>{val}</span>;
+          const display = formatCallLocation(row.original.state_province, row.original.location);
+          return <span className="truncate block w-full" title={display !== "-" ? display : undefined}>{display}</span>;
         }
-      },
-      {
-        accessorKey: 'location',
-        header: ({ column }) => <ColumnHeader column={column} title="Country" />,
-        size: 180
       },
       {
         accessorKey: 'contact_name',
@@ -429,7 +585,9 @@ export default function CallTracking() {
           return log?.kdm !== undefined && log?.kdm !== null && log?.kdm !== '' ? formatYesNo(log.kdm) : '-';
         },
         header: ({ column }) => <ColumnHeader column={column} title="KDM" />,
-        size: 130,
+        size: 80,
+        minSize: 65,
+        maxSize: 95,
         cell: ({ row }) => {
           const direct = row.original.kdm;
           if (direct !== undefined && direct !== null && direct !== '') return <span>{formatYesNo(direct)}</span>;
@@ -498,7 +656,6 @@ export default function CallTracking() {
     'call_count',
     'company_name',
     'industry',
-    'state_province',
     'location',
     'contact_name',
     'phone_number',
@@ -549,8 +706,10 @@ export default function CallTracking() {
         call_count: { header: "Calls", accessor: (r) => getCallCount(r) },
         company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
         industry: { header: "Industry", accessor: (r) => r.industry || "" },
-        state_province: { header: "State/Province", accessor: (r) => r.state_province || "" },
-        location: { header: "Country", accessor: (r) => r.location || "" },
+        location: { header: "Country / Province", accessor: (r) => {
+          const val = formatCallLocation(r.state_province, r.location);
+          return val === "-" ? "" : val;
+        }},
         contact_name: { header: "Contact Name", accessor: (r) => r.contact_name || "" },
         phone_number: { header: "Phone Number", accessor: (r) => r.phone_number || "" },
         date_of_call: { header: "Date of Call", accessor: (r) => getLatestCallDate(r) },
@@ -654,11 +813,39 @@ export default function CallTracking() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     filterFns: {
-      multiSelect: (row: any, columnId: string, filterValue: any) => {
+            multiSelect: (row: any, columnId: string, filterValue: any) => {
         if (!filterValue || filterValue.length === 0) return true;
-        const val = row.getValue(columnId);
-        if (Array.isArray(filterValue)) return filterValue.includes(String(val));
-        return String(val).toLowerCase().includes(String(filterValue).toLowerCase());
+        const val = String(row.getValue(columnId) || "").toLowerCase().trim();
+        if (!val) return false;
+
+        if (Array.isArray(filterValue)) {
+          if (columnId === "location") {
+            const selectedCountries = filterValue.filter((f: string) => !f.includes(",")).map((f: string) => f.toLowerCase().trim());
+            const selectedProvinces = filterValue.filter((f: string) => f.includes(",")).map((f: string) => f.toLowerCase().trim());
+
+            // 1. If matching any explicitly selected province
+            if (selectedProvinces.some((p: string) => val === p || val.startsWith(`${p},`) || val.endsWith(`, ${p}`) || val.includes(p))) {
+              return true;
+            }
+
+            // 2. For selected countries that do NOT have specific provinces selected, match the entire country
+            const countriesWithoutSpecificProvinces = selectedCountries.filter((c: string) =>
+              !selectedProvinces.some((p: string) => p.endsWith(`, ${c}`))
+            );
+
+            return countriesWithoutSpecificProvinces.some((c: string) => val === c || val.endsWith(`, ${c}`));
+          }
+
+          return filterValue.some(f => {
+            const filter = String(f).toLowerCase().trim();
+            if (val === filter) return true;
+            if (val.endsWith(`, ${filter}`)) return true;
+            if (val.startsWith(`${filter},`)) return true;
+            if (val.includes(filter)) return true;
+            return false;
+          });
+        }
+        return val.includes(String(filterValue).toLowerCase().trim());
       }
     },
     defaultColumn: { filterFn: 'multiSelect' as any },
@@ -688,7 +875,7 @@ export default function CallTracking() {
 
   return (
     <div className="h-full flex flex-col w-full min-h-0">
-      <div className="px-8 py-6 border-b bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 border-b bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Call Tracking
@@ -778,7 +965,7 @@ export default function CallTracking() {
 
           <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
             <div className="flex-1 overflow-auto relative" ref={parentRef} onScroll={handleScroll}>
-              <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1800px]">
+              <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1550px]">
                 <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
                   {table.getHeaderGroups().map((hg) => (
                     <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
@@ -836,7 +1023,7 @@ export default function CallTracking() {
                           onClick={() => setSelectedCompany(row.original.normalized_company_name)}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className="py-3 whitespace-nowrap truncate" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
+                            <TableCell key={cell.id} className={cn("py-3 whitespace-nowrap truncate", cell.column.id === "location" ? "text-center" : "text-left")} style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                           ))}

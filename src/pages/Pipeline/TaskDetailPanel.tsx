@@ -131,12 +131,12 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">State/Province</dt>
-                      <dd className="font-medium">{task.state_code || task.state_name || '-'}</dd>
+                      <dt className="text-muted-foreground">Province</dt>
+                      <dd className="font-medium">{task.state_name || task.state_code || '-'}</dd>
                     </div>
                     <div>
                       <dt className="text-muted-foreground">Country</dt>
-                      <dd className="font-medium">{task.country_code || task.country_name || '-'}</dd>
+                      <dd className="font-medium">{task.country_name || task.country_code || '-'}</dd>
                     </div>
                     <div>
                       <dt className="text-muted-foreground">Follow-up Date</dt>

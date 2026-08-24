@@ -2,7 +2,7 @@ import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Upload, CalendarClock, User, Building2 } from "lucide-react";
+import { Plus, Loader2, Upload, CalendarClock, User, Building2, Maximize2, Minimize2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -32,6 +32,7 @@ import { addDays, isBefore, isValid, parseISO, startOfDay } from "date-fns";
 const DEFAULT_SORT = [{ id: "priority_name", desc: false }];
 
 export default function PipelineDashboard() {
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -124,6 +125,16 @@ export default function PipelineDashboard() {
       }
     }
   }, [searchParams, tasks, selectedTask]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullScreen]);
 
   const dueFollowUpCount = useMemo(() => {
     if (!tasks) return 0;
@@ -300,15 +311,104 @@ export default function PipelineDashboard() {
               </TooltipTrigger>
               <TooltipContent>New Task</TooltipContent>
             </Tooltip>
+
+            <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setIsFullScreen(true)} 
+                  className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Full Screen View</TooltipContent>
+            </Tooltip>
           </TooltipProvider>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-muted/20">
-        {tasksLoading || prioritiesLoading ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
-        ) : (
-            <PipelineListView 
+      {/* Table Container - Switch to full screen without duplicate instances */}
+      {isFullScreen ? (
+        <div className="fixed inset-0 z-40 bg-background flex flex-col animate-in fade-in duration-200">
+          {/* Full Screen Header */}
+          <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2 mr-2">
+                <span className="font-semibold text-sm tracking-tight">Pipeline Table</span>
+              </div>
+
+              <div className="flex items-center shrink-0">
+                <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                  <SelectTrigger className="w-[170px] h-9 bg-white dark:bg-card">
+                    <User className="h-4 w-4 text-muted-foreground mr-1.5" />
+                    <SelectValue placeholder="All Analysts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Analysts</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {(analystOptions ?? []).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center shrink-0">
+                <Input 
+                  placeholder="Search pipeline..." 
+                  value={globalFilter} 
+                  onChange={(event) => setGlobalFilter(event.target.value)} 
+                  className="w-56 max-w-sm h-9" 
+                />
+              </div>
+
+              <Button 
+                variant="outline" 
+                onClick={handleExportTasks} 
+                className="gap-1.5 h-9 shrink-0"
+              >
+                <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Export CSV</span>
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap ml-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCompanyModalOpen(true)} 
+                className="gap-2 h-9"
+              >
+                <Building2 className="h-4 w-4 text-primary" />
+                <span>Add Company</span>
+              </Button>
+
+              <Button size="icon" onClick={() => handleCreate()} className="h-9 w-9">
+                <Plus className="h-4 w-4" />
+              </Button>
+
+              <div className="h-6 w-px bg-border mx-1" />
+
+              <Button 
+                variant="secondary" 
+                onClick={() => setIsFullScreen(false)} 
+                className="gap-1.5 h-9 font-medium"
+              >
+                <Minimize2 className="h-4 w-4" />
+                <span>Exit Full Screen</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Full Screen Table Container */}
+          <div className="flex-1 overflow-hidden relative bg-muted/20">
+            {tasksLoading || prioritiesLoading ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
+            ) : (
+              <PipelineListView 
                 tasks={filteredTasks} 
                 onTaskClick={setSelectedTask} 
                 onEdit={handleEdit}
@@ -317,8 +417,26 @@ export default function PipelineDashboard() {
                 hideSearchBar={true}
                 defaultSorting={DEFAULT_SORT}
               />
-        )}
-      </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-hidden relative bg-muted/20">
+          {tasksLoading || prioritiesLoading ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
+          ) : (
+            <PipelineListView 
+              tasks={filteredTasks} 
+              onTaskClick={setSelectedTask} 
+              onEdit={handleEdit}
+              globalFilter={globalFilter}
+              onGlobalFilterChange={setGlobalFilter}
+              hideSearchBar={true}
+              defaultSorting={DEFAULT_SORT}
+            />
+          )}
+        </div>
+      )}
 
       <TaskFormModal 
         open={isFormOpen} 

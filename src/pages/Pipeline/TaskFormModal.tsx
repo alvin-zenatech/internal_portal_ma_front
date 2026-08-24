@@ -40,8 +40,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
       phone: c.phone || "",
       email: c.email || "",
       contact_name: c.contact_name || "",
-      country_code: c.country_code || c.country_name || "",
-      state_code: c.state_code || c.state_name || ""
+      country_code: c.country_name || c.country_code || "",
+      state_code: c.state_name || c.state_code || ""
     }));
   }, [companies]);
 
@@ -66,8 +66,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
       setFormData({
         company_name: task.company_name, name: task.name, email: task.email, 
         priority_id: task.priority_id?.toString() || "", industry_id: task.industry_id?.toString() || "", 
-        country_code: task.country_code || task.country_name || "",
-        state_code: task.state_code || task.state_name || "", phone: task.phone || "",
+        country_code: task.country_name || task.country_code || "",
+        state_code: task.state_name || task.state_code || "", phone: task.phone || "",
         nda: task.nda || "", p_and_l: task.p_and_l || "", revenue: task.revenue || "", 
         team_size: task.team_size || "", notes: "",
         analyst_id: task.analyst_id || "unassigned",
@@ -253,12 +253,12 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </div>
 
               <div className="space-y-2 min-w-0">
-                <Label>State/Province *</Label>
+                <Label>Province *</Label>
                 <AutocompleteCombobox
                   value={formData.state_code || ""}
                   onChange={v => setFormData({...formData, state_code: v?.toString() || ""})}
                   options={(states || []).map(s => ({ id: s.name, name: s.name }))}
-                  placeholder="Select state/province..."
+                  placeholder="Select province..."
                   disabled={!formData.country_code}
                 />
               </div>

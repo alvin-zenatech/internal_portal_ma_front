@@ -1,17 +1,30 @@
+const getCountryFullName = (codeOrName: string): string => {
+  const clean = codeOrName.trim().toUpperCase();
+  const iso2 = clean === "USA" ? "US" : (clean === "UK" ? "GB" : clean);
+  try {
+    if (iso2.length === 2) {
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      const name = regionNames.of(iso2);
+      if (name) return name;
+    }
+  } catch {}
+  return codeOrName;
+};
+
 import React, { useState, useDeferredValue } from "react";
 import { cn } from "@/lib/utils";
 import { 
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask, useDeleteTask } from "@/hooks/usePipeline";
+import { type PipelineTask, useDeleteTask, usePriorities } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, Filter, X } from "lucide-react";
+import { ArrowUpDown, Filter, X, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -24,6 +37,19 @@ const getInitials = (name: string) => {
   const parts = name.split(" ").filter(Boolean);
   return parts.map(p => p.charAt(0)).join('').toUpperCase();
 };
+
+function formatLocation(task: { state_name?: string | null, state_code?: string | null, country_name?: string | null, country_code?: string | null }): string {
+  const state = (task.state_name || task.state_code || "").trim();
+  const rawCode = (task.country_code || task.country_name || "").trim().toUpperCase();
+  // ISO3 for USA ("USA"), ISO2 for all other countries ("CA", "AU", "DE", "JP", etc.)
+  const country = (rawCode === "US" || rawCode === "USA" || rawCode === "UNITED STATES") 
+    ? "USA" 
+    : (task.country_code || rawCode);
+  
+  if (state && country) return `${state}, ${country}`;
+  return state || country || "-";
+}
+
 
 function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
   if (!dateStr) return <span className="text-muted-foreground">-</span>;
@@ -43,14 +69,44 @@ function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
 }
 
 function ColumnHeader({ column, title, customOptions }: { column: any, title: string, customOptions?: { label: string, value: string }[] }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const uniqueValues = React.useMemo(() => {
     return Array.from(column.getFacetedUniqueValues().keys())
       .filter(Boolean)
       .sort() as string[];
   }, [column.getFacetedUniqueValues()]);
 
-  const isDropdown = (uniqueValues.length > 0 && uniqueValues.length <= 300) || customOptions !== undefined;
-  
+  const isLocation = title === "Country / Province" || title === "State / Country" || column.id === "location";
+
+  // For location column: extract unique countries with full names and states
+  const { countries, states } = React.useMemo(() => {
+    if (!isLocation) return { countries: [], states: [] };
+    const countryMap = new Map<string, { code: string, fullName: string }>();
+    const stateList: string[] = [];
+
+    uniqueValues.forEach(val => {
+      stateList.push(val);
+      let cCode = val.trim();
+      if (val.includes(",")) {
+        const parts = val.split(",");
+        cCode = parts[parts.length - 1].trim();
+      }
+      if (cCode && !countryMap.has(cCode)) {
+        const fullName = getCountryFullName(cCode);
+        countryMap.set(cCode, { code: cCode, fullName });
+      }
+    });
+
+    const countryList = Array.from(countryMap.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+    return {
+      countries: countryList,
+      states: stateList.sort()
+    };
+  }, [isLocation, uniqueValues]);
+
+  const isDropdown = (uniqueValues.length > 0 && uniqueValues.length <= 300) || customOptions !== undefined || isLocation;
   const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
   
   const toggleOption = (val: string) => {
@@ -66,12 +122,39 @@ function ColumnHeader({ column, title, customOptions }: { column: any, title: st
     ? customOptions 
     : uniqueValues.map(val => ({ label: val, value: val }));
 
+  const filteredOptions = renderOptions.filter(opt =>
+    opt.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  const filteredCountries = countries.filter(c =>
+    c.fullName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+    c.code.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  // Active selected countries
+  const selectedCountryCodes = filterArray.filter(f => countries.some(c => c.code === f));
+
+  // If one or more countries are checked, only show provinces belonging to those countries
+  const filteredStates = states.filter(s => {
+    if (selectedCountryCodes.length > 0) {
+      const sLower = s.toLowerCase();
+      const belongsToSelectedCountry = selectedCountryCodes.some(cCode => {
+        const codeLower = cCode.toLowerCase();
+        return sLower.endsWith(`, ${codeLower}`) || sLower === codeLower;
+      });
+      if (!belongsToSelectedCountry) return false;
+    }
+    return s.toLowerCase().includes(searchQuery.toLowerCase().trim());
+  });
+
+  const isLocationColumn = title === "Country / Province" || title === "State / Country" || column.id === "location";
+
   return (
-    <div className="inline-flex items-center gap-1 group whitespace-nowrap px-1">
+    <div className={cn("inline-flex items-center gap-1 group whitespace-nowrap px-1", isLocationColumn ? "justify-center w-full text-center" : "justify-start text-left")}>
       <Button
         variant="ghost"
         size="sm"
-        className="h-8 flex justify-start data-[state=open]:bg-accent px-1.5"
+        className={cn("h-8 flex data-[state=open]:bg-accent px-1.5", isLocationColumn ? "justify-center" : "justify-start")}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         <span>{title}</span>
@@ -83,24 +166,101 @@ function ColumnHeader({ column, title, customOptions }: { column: any, title: st
             <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-56 p-2" align="start">
+                <PopoverContent className={isLocation ? "w-[500px] p-3" : "w-56 p-2"} align="start">
           {isDropdown ? (
-            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
-              {renderOptions.map(opt => (
-                <div key={opt.value} className="flex items-center space-x-2">
-                  <Checkbox 
-                    id={`filter-${title}-${opt.value}`} 
-                    checked={filterArray.includes(opt.value)} 
-                    onCheckedChange={() => toggleOption(opt.value)} 
-                  />
-                  <Label htmlFor={`filter-${title}-${opt.value}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
-                    {opt.label}
-                  </Label>
+            <div className="space-y-2.5">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder={isLocation ? "Search countries or provinces..." : `Search ${title.toLowerCase()}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-muted/30"
+                />
+              </div>
+
+              {isLocation ? (
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  {/* Left Column: Countries */}
+                  <div className="flex flex-col border rounded-md bg-card overflow-hidden">
+                    <div className="px-2.5 py-1.5 bg-muted/60 border-b flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                        Countries
+                      </span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium">
+                        {filteredCountries.length}
+                      </span>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-2 space-y-1.5">
+                      {filteredCountries.length > 0 ? (
+                        filteredCountries.map(c => (
+                          <div key={`country-${c.code}`} className="flex items-center space-x-2 py-0.5">
+                            <Checkbox 
+                              id={`filter-country-${c.code}`} 
+                              checked={filterArray.includes(c.code)} 
+                              onCheckedChange={() => toggleOption(c.code)} 
+                            />
+                            <Label htmlFor={`filter-country-${c.code}`} className="text-xs font-medium cursor-pointer leading-tight flex-1 truncate" title={c.fullName}>
+                              {c.fullName} <span className="text-[10px] text-muted-foreground font-normal">({c.code})</span>
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-muted-foreground text-center py-4">No countries</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Provinces */}
+                  <div className="flex flex-col border rounded-md bg-card overflow-hidden">
+                    <div className="px-2.5 py-1.5 bg-muted/60 border-b flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                        Provinces
+                      </span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium">
+                        {filteredStates.length}
+                      </span>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-2 space-y-1.5">
+                      {filteredStates.length > 0 ? (
+                        filteredStates.map(stateVal => (
+                          <div key={`state-${stateVal}`} className="flex items-center space-x-2 py-0.5">
+                            <Checkbox 
+                              id={`filter-state-${stateVal}`} 
+                              checked={filterArray.includes(stateVal)} 
+                              onCheckedChange={() => toggleOption(stateVal)} 
+                            />
+                            <Label htmlFor={`filter-state-${stateVal}`} className="text-xs font-normal cursor-pointer leading-tight flex-1 truncate" title={stateVal}>
+                              {stateVal}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-muted-foreground text-center py-4">No provinces</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {filteredOptions.map(opt => (
+                    <div key={opt.value} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`filter-${title}-${opt.value}`} 
+                        checked={filterArray.includes(opt.value)} 
+                        onCheckedChange={() => toggleOption(opt.value)} 
+                      />
+                      <Label htmlFor={`filter-${title}-${opt.value}`} className="text-sm font-normal cursor-pointer leading-none flex-1">
+                        {opt.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {filterArray.length > 0 && (
-                <Button variant="ghost" size="sm" className="w-full mt-2 h-8 text-xs" onClick={() => column.setFilterValue(undefined)}>
-                  Clear filters
+                <Button variant="ghost" size="sm" className="w-full mt-1.5 h-7 text-xs text-muted-foreground hover:text-foreground border-t pt-1" onClick={() => column.setFilterValue(undefined)}>
+                  Clear filters ({filterArray.length})
                 </Button>
               )}
             </div>
@@ -151,6 +311,21 @@ const PipelineListView = React.memo(function PipelineListView({
     return new Map(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
   }, [executionAnalystOptions]);
 
+  const { data: priorities } = usePriorities();
+  const priorityOrderMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    (priorities || []).forEach((p, idx) => {
+      const order = typeof p.sort_order === "number" ? p.sort_order : idx;
+      if (p.name) {
+        map.set(p.name.trim().toLowerCase(), order);
+      }
+      if (p.id !== undefined && p.id !== null) {
+        map.set(String(p.id), order);
+      }
+    });
+    return map;
+  }, [priorities]);
+
   const columns = React.useMemo(() => [
     { 
       accessorKey: "company_name", 
@@ -174,37 +349,33 @@ const PipelineListView = React.memo(function PipelineListView({
         if (!priority) return <span className="text-muted-foreground">-</span>;
         const colors = getPriorityColors(row.original);
         return (
-          <span 
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap"
-            style={colors.badgeStyle}
-          >
-            {priority}
-          </span>
+          <div className="flex items-center justify-start">
+            <span 
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap"
+              style={colors.badgeStyle}
+            >
+              {priority}
+            </span>
+          </div>
         );
       },
       sortingFn: (rowA, rowB) => {
-        const p1 = (rowA.original.priority_name || "").toLowerCase();
-        const p2 = (rowB.original.priority_name || "").toLowerCase();
-        
-        const PRIORITY_ORDER = [
-          "high value",
-          "good fit",
-          "50/50",
-          "new",
-          "loi sent",
-          "loi-sent",
-          "loi sent - accepted",
-          "loi-accepted",
-          "loi sent - declined",
-          "loi-declined"
-        ];
-        
-        const idx1 = PRIORITY_ORDER.indexOf(p1);
-        const idx2 = PRIORITY_ORDER.indexOf(p2);
-        
-        if (idx1 !== -1 && idx2 !== -1) return idx1 - idx2;
-        if (idx1 !== -1) return -1;
-        if (idx2 !== -1) return 1;
+        const id1 = rowA.original.priority_id;
+        const id2 = rowB.original.priority_id;
+        const p1 = (rowA.original.priority_name || "").trim().toLowerCase();
+        const p2 = (rowB.original.priority_name || "").trim().toLowerCase();
+
+        const order1 = (id1 !== undefined && id1 !== null && priorityOrderMap.has(String(id1)))
+          ? priorityOrderMap.get(String(id1))!
+          : (priorityOrderMap.has(p1) ? priorityOrderMap.get(p1)! : -1);
+
+        const order2 = (id2 !== undefined && id2 !== null && priorityOrderMap.has(String(id2)))
+          ? priorityOrderMap.get(String(id2))!
+          : (priorityOrderMap.has(p2) ? priorityOrderMap.get(p2)! : -1);
+
+        if (order1 !== -1 && order2 !== -1) return order1 - order2;
+        if (order1 !== -1) return -1;
+        if (order2 !== -1) return 1;
         return p1.localeCompare(p2);
       }
     },
@@ -219,8 +390,19 @@ const PipelineListView = React.memo(function PipelineListView({
         return <span className="text-muted-foreground truncate block w-full" title={note}>{note}</span>;
       }
     },
-    { accessorKey: "state_name", header: ({ column }) => <ColumnHeader column={column} title="State/Province" />, size: 180 },
-    { accessorKey: "country_name", header: ({ column }) => <ColumnHeader column={column} title="Country" />, size: 140 },
+    { 
+      id: "location",
+      accessorFn: (row: PipelineTask) => {
+        const val = formatLocation(row);
+        return val === "-" ? "" : val;
+      },
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Country / Province" />,
+      size: 190,
+      cell: ({ row }: { row: any }) => {
+        const display = formatLocation(row.original);
+        return <span className="truncate block w-full text-center" title={display !== "-" ? display : undefined}>{display}</span>;
+      }
+    },
     { 
       accessorKey: "analyst_name", 
       header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" />,
@@ -281,7 +463,7 @@ const PipelineListView = React.memo(function PipelineListView({
         return revA - revB;
       }
     },
-    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 140 },
+    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 95, minSize: 80, maxSize: 110 },
     {
       accessorKey: "follow_up_date" as const,
       header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up Date" />,
@@ -295,9 +477,9 @@ const PipelineListView = React.memo(function PipelineListView({
         return a.localeCompare(b);
       },
     },
-    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 120 },
-    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 120 }
-  ], [onEdit, analystNameMap]);
+    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 90, minSize: 80, maxSize: 105 },
+    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 90, minSize: 80, maxSize: 105 }
+  ], [onEdit, analystNameMap, priorityOrderMap]);
 
   const table = useReactTable({
     data: tasks,
@@ -307,10 +489,28 @@ const PipelineListView = React.memo(function PipelineListView({
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setActualGlobalFilter as any,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const search = filterValue.toLowerCase();
-      return Object.values(row.original).some(val => 
-        typeof val === 'string' && val.toLowerCase().includes(search)
-      );
+      if (!filterValue) return true;
+      const search = String(filterValue).toLowerCase().trim();
+      if (!search) return true;
+
+      // 1. Check all object values (strings, numbers)
+      const matchesRaw = Object.values(row.original).some(val => {
+        if (val === null || val === undefined) return false;
+        return String(val).toLowerCase().includes(search);
+      });
+      if (matchesRaw) return true;
+
+      // 2. Check formatted Location string (e.g. "California, USA", "Alberta, CA")
+      const loc = formatLocation(row.original);
+      if (loc.toLowerCase().includes(search)) return true;
+
+      // 3. Check Execution Analyst full name
+      if (row.original.execution_analyst) {
+        const eaName = analystNameMap.get(row.original.execution_analyst.toUpperCase());
+        if (eaName && eaName.toLowerCase().includes(search)) return true;
+      }
+
+      return false;
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -319,12 +519,37 @@ const PipelineListView = React.memo(function PipelineListView({
     filterFns: {
       multiSelect: (row: any, columnId: string, filterValue: any) => {
         if (!filterValue || filterValue.length === 0) return true;
-        const val = row.getValue(columnId);
+        const val = String(row.getValue(columnId) || "").toLowerCase().trim();
+        if (!val) return false;
+
         if (Array.isArray(filterValue)) {
-          const lowerVal = String(val).toLowerCase();
-          return filterValue.some(f => String(f).toLowerCase() === lowerVal);
+          if (columnId === "location") {
+            const selectedCountries = filterValue.filter((f: string) => !f.includes(",")).map((f: string) => f.toLowerCase().trim());
+            const selectedProvinces = filterValue.filter((f: string) => f.includes(",")).map((f: string) => f.toLowerCase().trim());
+
+            // 1. If matching any explicitly selected province
+            if (selectedProvinces.some((p: string) => val === p || val.startsWith(`${p},`) || val.endsWith(`, ${p}`) || val.includes(p))) {
+              return true;
+            }
+
+            // 2. For selected countries that do NOT have specific provinces selected, match the entire country
+            const countriesWithoutSpecificProvinces = selectedCountries.filter((c: string) =>
+              !selectedProvinces.some((p: string) => p.endsWith(`, ${c}`))
+            );
+
+            return countriesWithoutSpecificProvinces.some((c: string) => val === c || val.endsWith(`, ${c}`));
+          }
+
+          return filterValue.some(f => {
+            const filter = String(f).toLowerCase().trim();
+            if (val === filter) return true;
+            if (val.endsWith(`, ${filter}`)) return true;
+            if (val.startsWith(`${filter},`)) return true;
+            if (val.includes(filter)) return true;
+            return false;
+          });
         }
-        return String(val).toLowerCase().includes(String(filterValue).toLowerCase());
+        return val.includes(String(filterValue).toLowerCase().trim());
       }
     },
     defaultColumn: { filterFn: 'multiSelect' as any },
@@ -348,7 +573,7 @@ const PipelineListView = React.memo(function PipelineListView({
   const visibleRows = allRows.slice(0, visibleCount);
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-4">
+    <div className="h-full flex flex-col space-y-4">
       {(!hideSearchBar || (columnFilters.length > 0)) && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1">
@@ -386,7 +611,7 @@ const PipelineListView = React.memo(function PipelineListView({
       )}
       <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
         <div className="flex-1 overflow-auto relative" id="pipeline-list-scroll" ref={parentRef} onScroll={handleScroll}>
-        <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[2200px]">
+        <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1750px]">
           <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
             {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
@@ -413,7 +638,7 @@ const PipelineListView = React.memo(function PipelineListView({
                     onClick={() => onTaskClick(row.original)}
                   >
                     {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id} className="truncate px-3 py-2.5" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
+                      <TableCell key={cell.id} className={cn("truncate px-3 py-2.5", cell.column.id === "location" ? "text-center" : "text-left")} style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
