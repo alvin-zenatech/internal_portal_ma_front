@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatYesNo } from "@/lib/utils";
+import { formatYesNo, formatPhoneNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2 } from "lucide-react";
@@ -166,6 +166,14 @@ export default function CallTrackingDetails({
     }
   }, [initialEditId, logs, editingId]);
 
+
+  const handleCancel = () => {
+    if (!normalizedName || !logs || logs.length === 0) {
+      onClose();
+    } else {
+      setEditingId(null);
+    }
+  };
 
   const handleEdit = (log?: CallLog) => {
     if (log) {
@@ -376,17 +384,8 @@ export default function CallTrackingDetails({
                     />
                   </div>
 
-                  {/* Row 5: Emailed, Picked Up, KDM */}
-                  <div className="space-y-1 text-left w-full">
-                    <label>Emailed?</label>
-                    <Select value={formatYesNo(formData.emailed)} onValueChange={val => setFormData({...formData, emailed: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Yes">Yes</SelectItem>
-                        <SelectItem value="No">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Row 5: Picked Up, KDM */}
+                  
                   <div className="space-y-1 text-left w-full">
                     <label>Picked Up?</label>
                     <Select value={formatYesNo(formData.picked_up)} onValueChange={val => setFormData({...formData, picked_up: val})}>
@@ -435,7 +434,7 @@ export default function CallTrackingDetails({
                 </div>
 
                 <div className="sticky bottom-0 bg-slate-50 z-10 p-6 border-t flex justify-end gap-2 rounded-b-lg shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] shrink-0">
-                  <Button variant="outline" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
+                  <Button variant="outline" onClick={handleCancel} disabled={isPending}>Cancel</Button>
                   <Button onClick={handleSave} disabled={isPending}>
                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isPending ? "Saving..." : "Save"}
@@ -463,9 +462,9 @@ export default function CallTrackingDetails({
                 
                 <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500 bg-slate-50 p-2 rounded">
                   <div>Contact: {log.contact_name}</div>
-                  <div>Phone: {log.phone_number}</div>
+                  <div>Phone: {formatPhoneNumber(log.phone_number) || '-'}</div>
                   <div>KDM: {formatYesNo(log.kdm)} | Picked up: {formatYesNo(log.picked_up)}</div>
-                  <div>Emailed: {formatYesNo(log.emailed)} | Analyst: {getAnalystName(log.analyst)}</div>
+                  <div>Analyst: {getAnalystName(log.analyst)}</div>
                 </div>
               </div>
             ))}

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { apiClient as api } from "@/services/apiClient";
 import { toast } from "sonner";
 
@@ -471,7 +471,6 @@ export interface CallTrackingSummary {
   outcome?: string | null;
   latest_analyst: string | null;
   phone_number: string | null;
-  emailed: string | null;
   picked_up: string | null;
   call_length: string | null;
   notes?: string | null;
@@ -488,7 +487,6 @@ export type CallLog = {
   kdm?: string;
   phone_number?: string;
   date_of_call?: string;
-  emailed?: string;
   picked_up?: string;
   outcome?: string;
   analyst?: string;
@@ -555,6 +553,31 @@ export function useCallLogs() {
   });
 }
 
+
+export interface PaginatedCallTrackingSummary {
+  items: CallTrackingSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export function useInfiniteCallTrackingSummary(search?: string) {
+  return useInfiniteQuery({
+    queryKey: ["call-tracking-summary-infinite", search || ""],
+    queryFn: async ({ pageParam = 0 }) => {
+      const searchParam = search && search.trim() ? `&search=${encodeURIComponent(search.trim())}` : "";
+      return await api.get<PaginatedCallTrackingSummary>(
+        `/api/pipeline/call-tracking/summary?limit=50&offset=${pageParam}${searchParam}`
+      );
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || !lastPage.has_more) return undefined;
+      return lastPage.offset + lastPage.limit;
+    },
+  });
+}
 
 export function useCallTrackingSummary() {
   return useQuery({
@@ -710,8 +733,8 @@ export interface CallLogPreviewRow {
   raw_position?: string;
   raw_kdm?: string;
   raw_phone_number?: string;
+  detected_phones?: string[];
   date_of_call?: string;
-  emailed?: string;
   picked_up?: string;
   outcome?: string;
   analyst?: string;

@@ -31,7 +31,7 @@ import {
 import { AlertTriangle, CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Check, Edit3, Download } from 'lucide-react';
 import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts, useCountries, useStates } from '@/hooks/usePipeline';
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
-import { formatYesNo } from "@/lib/utils";
+import { formatYesNo, formatPhoneNumber } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -68,8 +68,7 @@ export default function CallLogImportPreviewModal({
         { header: "Phone", accessor: (r) => r.phone_number || r.raw_phone_number || "" },
         { header: "Date", accessor: (r) => r.date_of_call || "" },
         { header: "KDM", accessor: (r) => r.kdm || r.raw_kdm || "" },
-        { header: "Emailed?", accessor: (r) => r.emailed || "" },
-        { header: "Picked Up?", accessor: (r) => r.picked_up || "" },
+                { header: "Picked Up?", accessor: (r) => r.picked_up || "" },
         { header: "Outcome", accessor: (r) => r.outcome || "" },
         { header: "Length", accessor: (r) => r.call_length || "" },
         { header: "Analyst", accessor: (r) => r.analyst || "" },
@@ -83,9 +82,18 @@ export default function CallLogImportPreviewModal({
     }
   };
 
+  const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'exact' | 'suggested' | 'new' | 'duplicate' | 'selected'>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchFilter(searchInput);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const [editingRowForCompany, setEditingRowForCompany] = useState<CallLogPreviewRow | null>(null);
   const [companyForm, setCompanyForm] = useState({
@@ -144,21 +152,81 @@ export default function CallLogImportPreviewModal({
     }
   }, [previewData]);
 
+  // High-performance robust search & multi-status filtering
   const filteredRows = useMemo(() => {
-    if (!searchFilter.trim()) return rows;
-    const term = searchFilter.toLowerCase();
-    return rows.filter(r =>
-      r.raw_company_name.toLowerCase().includes(term) ||
-      r.company_name.toLowerCase().includes(term) ||
-      (r.contact_name && r.contact_name.toLowerCase().includes(term)) ||
-      (r.analyst && r.analyst.toLowerCase().includes(term)) ||
-      (r.notes && r.notes.toLowerCase().includes(term))
-    );
-  }, [rows, searchFilter]);
+    let list = rows;
+    const term = searchFilter.trim().toLowerCase();
+
+    if (term) {
+      const words = term.split(/\s+/).filter(Boolean);
+      const termClean = term.replace(/[^a-z0-9]/g, '');
+
+      list = list.filter(r => {
+        const phoneDigits = (r.phone_number || r.raw_phone_number || '').replace(/\D/g, '');
+        const detectedPhonesStr = (r.detected_phones || []).join(' ');
+        const suggestionsStr = (r.suggestions || []).map(s => s.name).join(' ');
+
+        const rowText = [
+          r.company_name,
+          r.raw_company_name,
+          r.contact_name,
+          r.raw_contact_name,
+          r.position,
+          r.phone_number,
+          r.raw_phone_number,
+          phoneDigits,
+          detectedPhonesStr,
+          suggestionsStr,
+          r.analyst,
+          r.raw_analyst,
+          r.industry,
+          r.state_province,
+          r.location,
+          r.outcome,
+          r.date_of_call,
+          r.notes,
+          r.duplicate_reason,
+          r.is_duplicate ? 'duplicate duplicate-call dup dups potential-duplicate is_duplicate' : '',
+          r.match_type ? `match-${r.match_type} ${r.match_type}` : '',
+          r.kdm ? 'kdm' : '',
+          r.picked_up ? 'picked up' : ''
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        const rowClean = rowText.replace(/[^a-z0-9]/g, '');
+
+        // 1. Direct substring match
+        if (rowText.includes(term)) return true;
+        // 2. Alphanumeric match (matches "L & L" with "L&L" or "L & L Land Surveying, Inc.")
+        if (termClean && rowClean.includes(termClean)) return true;
+        // 3. Multi-word search
+        if (words.length > 1 && words.every(w => {
+          const wClean = w.replace(/[^a-z0-9]/g, '');
+          return rowText.includes(w) || (wClean && rowClean.includes(wClean));
+        })) {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    if (statusFilter === 'exact') {
+      list = list.filter(r => r.match_type === 'exact' && !r.is_duplicate);
+    } else if (statusFilter === 'suggested') {
+      list = list.filter(r => r.match_type === 'suggested');
+    } else if (statusFilter === 'new') {
+      list = list.filter(r => r.match_type === 'new');
+    } else if (statusFilter === 'duplicate') {
+      list = list.filter(r => r.is_duplicate);
+    } else if (statusFilter === 'selected') {
+      list = list.filter(r => r.selected_for_import);
+    }
+
+    return list;
+  }, [rows, searchFilter, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchFilter, previewData]);
+  }, [searchFilter, statusFilter, previewData]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const paginatedRows = useMemo(() => {
@@ -166,13 +234,24 @@ export default function CallLogImportPreviewModal({
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, page, pageSize]);
 
+  // Single-pass stats aggregation
   const stats = useMemo(() => {
-    const selectedCount = rows.filter(r => r.selected_for_import).length;
-    const exactCount = rows.filter(r => r.match_type === 'exact').length;
-    const suggestedCount = rows.filter(r => r.match_type === 'suggested').length;
-    const newCount = rows.filter(r => r.match_type === 'new').length;
-    const duplicateCount = rows.filter(r => r.is_duplicate).length;
-    const confirmedCount = rows.filter(r => r.is_confirmed).length;
+    let selectedCount = 0;
+    let exactCount = 0;
+    let suggestedCount = 0;
+    let newCount = 0;
+    let duplicateCount = 0;
+    let confirmedCount = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.selected_for_import) selectedCount++;
+      if (r.match_type === 'exact') exactCount++;
+      else if (r.match_type === 'suggested') suggestedCount++;
+      else if (r.match_type === 'new') newCount++;
+      if (r.is_duplicate) duplicateCount++;
+      if (r.is_confirmed) confirmedCount++;
+    }
     return { selectedCount, exactCount, suggestedCount, newCount, duplicateCount, confirmedCount, total: rows.length };
   }, [rows]);
 
@@ -210,6 +289,23 @@ export default function CallLogImportPreviewModal({
     return str.replace(/\D/g, '');
   };
 
+  const normalizeDateForCheck = (dateStr?: string | null): string => {
+    if (!dateStr || dateStr === '-') return '';
+    const clean = dateStr.trim();
+    const isoMatch = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      const [, y, m, d] = isoMatch;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    const slashMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if (slashMatch) {
+      const [, m, d, yRaw] = slashMatch;
+      const y = yRaw.length === 2 ? `20${yRaw}` : yRaw;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return clean;
+  };
+
   const checkDuplicateRow = (
     targetName: string,
     phoneStr?: string,
@@ -220,27 +316,33 @@ export default function CallLogImportPreviewModal({
   ): { isDup: boolean; dupReason: string } => {
     const normTarget = normalizeForDupCheck(targetName);
     const normPhone = normalizePhoneDigits(phoneStr);
+    const normDate = normalizeDateForCheck(dateStr);
 
-    if (!normTarget) return { isDup: false, dupReason: '' };
+    if (!normTarget && !normPhone) return { isDup: false, dupReason: '' };
 
     // 1. Check DB existing logs
     for (const ex of existingLogs) {
       const exComp = normalizeForDupCheck(ex.company_name);
       const exPhone = normalizePhoneDigits(ex.phone_number);
+      const exDate = normalizeDateForCheck(ex.date_of_call);
 
-      // Company name MUST match target company
-      if (exComp === normTarget) {
-        // A. Company match + Date match
-        if (dateStr && ex.date_of_call === dateStr) {
-          let reason = `Call log already exists for '${targetName}' on ${dateStr}`;
-          if (ex.analyst) reason += ` by ${ex.analyst.toUpperCase()}`;
-          return { isDup: true, dupReason: reason };
+      const isCompMatch = (normTarget && exComp === normTarget) || (normPhone && normPhone.length >= 7 && exPhone === normPhone);
+
+      if (isCompMatch) {
+        // If date is present on both: only duplicate if the call date is the exact same day
+        if (normDate && exDate) {
+          if (normDate === exDate) {
+            let reason = `Call log already exists for '${targetName}' on ${dateStr}`;
+            if (ex.analyst) reason += ` by ${ex.analyst.toUpperCase()}`;
+            return { isDup: true, dupReason: reason };
+          }
+          // Different dates: separate call, not duplicate
+          continue;
         }
 
-        // B. Company match + Phone match
-        if (normPhone && normPhone.length >= 7 && exPhone === normPhone) {
+        // If neither has a date (both dates empty) and company and phone match
+        if (!normDate && !exDate && normPhone && normPhone.length >= 7 && exPhone === normPhone) {
           let reason = `Call log already exists for '${targetName}' (phone ${phoneStr || normPhone})`;
-          if (ex.date_of_call) reason += ` on ${ex.date_of_call}`;
           if (ex.analyst) reason += ` by ${ex.analyst.toUpperCase()}`;
           return { isDup: true, dupReason: reason };
         }
@@ -253,16 +355,22 @@ export default function CallLogImportPreviewModal({
 
       const otherComp = normalizeForDupCheck(other.company_name);
       const otherPhone = normalizePhoneDigits(other.phone_number);
+      const otherDate = normalizeDateForCheck(other.date_of_call);
 
-      if (otherComp === normTarget) {
-        if (dateStr && other.date_of_call === dateStr) {
-          return {
-            isDup: true,
-            dupReason: `Duplicate call log in file for '${targetName}' on ${dateStr}`
-          };
+      const isCompMatch = (normTarget && otherComp === normTarget) || (normPhone && normPhone.length >= 7 && otherPhone === normPhone);
+
+      if (isCompMatch) {
+        if (normDate && otherDate) {
+          if (normDate === otherDate) {
+            return {
+              isDup: true,
+              dupReason: `Duplicate call log in file for '${targetName}' on ${dateStr}`
+            };
+          }
+          continue;
         }
 
-        if (normPhone && normPhone.length >= 7 && otherPhone === normPhone) {
+        if (!normDate && !otherDate && normPhone && normPhone.length >= 7 && otherPhone === normPhone) {
           return {
             isDup: true,
             dupReason: `Duplicate call log in file for '${targetName}' (phone ${phoneStr || normPhone})`
@@ -427,40 +535,99 @@ export default function CallLogImportPreviewModal({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Stats Bar */}
+        {/* Stats Bar (Clickable Filters) */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 my-2">
-          <div className="bg-muted/40 border rounded-lg p-3 text-center">
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'all' ? 'all' : 'all')}
+            className={`border rounded-lg p-3 text-center transition-all cursor-pointer ${
+              statusFilter === 'all' ? 'bg-muted border-primary/50 shadow-xs ring-1 ring-primary/30' : 'bg-muted/30 border-border hover:bg-muted/60'
+            }`}
+          >
             <div className="text-xs text-muted-foreground font-medium">Total Rows</div>
             <div className="text-xl font-bold">{stats.total}</div>
-          </div>
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-center">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'exact' ? 'all' : 'exact')}
+            className={`border rounded-lg p-3 text-center transition-all cursor-pointer ${
+              statusFilter === 'exact' ? 'bg-emerald-500/20 border-emerald-500 shadow-xs ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15'
+            }`}
+          >
             <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Exact Matches</div>
             <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{stats.exactCount}</div>
-          </div>
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'suggested' ? 'all' : 'suggested')}
+            className={`border rounded-lg p-3 text-center transition-all cursor-pointer ${
+              statusFilter === 'suggested' ? 'bg-amber-500/20 border-amber-500 shadow-xs ring-1 ring-amber-500/40' : 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/15'
+            }`}
+          >
             <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">Suggested Matches</div>
             <div className="text-xl font-bold text-amber-700 dark:text-amber-300">{stats.suggestedCount}</div>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-center">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'new' ? 'all' : 'new')}
+            className={`border rounded-lg p-3 text-center transition-all cursor-pointer ${
+              statusFilter === 'new' ? 'bg-blue-500/20 border-blue-500 shadow-xs ring-1 ring-blue-500/40' : 'bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/15'
+            }`}
+          >
             <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">New Companies</div>
             <div className="text-xl font-bold text-blue-700 dark:text-blue-300">{stats.newCount}</div>
-          </div>
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3 text-center">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'duplicate' ? 'all' : 'duplicate')}
+            className={`border rounded-lg p-3 text-center transition-all cursor-pointer ${
+              statusFilter === 'duplicate' ? 'bg-rose-500/20 border-rose-500 shadow-xs ring-1 ring-rose-500/40' : 'bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/15'
+            }`}
+          >
             <div className="text-xs text-rose-600 dark:text-rose-400 font-medium">Duplicates</div>
             <div className="text-xl font-bold text-rose-700 dark:text-rose-300">{stats.duplicateCount}</div>
-          </div>
+          </button>
         </div>
 
         {/* Toolbar & Filters */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 my-2">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by company, contact, analyst..."
-              className="pl-9 h-9 text-sm"
-              value={searchFilter}
-              onChange={e => setSearchFilter(e.target.value)}
-            />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={statusFilter === 'duplicate' ? "Search inside duplicates by company, phone, date..." : "Search by company, contact, phone, analyst, duplicates..."}
+                className="pl-9 pr-8 h-9 text-sm"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+              />
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchFilter('');
+                  }}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground text-xs"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {statusFilter !== 'all' && (
+              <Badge
+                variant="secondary"
+                className="h-8 px-2.5 text-xs font-normal gap-1 cursor-pointer hover:bg-secondary/80 flex items-center shrink-0"
+                onClick={() => setStatusFilter('all')}
+                title="Click to clear filter"
+              >
+                <span>Filter: <strong className="capitalize">{statusFilter}</strong></span>
+                <span className="text-muted-foreground font-bold ml-1">✕</span>
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
@@ -533,8 +700,7 @@ export default function CallLogImportPreviewModal({
                 <TableHead className="w-[120px]">Phone</TableHead>
                 <TableHead className="w-[100px]">Date</TableHead>
                 <TableHead className="w-[80px]">KDM</TableHead>
-                <TableHead className="w-[80px]">Emailed?</TableHead>
-                <TableHead className="w-[90px]">Picked Up?</TableHead>
+                                <TableHead className="w-[90px]">Picked Up?</TableHead>
                 <TableHead className="w-[140px]">Outcome</TableHead>
                 <TableHead className="w-[90px]">Length</TableHead>
                 <TableHead className="w-[140px]">Analyst</TableHead>
@@ -672,11 +838,54 @@ export default function CallLogImportPreviewModal({
                     {row.contact_name || '-'}
                     {row.position && <span className="text-[10px] text-muted-foreground block truncate">{row.position}</span>}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{row.phone_number || '-'}</TableCell>
+                  <TableCell className="text-xs min-w-[155px]">
+                    {row.detected_phones && row.detected_phones.length > 1 ? (
+                      <div className="space-y-1">
+                        <div className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-medium truncate flex items-center gap-1" title={`File value: ${row.raw_phone_number}`}>
+                          <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{row.raw_phone_number}</span>
+                        </div>
+                        <Select
+                          value={row.phone_number || row.detected_phones[0]}
+                          onValueChange={(val) => {
+                            setRows(prev => prev.map(r => r.row_index === row.row_index ? { ...r, phone_number: val } : r));
+                          }}
+                        >
+                          <SelectTrigger className="h-6 text-[11px] bg-background font-mono px-2 py-0">
+                            <SelectValue placeholder="Select phone..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-48">
+                            {row.detected_phones.map(p => (
+                              <SelectItem key={p} value={p} className="text-xs font-mono">
+                                {p}
+                              </SelectItem>
+                            ))}
+                            {row.raw_phone_number && (
+                              <SelectItem value={row.raw_phone_number} className="text-xs text-muted-foreground">
+                                Keep full raw: {row.raw_phone_number}
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : row.raw_phone_number && formatPhoneNumber(row.raw_phone_number) !== row.raw_phone_number ? (
+                      <div className="space-y-0.5">
+                        <div className="text-[10px] text-muted-foreground font-mono truncate" title={`Original from file: ${row.raw_phone_number}`}>
+                          {row.raw_phone_number}
+                        </div>
+                        <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1" title="Cleaned value to be saved">
+                          <span className="text-[9px] opacity-70">↳</span> {formatPhoneNumber(row.phone_number || row.raw_phone_number)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {formatPhoneNumber(row.phone_number || row.raw_phone_number) || '-'}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{row.date_of_call || '-'}</TableCell>
                   <TableCell className="text-xs font-medium">{formatYesNo(row.kdm || row.raw_kdm) || '-'}</TableCell>
-                  <TableCell className="text-xs font-medium">{formatYesNo(row.emailed) || '-'}</TableCell>
-                  <TableCell className="text-xs font-medium">{formatYesNo(row.picked_up) || '-'}</TableCell>
+                                    <TableCell className="text-xs font-medium">{formatYesNo(row.picked_up) || '-'}</TableCell>
                   <TableCell className="text-xs">{row.outcome || '-'}</TableCell>
                   <TableCell className="text-xs font-mono">{row.call_length || '-'}</TableCell>
                   <TableCell className="min-w-[140px]">

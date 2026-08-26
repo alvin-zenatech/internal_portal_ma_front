@@ -28,7 +28,7 @@ import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallTrackingSummary, useCallLogs, useTableColumnOrder, useUpdateTableColumnOrder, type CallTrackingSummary, type CallLog, useUsers, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useInfiniteCallTrackingSummary, useTableColumnOrder, useUpdateTableColumnOrder, type CallTrackingSummary, useAnalysts, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,7 +52,7 @@ import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react
 
 import CallTrackingDetails from './CallTrackingDetails';
 import CallLogImportPreviewModal from './CallLogImportPreviewModal';
-import { formatYesNo } from "@/lib/utils";
+import { formatYesNo, formatPhoneNumber } from "@/lib/utils";
 
 const formatDate = (dateStr?: string | null) => {
   if (!dateStr || dateStr === '-') return '';
@@ -278,9 +278,25 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
 }
 
 export default function CallTracking() {
-  const { data: summaries, isLoading, refetch } = useCallTrackingSummary();
-  const { data: allCallLogs } = useCallLogs();
-  const { data: users, isLoading: isUsersLoading } = useUsers();
+  const [globalFilter, setGlobalFilter] = useState("");
+  const deferredGlobalFilter = useDeferredValue(globalFilter);
+
+  const {
+    data: infiniteData,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useInfiniteCallTrackingSummary(deferredGlobalFilter);
+
+  const summaries = React.useMemo(() => {
+    if (!infiniteData?.pages) return [];
+    return infiniteData.pages.flatMap((p) => p.items || []);
+  }, [infiniteData]);
+
+  const totalCount = infiniteData?.pages?.[0]?.total ?? summaries.length;
+  const { data: users } = useAnalysts();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -355,142 +371,46 @@ export default function CallTracking() {
 
     if (!users) return { name: val, avatar: valInitials };
 
-    let user = users.find(u => u.full_name.toUpperCase() === upperVal);
+    let user = users.find(u => (u.full_name || '').toUpperCase() === upperVal);
 
     if (!user) {
-      user = users.find(u => getInitials(u.full_name) === upperVal);
+      user = users.find(u => u.full_name ? getInitials(u.full_name) === upperVal : false);
     }
 
-    if (user) {
+    if (user && user.full_name) {
       return { name: user.full_name, avatar: getInitials(user.full_name) };
     }
 
     return { name: val, avatar: valInitials };
   }, [users]);
 
-  const [visibleCount, setVisibleCount] = React.useState(50);
-
-  const companyLogsMap = React.useMemo(() => {
-    const map = new Map<string, CallLog[]>();
-    if (!allCallLogs || !Array.isArray(allCallLogs)) return map;
-
-    for (const log of allCallLogs) {
-      const norm = (log.company_name || '')
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]/g, '');
-      if (!norm) continue;
-
-      const existing = map.get(norm);
-      if (existing) {
-        existing.push(log);
-      } else {
-        map.set(norm, [log]);
-      }
-    }
-    return map;
-  }, [allCallLogs]);
-
-  const getMatchingCallLog = React.useCallback((row: CallTrackingSummary): CallLog | null => {
-    const rowCompNorm = (row.normalized_company_name || row.company_name || '')
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]/g, '');
-
-    const compLogs = companyLogsMap.get(rowCompNorm);
-    if (!compLogs || compLogs.length === 0) return null;
-    if (compLogs.length === 1) return compLogs[0];
-
-    const rowPhoneNorm = (row.phone_number || '').replace(/\D/g, '');
-    const rowContactNorm = (row.contact_name || '').toLowerCase().trim();
-    const rowAnalyst = (row.latest_analyst || '').toLowerCase().trim();
-    const rowStatus = (row.current_status || row.outcome || '').toLowerCase().trim();
-    const rowCallLength = (row.call_length || '').trim();
-
-    let bestLog: CallLog = compLogs[0];
-    let bestScore = -1;
-
-    for (const log of compLogs) {
-      let score = 0;
-      const logPhoneNorm = (log.phone_number || '').replace(/\D/g, '');
-      const logContactNorm = (log.contact_name || '').toLowerCase().trim();
-      const logAnalyst = (log.analyst || '').toLowerCase().trim();
-      const logOutcome = (log.outcome || '').toLowerCase().trim();
-      const logCallLength = (log.call_length || '').trim();
-
-      if (rowPhoneNorm && logPhoneNorm && rowPhoneNorm === logPhoneNorm) score += 4;
-      if (rowCallLength && logCallLength && rowCallLength === logCallLength) score += 4;
-      if (rowContactNorm && logContactNorm && rowContactNorm === logContactNorm) score += 3;
-      if (rowStatus && logOutcome && (rowStatus === logOutcome || logOutcome.includes(rowStatus) || rowStatus.includes(logOutcome))) score += 3;
-      if (rowAnalyst && logAnalyst && (rowAnalyst === logAnalyst || logAnalyst.includes(rowAnalyst) || rowAnalyst.includes(logAnalyst))) score += 2;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestLog = log;
-      } else if (score === bestScore) {
-        const dateA = formatDate(log.date_of_call) || log.created_at || '';
-        const dateB = formatDate(bestLog.date_of_call) || bestLog.created_at || '';
-        if (dateA > dateB || (dateA === dateB && (log.id || 0) > (bestLog.id || 0))) {
-          bestLog = log;
-        }
-      }
-    }
-
-    return bestLog;
-  }, [companyLogsMap]);
-
   const getCallCount = React.useCallback((row: CallTrackingSummary) => {
-    if (row.call_count !== undefined && row.call_count !== null && row.call_count > 0) {
-      return row.call_count;
-    }
-    const rowCompNorm = (row.normalized_company_name || row.company_name || '')
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]/g, '');
-    const compLogs = companyLogsMap.get(rowCompNorm);
-    if (compLogs && compLogs.length > 0) {
-      return compLogs.length;
-    }
-    return 1;
-  }, [companyLogsMap]);
+    return row.call_count ?? 1;
+  }, []);
 
   const getLatestCallDate = React.useCallback((row: CallTrackingSummary) => {
-    // 1. Direct field on row if available from backend
     const direct =
       row.date_of_call ||
       (row as any).call_date ||
       (row as any).latest_call_date ||
       (row as any).last_call_date ||
       (row as any).date ||
-      (row as any).latest_date ||
-      (row as any).date_called ||
-      (row as any).activity_date ||
       (row as any).created_at;
 
     if (direct) {
       const formatted = formatDate(direct);
       if (formatted) return formatted;
     }
-
-    const log = getMatchingCallLog(row);
-    if (!log) return '-';
-
-    const res = formatDate(log.date_of_call) || formatDate(log.created_at);
-    return res || '-';
-  }, [getMatchingCallLog]);
+    return "-";
+  }, []);
 
   const getCallNotes = React.useCallback((row: CallTrackingSummary) => {
-    if (row.notes) return row.notes;
-    const log = getMatchingCallLog(row);
-    return log?.notes || '-';
-  }, [getMatchingCallLog]);
+    return row.notes || "-";
+  }, []);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "date_of_call", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
-
-  const [globalFilter, setGlobalFilter] = useState("");
-  const deferredGlobalFilter = useDeferredValue(globalFilter);
 
   const columns = React.useMemo<ColumnDef<CallTrackingSummary>[]>(
     () => [
@@ -552,6 +472,7 @@ export default function CallTracking() {
       {
         accessorKey: 'phone_number',
         header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />,
+        cell: ({ row }) => <span>{formatPhoneNumber(row.original.phone_number) || '-'}</span>,
         size: 160
       },
 
@@ -578,21 +499,14 @@ export default function CallTracking() {
 
       {
         accessorKey: 'kdm',
-        accessorFn: (row) => {
-          const direct = row.kdm;
-          if (direct !== undefined && direct !== null && direct !== '') return formatYesNo(direct);
-          const log = getMatchingCallLog(row);
-          return log?.kdm !== undefined && log?.kdm !== null && log?.kdm !== '' ? formatYesNo(log.kdm) : '-';
-        },
+        accessorFn: (row) => formatYesNo(row.kdm),
         header: ({ column }) => <ColumnHeader column={column} title="KDM" />,
         size: 80,
         minSize: 65,
         maxSize: 95,
         cell: ({ row }) => {
-          const direct = row.original.kdm;
-          if (direct !== undefined && direct !== null && direct !== '') return <span>{formatYesNo(direct)}</span>;
-          const log = getMatchingCallLog(row.original);
-          return <span>{log?.kdm !== undefined && log?.kdm !== null && log?.kdm !== '' ? formatYesNo(log.kdm) : '-'}</span>;
+          const val = formatYesNo(row.original.kdm);
+          return <span>{val || '-'}</span>;
         }
       },
       {
@@ -711,13 +625,9 @@ export default function CallTracking() {
           return val === "-" ? "" : val;
         }},
         contact_name: { header: "Contact Name", accessor: (r) => r.contact_name || "" },
-        phone_number: { header: "Phone Number", accessor: (r) => r.phone_number || "" },
+        phone_number: { header: "Phone Number", accessor: (r) => formatPhoneNumber(r.phone_number) || "" },
         date_of_call: { header: "Date of Call", accessor: (r) => getLatestCallDate(r) },
-        kdm: { header: "KDM", accessor: (r) => {
-          if (r.kdm !== undefined && r.kdm !== null && r.kdm !== '') return formatYesNo(r.kdm);
-          const log = getMatchingCallLog(r);
-          return log?.kdm !== undefined && log?.kdm !== null && log?.kdm !== '' ? formatYesNo(log.kdm) : '-';
-        }},
+        kdm: { header: "KDM", accessor: (r) => formatYesNo(r.kdm) },
         picked_up: { header: "Picked Up", accessor: (r) => formatYesNo(r.picked_up) },
         current_status: { header: "Outcome", accessor: (r) => r.current_status || r.outcome || "" },
         latest_analyst: { header: "Analyst", accessor: (r) => getAnalystDetails(r.latest_analyst).name },
@@ -854,22 +764,16 @@ export default function CallTracking() {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
 
-  React.useEffect(() => {
-    setVisibleCount(50);
-  }, [deferredGlobalFilter, columnFilters, sorting]);
-
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight + 200) {
-      if (visibleCount < allRows.length) {
-        setVisibleCount(prev => Math.min(prev + 50, allRows.length));
+    if (scrollHeight - scrollTop <= clientHeight + 350) {
+      if (hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
       }
     }
   };
 
-  const visibleRows = allRows.slice(0, visibleCount);
-
-  if (isLoading || isUsersLoading) {
+  if (isLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
@@ -1014,8 +918,8 @@ export default function CallTracking() {
                   ))}
                 </TableHeader>
                 <TableBody>
-                  {visibleRows.length ? (
-                    visibleRows.map(row => {
+                  {allRows.length ? (
+                    allRows.map(row => {
                       return (
                         <TableRow
                           key={row.id}
@@ -1037,10 +941,10 @@ export default function CallTracking() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {visibleRows.length < allRows.length && (
+                  {isFetchingNextPage && (
                     <TableRow>
                       <TableCell colSpan={columns.length} className="py-4 text-center text-muted-foreground">
-                        Loading more...
+                        <span className="text-xs text-primary font-medium animate-pulse">Loading more calls...</span>
                       </TableCell>
                     </TableRow>
                   )}
@@ -1048,7 +952,7 @@ export default function CallTracking() {
               </Table>
             </div>
             <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium">
-              Total rows: {table.getFilteredRowModel().rows.length}
+              Showing {allRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies
             </div>
           </div>
         </div>

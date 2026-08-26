@@ -234,9 +234,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                                   {log.kdm && (
                                     <div className="flex flex-col"><span className="text-muted-foreground">KDM</span><span className="font-medium">{formatYesNo(log.kdm)}</span></div>
                                   )}
-                                  {log.emailed && (
-                                    <div className="flex flex-col"><span className="text-muted-foreground">Emailed</span><span className="font-medium">{formatYesNo(log.emailed)}</span></div>
-                                  )}
+                                  
                                   {log.picked_up && (
                                     <div className="flex flex-col"><span className="text-muted-foreground">Picked Up</span><span className="font-medium">{formatYesNo(log.picked_up)}</span></div>
                                   )}
