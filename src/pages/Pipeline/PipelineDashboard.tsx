@@ -380,7 +380,7 @@ export default function PipelineDashboard() {
 
       {/* Table Container - Switch to full screen without duplicate instances */}
       {isFullScreen ? (
-        <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[500] bg-background flex flex-col animate-in fade-in duration-200">
           {/* Full Screen Header */}
           <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3 shadow-sm">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -394,7 +394,7 @@ export default function PipelineDashboard() {
                     <User className="h-4 w-4 text-muted-foreground mr-1.5" />
                     <SelectValue placeholder="All Analysts" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[1000]">
                     <SelectItem value="all">All Analysts</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {(analystOptions ?? []).map(u => (
@@ -410,7 +410,7 @@ export default function PipelineDashboard() {
                     <User className="h-4 w-4 text-blue-500 mr-1.5" />
                     <SelectValue placeholder="All Execution Analysts" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[1000]">
                     <SelectItem value="all">All Execution Analysts</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {executionAnalystOptions.map(ea => (
