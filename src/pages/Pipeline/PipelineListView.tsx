@@ -471,7 +471,7 @@ const PipelineListView = React.memo(function PipelineListView({
         return revA - revB;
       }
     },
-    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 95, minSize: 80, maxSize: 110 },
+    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 130, minSize: 110, maxSize: 150 },
     {
       accessorKey: "follow_up_date" as const,
       header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up Date" />,
@@ -485,8 +485,20 @@ const PipelineListView = React.memo(function PipelineListView({
         return a.localeCompare(b);
       },
     },
-    { accessorKey: "nda", header: ({ column }) => <ColumnHeader column={column} title="NDA" />, size: 90, minSize: 80, maxSize: 105 },
-    { accessorKey: "p_and_l", header: ({ column }) => <ColumnHeader column={column} title="P&L" />, size: 90, minSize: 80, maxSize: 105 }
+    { 
+      accessorKey: "nda", 
+      header: ({ column }) => <ColumnHeader column={column} title="NDA" />, 
+      size: 130, 
+      minSize: 110, 
+      maxSize: 160 
+    },
+    { 
+      accessorKey: "p_and_l", 
+      header: ({ column }) => <ColumnHeader column={column} title="P&L" />, 
+      size: 110, 
+      minSize: 95, 
+      maxSize: 140 
+    }
   ], [onEdit, analystNameMap, priorityOrderMap]);
 
   const table = useReactTable({

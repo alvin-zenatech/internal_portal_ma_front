@@ -493,9 +493,9 @@ export default function CallTracking() {
         accessorKey: 'kdm',
         accessorFn: (row) => formatYesNo(row.kdm),
         header: ({ column }) => <ColumnHeader column={column} title="KDM" />,
-        size: 80,
-        minSize: 65,
-        maxSize: 95,
+        size: 130,
+        minSize: 110,
+        maxSize: 150,
         cell: ({ row }) => {
           const val = formatYesNo(row.original.kdm);
           return <span>{val || '-'}</span>;

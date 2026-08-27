@@ -380,7 +380,7 @@ export default function PipelineDashboard() {
 
       {/* Table Container - Switch to full screen without duplicate instances */}
       {isFullScreen ? (
-        <div className="fixed inset-0 z-[500] bg-background flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[2000] bg-background flex flex-col animate-in fade-in duration-200">
           {/* Full Screen Header */}
           <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3 shadow-sm">
             <div className="flex items-center gap-2.5 flex-wrap">
