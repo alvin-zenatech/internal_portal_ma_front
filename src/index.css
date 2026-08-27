@@ -46,6 +46,16 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Custom Responsive Breakpoints */
+    --breakpoint-xs: 350px;
+    --breakpoint-small: 350px;
+    --breakpoint-phone: 375px;
+    --breakpoint-large: 480px;
+    --breakpoint-tablet: 768px;
+    --breakpoint-laptop: 992px;
+    --breakpoint-desktop: 1200px;
+    --breakpoint-wide: 1400px;
 }
 
 :root {
@@ -192,6 +202,25 @@
     display: none;
   }
 
+  /* Sleek modern enterprise scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: color-mix(in oklch, var(--foreground) 5%, transparent);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 25%, transparent);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 45%, transparent);
+  }
+
   @keyframes pop-in {
     0% {
       opacity: 0;
@@ -207,3 +236,4 @@
     animation: pop-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 }
+

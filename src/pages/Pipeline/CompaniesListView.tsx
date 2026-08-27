@@ -234,50 +234,50 @@ export default function CompaniesListView() {
   const visibleRows = allRows.slice(0, displayCount);
 
   return (
-    <div className="h-full flex flex-col w-full min-h-0">
-      <div className="px-8 py-6 bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+    <div className="h-full flex flex-col w-full min-h-0 bg-background">
+      <div className="px-3 sm:px-5 py-3 sm:py-4 bg-card border-b shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" /> Companies
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" /> Companies
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Manage unique companies and their contact information.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCompanies} className="whitespace-nowrap gap-1.5">
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Export CSV
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleExportCompanies} className="whitespace-nowrap gap-1.5 h-8.5 sm:h-9 text-xs">
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Export CSV
           </Button>
-          <Button onClick={() => handleOpenModal()} className="whitespace-nowrap">
-            <Plus className="mr-2 h-4 w-4" /> Add Company
+          <Button size="sm" onClick={() => handleOpenModal()} className="whitespace-nowrap h-8.5 sm:h-9 text-xs">
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Company
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-muted/20">
-        <div className="h-full flex flex-col p-6 space-y-4">
-          <div className="flex items-center justify-between">
+      <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col p-2.5 sm:p-4 md:p-5 space-y-3 min-h-0 overflow-hidden">
+          <div className="flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 flex-1">
               <Input 
                 placeholder="Search companies..." 
                 value={globalFilter} 
                 onChange={(e) => setGlobalFilter(e.target.value)} 
-                className="w-64 max-w-sm" 
+                className="w-48 sm:w-64 max-w-sm h-8.5 sm:h-9 text-xs sm:text-sm" 
               />
             </div>
           </div>
 
-          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
+          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden min-h-[260px]">
             {isLoading ? (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading companies...</div>
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs sm:text-sm">Loading companies...</div>
             ) : (
               <div className="flex-1 overflow-auto relative" ref={parentRef}>
-                <Table containerClassName="overflow-visible h-auto" className="w-full">
-                  <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
+                <Table containerClassName="none" className="w-full min-w-[750px]">
+                  <TableHeader className="sticky top-0 z-10 shadow-xs bg-muted/90 backdrop-blur">
                     {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
+                      <TableRow key={headerGroup.id} className="bg-muted/90 hover:bg-muted/90">
                         {headerGroup.headers.map((header) => (
-                          <TableHead key={header.id} className="bg-muted/50 whitespace-nowrap">
+                          <TableHead key={header.id} className="bg-muted/90 whitespace-nowrap py-2 text-xs font-semibold">
                             {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                           </TableHead>
                         ))}
@@ -291,7 +291,7 @@ export default function CompaniesListView() {
                         return (
                           <TableRow key={row.id} ref={isLast ? lastElementRef : null} className="hover:bg-muted/50 transition-colors">
                             {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id} className="py-3">
+                              <TableCell key={cell.id} className="py-2 sm:py-2.5 px-3 text-xs sm:text-sm">
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                               </TableCell>
                             ))}
@@ -300,14 +300,14 @@ export default function CompaniesListView() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                        <TableCell colSpan={columns.length} className="h-24 text-center text-xs sm:text-sm text-muted-foreground">
                           No companies found.
                         </TableCell>
                       </TableRow>
                     )}
                     {visibleRows.length < allRows.length && (
                       <TableRow>
-                        <TableCell colSpan={columns.length} className="h-16 text-center text-muted-foreground">
+                        <TableCell colSpan={columns.length} className="h-12 text-center text-muted-foreground text-xs">
                           Loading more...
                         </TableCell>
                       </TableRow>
@@ -316,62 +316,65 @@ export default function CompaniesListView() {
                 </Table>
               </div>
             )}
-          </div>
-          
-          <div className="text-xs text-muted-foreground pt-1 flex justify-between items-center">
-            <span>Total rows: {allRows.length}</span>
+            <div className="bg-muted/20 border-t px-3 sm:px-4 py-1.5 sm:py-2 text-xs text-muted-foreground font-medium shrink-0">
+              Total rows: {allRows.length}
+            </div>
           </div>
         </div>
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="max-w-md">
+        <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="w-[92vw] max-w-md p-4 sm:p-6 bg-card">
           <DialogHeader>
-            <DialogTitle>{editingCompany ? "Edit Company" : "Add Company"}</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">{editingCompany ? "Edit Company" : "Add Company"}</DialogTitle>
             <DialogDescription className="sr-only">Company details form</DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Company Name <span className="text-red-500">*</span></label>
+          <div className="py-3 sm:py-4 space-y-3 sm:space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs sm:text-sm font-medium">Company Name <span className="text-red-500">*</span></label>
               <Input
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="e.g. Lescure Surveying"
                 autoFocus
+                className="h-8.5 sm:h-9 text-xs sm:text-sm"
               />
             </div>
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Contact Name</label>
+            <div className="space-y-1.5">
+              <label className="text-xs sm:text-sm font-medium">Contact Name</label>
               <Input 
                 value={contactName} 
                 onChange={e => setContactName(e.target.value)} 
                 placeholder="Primary contact name" 
+                className="h-8.5 sm:h-9 text-xs sm:text-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 min-w-0">
-                <label className="text-sm font-medium">Email</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1.5 min-w-0">
+                <label className="text-xs sm:text-sm font-medium">Email</label>
                 <Input 
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
                   placeholder="contact@company.com" 
+                  className="h-8.5 sm:h-9 text-xs sm:text-sm"
                 />
               </div>
-              <div className="space-y-2 min-w-0">
-                <label className="text-sm font-medium">Phone</label>
+              <div className="space-y-1.5 min-w-0">
+                <label className="text-xs sm:text-sm font-medium">Phone</label>
                 <Input 
                   value={phone} 
                   onChange={e => setPhone(e.target.value)} 
                   placeholder="Phone number" 
+                  className="h-8.5 sm:h-9 text-xs sm:text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2 min-w-0">
-                <label className="text-sm font-medium">State/Province</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid gap-1.5 min-w-0">
+                <label className="text-xs sm:text-sm font-medium">State/Province</label>
                 <AutocompleteCombobox
                   value={stateCode}
                   onChange={(v) => setStateCode(v?.toString() || "")}
@@ -381,8 +384,8 @@ export default function CompaniesListView() {
                 />
               </div>
 
-              <div className="grid gap-2 min-w-0">
-                <label className="text-sm font-medium">Country</label>
+              <div className="grid gap-1.5 min-w-0">
+                <label className="text-xs sm:text-sm font-medium">Country</label>
                 <AutocompleteCombobox
                   value={countryCode}
                   onChange={(v) => {
@@ -395,9 +398,9 @@ export default function CompaniesListView() {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={creating || updating}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!companyName.trim() || creating || updating}>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(false)} disabled={creating || updating}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={!companyName.trim() || creating || updating}>
               {(creating || updating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {(creating || updating) ? "Saving..." : "Save"}
             </Button>

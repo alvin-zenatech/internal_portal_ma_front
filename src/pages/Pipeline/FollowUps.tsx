@@ -297,39 +297,40 @@ export default function FollowUps() {
   const overdueRest = buckets.pastDue.length - overdueNames.length;
 
   return (
-    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
+    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0 bg-background">
       {/* Header */}
-      <div className="px-8 py-6 border-b bg-card shrink-0 flex items-start justify-between gap-4">
+      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b bg-card shrink-0 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Follow-ups</h1>
-          <p className="text-muted-foreground mt-1">Search and filter your follow-ups.</p>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Follow-ups</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Search and filter your follow-ups.</p>
         </div>
         <Button
           variant="outline"
-          className="gap-2 shrink-0"
+          size="sm"
+          className="gap-1.5 shrink-0 h-8.5 sm:h-9 text-xs"
           disabled={isBackfilling}
           onClick={runScanNotes}
         >
-          {isBackfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarSearch className="h-4 w-4" />}
+          {isBackfilling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarSearch className="h-3.5 w-3.5" />}
           Scan notes
         </Button>
       </div>
 
-      <div className="flex-1 overflow-auto p-8 space-y-6 bg-muted/20">
+      <div className="flex-1 overflow-auto p-2.5 sm:p-4 md:p-5 space-y-4 bg-muted/20 min-h-0">
         {/* Search */}
-        <div className="flex flex-wrap items-center gap-3 border-b pb-6">
-          <div className="relative max-w-md flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 border-b pb-4">
+          <div className="relative max-w-md flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              className="pl-10"
+              className="pl-9 h-8.5 sm:h-9 text-xs sm:text-sm"
               placeholder="Search company, contact, or analyst..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <Select value={analystId} onValueChange={setAnalystId}>
-            <SelectTrigger className="w-[220px]">
-              <User className="h-4 w-4 text-muted-foreground" />
+            <SelectTrigger className="w-[180px] sm:w-[220px] h-8.5 sm:h-9 text-xs sm:text-sm">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
               <SelectValue placeholder="All analysts" />
             </SelectTrigger>
             <SelectContent>
@@ -345,15 +346,15 @@ export default function FollowUps() {
             variant="outline"
             size="sm"
             onClick={handleExportFollowUps}
-            className="h-10 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+            className="h-8.5 sm:h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
           >
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export CSV</span>
           </Button>
 
           {hasFilters && (
-            <Button variant="ghost" size="sm" className="gap-1" onClick={clearFilters}>
-              <X className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="gap-1 h-8.5 text-xs" onClick={clearFilters}>
+              <X className="h-3.5 w-3.5" />
               Clear filters
             </Button>
           )}
@@ -361,19 +362,19 @@ export default function FollowUps() {
 
         {/* Past due banner */}
         {buckets.pastDue.length > 0 && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 sm:p-4 dark:border-red-900 dark:bg-red-950/30">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
               <div className="min-w-0">
-                <p className="font-medium text-red-700 dark:text-red-300">
+                <p className="font-semibold text-xs sm:text-sm text-red-700 dark:text-red-300">
                   {buckets.pastDue.length} follow-up{buckets.pastDue.length === 1 ? " is" : "s are"} past due
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {overdueNames.map((task, i) => (
                     <span key={task.id}>
                       {i > 0 && ", "}
                       <button
-                        className="underline-offset-2 hover:underline text-foreground/80"
+                        className="underline-offset-2 hover:underline text-foreground/80 font-medium"
                         onClick={() => openTask(task)}
                       >
                         {task.company_name}
@@ -389,14 +390,14 @@ export default function FollowUps() {
         )}
 
         {/* Status cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3">
           {statusCards.map(({ key, count, caption, icon: Icon }) => (
             <div
               key={key}
               role="button"
               tabIndex={0}
               aria-pressed={status === key}
-              className={`cursor-pointer rounded-lg border bg-card p-5 transition hover:shadow-md ${
+              className={`cursor-pointer rounded-lg border bg-card p-3 sm:p-4 transition hover:shadow-xs ${
                 status === key ? STATUS_RING[key] : ""
               }`}
               onClick={() => setStatus(prev => (prev === key ? null : key))}
@@ -407,12 +408,12 @@ export default function FollowUps() {
                 }
               }}
             >
-              <div className={`flex items-center gap-2 ${STATUS_ACCENT[key]}`}>
-                <Icon className="h-4 w-4" />
-                <span className="text-xs font-medium uppercase tracking-wider">{STATUS_LABEL[key]}</span>
+              <div className={`flex items-center gap-1.5 ${STATUS_ACCENT[key]}`}>
+                <Icon className="h-3.5 w-3.5" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider">{STATUS_LABEL[key]}</span>
               </div>
-              <p className="mt-2 text-4xl font-semibold tabular-nums">{isLoading ? "–" : count}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
+              <p className="mt-1 text-2xl sm:text-3xl font-bold tabular-nums text-foreground">{isLoading ? "–" : count}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{caption}</p>
             </div>
           ))}
         </div>

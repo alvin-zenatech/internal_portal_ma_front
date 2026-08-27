@@ -29,8 +29,8 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getPriorityColors } from "./KanbanCard";
-import { useExecutionAnalystOptions } from "@/components/Pipeline/ExecutionAnalystSelect";
+import { getPriorityColors } from "@/lib/utils";
+import { useExecutionAnalystOptions } from "@/hooks/useExecutionAnalyst";
 
 const getInitials = (name: string) => {
   if (!name) return "";
@@ -150,19 +150,27 @@ function ColumnHeader({ column, title, customOptions }: { column: any, title: st
   const isLocationColumn = title === "Country / Province" || title === "State / Country" || column.id === "location";
 
   return (
-    <div className={cn("inline-flex items-center gap-1 group whitespace-nowrap px-1", isLocationColumn ? "justify-center w-full text-center" : "justify-start text-left")}>
+    <div
+      className={cn(
+        "flex items-center gap-0.5 group whitespace-nowrap w-full min-w-0 px-1",
+        isLocationColumn ? "justify-center text-center" : "justify-start text-left"
+      )}
+    >
       <Button
         variant="ghost"
         size="sm"
-        className={cn("h-8 flex data-[state=open]:bg-accent px-1.5", isLocationColumn ? "justify-center" : "justify-start")}
+        className={cn(
+          "-ml-1 h-7 min-w-0 flex-1 px-1.5 text-xs font-medium overflow-hidden",
+          isLocationColumn ? "justify-center" : "justify-start"
+        )}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        <span>{title}</span>
-        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50 group-hover:opacity-100" />
+        <span className="truncate">{title}</span>
+        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50 group-hover:opacity-100 shrink-0" />
       </Button>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-6 shrink-0">
+          <Button variant="ghost" size="icon" className="h-7 w-5 shrink-0">
             <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
@@ -308,7 +316,7 @@ const PipelineListView = React.memo(function PipelineListView({
 
   const { options: executionAnalystOptions } = useExecutionAnalystOptions();
   const analystNameMap = React.useMemo(() => {
-    return new Map(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
+    return new Map<string, string>(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
   }, [executionAnalystOptions]);
 
   const { data: priorities } = usePriorities();
@@ -410,11 +418,11 @@ const PipelineListView = React.memo(function PipelineListView({
         const initials = getInitials(row.original.analyst_name || '');
         return (
           <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
+            <Avatar className="h-5 w-5">
               <AvatarImage src="" />
-              <AvatarFallback className="text-[10px] bg-primary/10">{initials}</AvatarFallback>
+              <AvatarFallback className="text-[9px] bg-primary/10">{initials}</AvatarFallback>
             </Avatar>
-            <span className="truncate">{row.original.analyst_name}</span>
+            <span className="truncate text-xs">{row.original.analyst_name}</span>
           </div>
         );
       },
@@ -573,23 +581,23 @@ const PipelineListView = React.memo(function PipelineListView({
   const visibleRows = allRows.slice(0, visibleCount);
 
   return (
-    <div className="h-full flex flex-col space-y-4">
+    <div className="h-full flex flex-col space-y-2.5 sm:space-y-3 p-2.5 sm:p-4 md:p-5 min-h-0 overflow-hidden">
       {(!hideSearchBar || (columnFilters.length > 0)) && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1">
+        <div className="flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
             {!hideSearchBar && (
               <Input 
                 placeholder="Search everything..." 
                 value={actualGlobalFilter} 
                 onChange={(event) => setActualGlobalFilter(event.target.value)} 
-                className="w-64 max-w-sm" 
+                className="w-48 sm:w-64 max-w-sm h-8.5 sm:h-9 text-xs sm:text-sm" 
               />
             )}
 
             {columnFilters.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {columnFilters.map((filter) => (
-                  <Badge key={filter.id} variant="secondary" className="h-6 font-normal capitalize">
+                  <Badge key={filter.id} variant="secondary" className="h-6 text-[11px] font-normal capitalize">
                     {filter.id.replace(/_/g, " ")}: {filter.value as string}
                   </Badge>
                 ))}
@@ -599,24 +607,41 @@ const PipelineListView = React.memo(function PipelineListView({
                   onClick={() => {
                     setColumnFilters([]);
                   }}
-                  className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                 >
                   Reset
-                  <X className="ml-2 h-4 w-4" />
+                  <X className="ml-1.5 h-3.5 w-3.5" />
                 </Button>
               </div>
             )}
           </div>
         </div>
       )}
-      <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
-        <div className="flex-1 overflow-auto relative" id="pipeline-list-scroll" ref={parentRef} onScroll={handleScroll}>
-        <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1750px]">
-          <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
+      <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden h-full min-h-0">
+        <div
+          className="flex-1 min-h-0 overflow-auto relative"
+          id="pipeline-list-scroll"
+          ref={parentRef}
+          onScroll={handleScroll}
+        >
+        <Table
+          containerClassName="overflow-visible"
+          className="table-fixed w-full min-w-[1500px] text-xs"
+          style={{ tableLayout: "fixed" }}
+        >
+          <TableHeader className="sticky top-0 z-10 shadow-xs bg-muted/90 backdrop-blur">
             {table.getHeaderGroups().map(hg => (
-              <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
+              <TableRow key={hg.id} className="bg-muted/90 hover:bg-muted/90">
                 {hg.headers.map(h => (
-                  <TableHead key={h.id} className="bg-muted/50 px-3 py-2" style={{ width: h.column.getSize() }}>
+                  <TableHead
+                    key={h.id}
+                    className="bg-muted/90 h-8 py-1 px-2.5 sm:px-3 text-xs font-semibold whitespace-nowrap select-none overflow-hidden"
+                    style={{
+                      width: h.column.getSize(),
+                      minWidth: h.column.getSize(),
+                      maxWidth: h.column.getSize(),
+                    }}
+                  >
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
@@ -638,7 +663,18 @@ const PipelineListView = React.memo(function PipelineListView({
                     onClick={() => onTaskClick(row.original)}
                   >
                     {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id} className={cn("truncate px-3 py-2.5", cell.column.id === "location" ? "text-center" : "text-left")} style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "py-1.5 px-2.5 sm:px-3 text-xs whitespace-nowrap overflow-hidden text-ellipsis",
+                          cell.column.id === "location" ? "text-center" : "text-left"
+                        )}
+                        style={{
+                          width: cell.column.getSize(),
+                          minWidth: cell.column.getSize(),
+                          maxWidth: cell.column.getSize(),
+                        }}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -647,14 +683,14 @@ const PipelineListView = React.memo(function PipelineListView({
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell colSpan={columns.length} className="h-24 text-center text-xs sm:text-sm text-muted-foreground">
                   No tasks found.
                 </TableCell>
               </TableRow>
             )}
             {visibleCount < allRows.length && (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-16 text-center text-muted-foreground text-sm">
+                <TableCell colSpan={columns.length} className="h-12 text-center text-muted-foreground text-xs">
                   Scroll to load more...
                 </TableCell>
               </TableRow>
@@ -662,7 +698,7 @@ const PipelineListView = React.memo(function PipelineListView({
           </TableBody>
         </Table>
         </div>
-        <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium">
+        <div className="bg-muted/20 border-t px-3 sm:px-4 py-1.5 sm:py-2 text-xs text-muted-foreground font-medium shrink-0">
           Total rows: {allRows.length}
         </div>
       </div>

@@ -58,7 +58,7 @@ export default function Breadcrumbs() {
   }
 
   return (
-    <nav className="flex items-center text-sm text-muted-foreground mb-6 overflow-x-auto whitespace-nowrap pt-1 pb-2 scrollbar-none min-h-[36px]">
+    <nav className="flex items-center text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 overflow-x-auto whitespace-nowrap py-1 scrollbar-none min-h-[30px] shrink-0">
       <Link 
         to="/" 
         className="flex items-center hover:text-foreground transition-colors"

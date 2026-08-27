@@ -125,17 +125,17 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-4xl w-[90vw] max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b bg-white z-10">
-          <DialogTitle>{task ? "Edit Task" : "Create New Task"}</DialogTitle>
-          <DialogDescription>Fill out the task details below.</DialogDescription>
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()} className="w-[94vw] sm:max-w-3xl md:max-w-4xl max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden bg-card">
+        <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-card z-10 shrink-0">
+          <DialogTitle className="text-base sm:text-lg font-bold">{task ? "Edit Task" : "Create New Task"}</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">Fill out the task details below.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 min-w-0">
-                <Label>Company Name *</Label>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 md:p-6 space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Company Name *</Label>
                 <AutocompleteInput
                   value={formData.company_name || ""}
                   onChange={(val) => setFormData((prev: any) => ({ ...prev, company_name: val }))}
@@ -170,19 +170,20 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                   }}
                   options={companyOptions}
                   placeholder="e.g. Acme Corp"
+                  className="h-8.5 sm:h-9 text-xs sm:text-sm"
                 />
               </div>
-              <div className="space-y-2 min-w-0">
-                <Label>Contact Name *</Label>
-                <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Contact Name *</Label>
+                <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="h-8.5 sm:h-9 text-xs sm:text-sm" />
               </div>
               
-              <div className="space-y-2 min-w-0">
-                <Label>Email *</Label>
-                <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Email *</Label>
+                <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="h-8.5 sm:h-9 text-xs sm:text-sm" />
               </div>
-              <div className="space-y-2 min-w-0">
-                <Label>Phone *</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Phone *</Label>
                 <div className="flex gap-2">
                   <Input 
                     required 
@@ -191,7 +192,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       const type = formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
                       setFormData({...formData, phone: `${e.target.value} (${type})`})
                     }}
-                    className="flex-1"
+                    className="flex-1 h-8.5 sm:h-9 text-xs sm:text-sm"
                   />
                   <Select 
                     value={formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
@@ -200,7 +201,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       setFormData({...formData, phone: num ? `${num} (${val})` : ` (${val})`})
                     }}
                   >
-                    <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-[100px] sm:w-[120px] h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Personal">Personal</SelectItem>
                       <SelectItem value="Office">Office</SelectItem>
@@ -209,18 +210,18 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 </div>
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Priority *</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Priority *</Label>
                 <Select required value={formData.priority_id} onValueChange={v => setFormData({...formData, priority_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
+                  <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select priority" /></SelectTrigger>
                   <SelectContent>
                     {priorities?.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Industry *</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Industry *</Label>
                 <AutocompleteCombobox
                   value={parseInt(formData.industry_id) || ""}
                   onChange={v => setFormData({...formData, industry_id: v?.toString() || ""})}
@@ -233,10 +234,10 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 />
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Assigned Analyst *</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Assigned Analyst *</Label>
                 <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select analyst" /></SelectTrigger>
+                  <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select analyst" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {analysts?.map(a => <SelectItem key={a.id} value={a.id}>{a.full_name || a.email}</SelectItem>)}
@@ -244,8 +245,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 </Select>
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Execution Analysts</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Execution Analysts</Label>
                 <ExecutionAnalystSelect
                   value={formData.execution_analyst}
                   onChange={(val) => setFormData({ ...formData, execution_analyst: val })}
@@ -253,8 +254,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 />
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Province *</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Province *</Label>
                 <AutocompleteCombobox
                   value={formData.state_code || ""}
                   onChange={v => setFormData({...formData, state_code: v?.toString() || ""})}
@@ -264,8 +265,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 />
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Country *</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Country *</Label>
                 <AutocompleteCombobox
                   value={formData.country_code || ""}
                   onChange={v => setFormData({...formData, country_code: v?.toString() || "", state_code: ""})}
@@ -274,18 +275,18 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 />
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <Label>Follow-up Date</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Follow-up Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal h-8.5 sm:h-9 text-xs sm:text-sm",
                         !formData.follow_up_date && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                       {formData.follow_up_date ? (
                         format(parse(formData.follow_up_date, "yyyy-MM-dd", new Date()), "PPP")
                       ) : (
@@ -293,7 +294,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       )}
                       {formData.follow_up_date && (
                         <X
-                          className="ml-auto h-4 w-4 opacity-50 hover:opacity-100"
+                          className="ml-auto h-3.5 w-3.5 opacity-50 hover:opacity-100"
                           onClick={(e) => {
                             e.stopPropagation();
                             setFormData({ ...formData, follow_up_date: "" });
@@ -318,11 +319,11 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 min-w-0">
-                <Label>NDA Status</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">NDA Status</Label>
                 <Select value={formData.nda || "none"} onValueChange={v => setFormData({...formData, nda: v === "none" ? "" : v})}>
-                  <SelectTrigger><SelectValue placeholder="Select NDA status" /></SelectTrigger>
+                  <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select NDA status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     <SelectItem value="Signed">Signed</SelectItem>
@@ -330,10 +331,10 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 min-w-0">
-                <Label>P&L Status</Label>
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">P&L Status</Label>
                 <Select value={formData.p_and_l || "none"} onValueChange={v => setFormData({...formData, p_and_l: v === "none" ? "" : v})}>
-                  <SelectTrigger><SelectValue placeholder="Select P&L status" /></SelectTrigger>
+                  <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select P&L status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     <SelectItem value="Received">Received</SelectItem>
@@ -341,8 +342,8 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5 min-w-0">
-                <Label>Revenue</Label>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs sm:text-sm">Revenue</Label>
                 <Input 
                   placeholder="e.g. 3500-4000" 
                   value={formData.revenue} 
@@ -355,26 +356,27 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                       revenue: formatted
                     });
                   }} 
+                  className="h-8.5 sm:h-9 text-xs sm:text-sm"
                 />
-                <p className="text-[11px] text-muted-foreground">Use <strong>-</strong> for a range (e.g. 3500-4000)</p>
+                <p className="text-[10px] text-muted-foreground">Use <strong>-</strong> for a range (e.g. 3500-4000)</p>
               </div>
-              <div className="space-y-2 min-w-0">
-                <Label>Team Size</Label>
-                <Input placeholder="Team Size" value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} />
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs sm:text-sm">Team Size</Label>
+                <Input placeholder="Team Size" value={formData.team_size} onChange={e => setFormData({...formData, team_size: e.target.value})} className="h-8.5 sm:h-9 text-xs sm:text-sm" />
               </div>
             </div>
 
             {!task && (
-              <div className="space-y-2">
-                <Label>Initial Notes *</Label>
-                <Input required placeholder="Initial notes for the task..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Initial Notes *</Label>
+                <Input required placeholder="Initial notes for the task..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="h-8.5 sm:h-9 text-xs sm:text-sm" />
               </div>
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-gray-50/50">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
+          <DialogFooter className="px-4 sm:px-6 py-3 border-t bg-muted/30 shrink-0">
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {task ? "Save Changes" : "Create Task"}
             </Button>

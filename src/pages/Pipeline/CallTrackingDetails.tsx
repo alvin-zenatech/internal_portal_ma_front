@@ -259,40 +259,41 @@ export default function CallTrackingDetails({
 
   return (
     <Sheet open={true} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:!max-w-3xl md:!max-w-4xl lg:!max-w-5xl overflow-y-auto !p-0 bg-slate-50">
-        <SheetHeader className="border-b px-6 py-4 shrink-0 bg-white sticky top-0 z-10 shadow-sm">
-          <SheetTitle>{normalizedName ? `Call Tracking: ${companyName}` : 'Add New Call Tracking'}</SheetTitle>
-          <SheetDescription>
+      <SheetContent className="w-full sm:!max-w-2xl md:!max-w-3xl lg:!max-w-4xl overflow-y-auto !p-0 bg-background">
+        <SheetHeader className="border-b px-4 sm:px-6 py-3 sm:py-4 shrink-0 bg-card sticky top-0 z-10 shadow-xs">
+          <SheetTitle className="text-base sm:text-lg">{normalizedName ? `Call Tracking: ${companyName}` : 'Add New Call Tracking'}</SheetTitle>
+          <SheetDescription className="text-xs sm:text-sm">
             View and manage activity logs for this company.
           </SheetDescription>
         </SheetHeader>
 
         {isLoading ? (
-          <div>Loading logs...</div>
+          <div className="p-6 text-sm text-muted-foreground">Loading logs...</div>
         ) : (
-          <div className="space-y-6 p-6 pb-24">
+          <div className="space-y-4 p-3 sm:p-5 pb-20">
             {!editingId && (
-              <div className="flex justify-between items-center mb-4">
-                {logs && <div className="text-sm text-slate-500 font-medium">Total Call Logs: {logs.length}</div>}
-                <Button onClick={() => handleEdit()}>+ Add New Log</Button>
+              <div className="flex justify-between items-center mb-2">
+                {logs && <div className="text-xs sm:text-sm text-muted-foreground font-medium">Total Call Logs: {logs.length}</div>}
+                <Button size="sm" onClick={() => handleEdit()}>+ Add New Log</Button>
               </div>
             )}
 
             {editingId && (
-              <div className="bg-slate-50 flex flex-col h-full rounded-lg border">
-                <div className="sticky top-0 bg-slate-50 z-10 p-4 border-b rounded-t-lg shadow-sm">
-                  <h3 className="font-medium">{editingId === 'NEW' ? 'Create Log' : 'Edit Log'}</h3>
+              <div className="bg-card flex flex-col h-full rounded-lg border">
+                <div className="sticky top-0 bg-card z-10 p-3 sm:p-4 border-b rounded-t-lg shadow-xs">
+                  <h3 className="font-semibold text-sm sm:text-base">{editingId === 'NEW' ? 'Create Log' : 'Edit Log'}</h3>
                 </div>
                 
-                <div className="p-4 overflow-y-auto space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 sm:p-4 overflow-y-auto space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                     {/* Row 1: Company Name, Industry */}
                   <div className="space-y-1 text-left w-full">
-                    <label>Company Name *</label>
+                    <label className="font-medium text-xs sm:text-sm">Company Name *</label>
                     {normalizedName !== null ? (
                       <Input 
                         value={formData.company_name || ''} 
                         disabled={true}
+                        className="h-8.5 sm:h-9 text-xs sm:text-sm"
                       />
                     ) : (
                       <AutocompleteInput
@@ -301,13 +302,14 @@ export default function CallTrackingDetails({
                         onSelectOption={(opt) => handleCompanySelect(opt.name)}
                         options={companyOptions}
                         placeholder="Type company name..."
+                        className="h-8.5 sm:h-9 text-xs sm:text-sm"
                       />
                     )}
                   </div>
                   <div className="space-y-1 text-left w-full">
-                    <label>Industry</label>
+                    <label className="font-medium text-xs sm:text-sm">Industry</label>
                     <Select value={currentIndustry} onValueChange={val => setFormData({...formData, industry: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select industry..." /></SelectTrigger>
+                      <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select industry..." /></SelectTrigger>
                       <SelectContent>
                         {industriesData?.map(ind => <SelectItem key={ind.id} value={ind.name}>{ind.name}</SelectItem>)}
                         {currentIndustry && !industriesData?.find(i => i.name === currentIndustry) && (
@@ -319,10 +321,11 @@ export default function CallTrackingDetails({
 
                   {/* Row 2: Contact Name */}
                   <div className="space-y-1 text-left w-full">
-                    <label>Contact Name</label>
+                    <label className="font-medium text-xs sm:text-sm">Contact Name</label>
                     <Input 
                       value={formData.contact_name || ''} 
                       onChange={e => setFormData({...formData, contact_name: e.target.value})}
+                      className="h-8.5 sm:h-9 text-xs sm:text-sm"
                     />
                   </div>
                   <div className="hidden">
@@ -331,13 +334,13 @@ export default function CallTrackingDetails({
 
                   {/* Row 3: Date of Call, Outcome */}
                   <div className="space-y-1 text-left w-full">
-                    <label>Date of Call</label>
-                    <Input type="date" value={formatDate(formData.date_of_call)} onChange={e => setFormData({...formData, date_of_call: e.target.value})} />
+                    <label className="font-medium text-xs sm:text-sm">Date of Call</label>
+                    <Input type="date" className="h-8.5 sm:h-9 text-xs sm:text-sm" value={formatDate(formData.date_of_call)} onChange={e => setFormData({...formData, date_of_call: e.target.value})} />
                   </div>
                   <div className="space-y-1 text-left w-full">
-                    <label>Outcome / Status</label>
+                    <label className="font-medium text-xs sm:text-sm">Outcome / Status</label>
                     <Select value={currentOutcome} onValueChange={val => setFormData({...formData, outcome: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select outcome..." /></SelectTrigger>
+                      <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select outcome..." /></SelectTrigger>
                       <SelectContent>
                         {existingOutcomes.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                         {currentOutcome && !existingOutcomes.includes(currentOutcome) && (
@@ -349,7 +352,7 @@ export default function CallTrackingDetails({
                   
                   {/* Row 4: Phone Number, Call Length */}
                   <div className="space-y-1 text-left w-full">
-                    <label>Phone Number</label>
+                    <label className="font-medium text-xs sm:text-sm">Phone Number</label>
                     <div className="flex gap-2">
                       <Input 
                         value={formData.phone_number?.replace(/ \((Personal|Office)\)$/, '') || ''} 
@@ -358,7 +361,7 @@ export default function CallTrackingDetails({
                           setFormData({...formData, phone_number: e.target.value ? `${e.target.value} (${type})` : ''})
                         }}
                         placeholder="e.g. 555-123-4567"
-                        className="flex-1"
+                        className="flex-1 h-8.5 sm:h-9 text-xs sm:text-sm"
                       />
                       <Select 
                         value={formData.phone_number?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
@@ -367,7 +370,7 @@ export default function CallTrackingDetails({
                           setFormData({...formData, phone_number: num ? `${num} (${val})` : ` (${val})`})
                         }}
                       >
-                        <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-[100px] sm:w-[120px] h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Personal">Personal</SelectItem>
                           <SelectItem value="Office">Office</SelectItem>
@@ -376,20 +379,21 @@ export default function CallTrackingDetails({
                     </div>
                   </div>
                   <div className="space-y-1 text-left w-full">
-                    <label>Call Length</label>
+                    <label className="font-medium text-xs sm:text-sm">Call Length</label>
                     <Input 
                       value={formData.call_length || ''} 
                       onChange={handleCallLengthChange}
                       placeholder="hh:mm:ss"
+                      className="h-8.5 sm:h-9 text-xs sm:text-sm font-mono"
                     />
                   </div>
 
                   {/* Row 5: Picked Up, KDM */}
                   
                   <div className="space-y-1 text-left w-full">
-                    <label>Picked Up?</label>
+                    <label className="font-medium text-xs sm:text-sm">Picked Up?</label>
                     <Select value={formatYesNo(formData.picked_up)} onValueChange={val => setFormData({...formData, picked_up: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Yes">Yes</SelectItem>
                         <SelectItem value="No">No</SelectItem>
@@ -397,9 +401,9 @@ export default function CallTrackingDetails({
                     </Select>
                   </div>
                   <div className="space-y-1 text-left w-full">
-                    <label>KDM?</label>
+                    <label className="font-medium text-xs sm:text-sm">KDM?</label>
                     <Select value={formatYesNo(formData.kdm)} onValueChange={val => setFormData({...formData, kdm: val})}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Yes">Yes</SelectItem>
                         <SelectItem value="No">No</SelectItem>
@@ -409,9 +413,9 @@ export default function CallTrackingDetails({
                   </div>
 
                   <div className="space-y-1 text-left w-full">
-                    <label>Analyst</label>
+                    <label className="font-medium text-xs sm:text-sm">Analyst</label>
                   <Select value={currentAnalyst || undefined} onValueChange={val => setFormData({...formData, analyst: val})}>
-                    <SelectTrigger><SelectValue placeholder="Select analyst..." /></SelectTrigger>
+                    <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select analyst..." /></SelectTrigger>
                     <SelectContent>
                       {analysts?.map(u => (
                         <SelectItem key={u.id} value={u.full_name || ''}>{u.full_name}</SelectItem>
@@ -424,18 +428,19 @@ export default function CallTrackingDetails({
                   </div>
 
                   <div className="space-y-1 text-left w-full">
-                    <label>Notes</label>
+                    <label className="font-medium text-xs sm:text-sm">Notes</label>
                     <Textarea 
                       value={formData.notes || ''} 
                       onChange={e => setFormData({...formData, notes: e.target.value})}
-                      rows={4}
+                      rows={3}
+                      className="text-xs sm:text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="sticky bottom-0 bg-slate-50 z-10 p-6 border-t flex justify-end gap-2 rounded-b-lg shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] shrink-0">
-                  <Button variant="outline" onClick={handleCancel} disabled={isPending}>Cancel</Button>
-                  <Button onClick={handleSave} disabled={isPending}>
+                <div className="sticky bottom-0 bg-card z-10 p-3 sm:p-4 border-t flex justify-end gap-2 rounded-b-lg shadow-xs shrink-0">
+                  <Button variant="outline" size="sm" onClick={handleCancel} disabled={isPending}>Cancel</Button>
+                  <Button size="sm" onClick={handleSave} disabled={isPending}>
                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isPending ? "Saving..." : "Save"}
                   </Button>
@@ -444,33 +449,33 @@ export default function CallTrackingDetails({
             )}
 
             {!editingId && logs?.map(log => (
-              <div key={log.id} className="bg-white border p-4 rounded-lg shadow-sm space-y-2">
+              <div key={log.id} className="bg-card border p-3 sm:p-4 rounded-lg shadow-xs space-y-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-sm text-slate-500 font-medium">{formatDate(log.date_of_call) || 'No Date'}{log.call_length ? ` • ${log.call_length}` : ''}</span>
-                    <h4 className="font-semibold">{log.outcome || 'No Outcome specified'}</h4>
+                    <span className="text-xs text-muted-foreground font-medium">{formatDate(log.date_of_call) || 'No Date'}{log.call_length ? ` • ${log.call_length}` : ''}</span>
+                    <h4 className="font-semibold text-sm sm:text-base text-foreground">{log.outcome || 'No Outcome specified'}</h4>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(log)}>Edit</Button>
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setDeletingId(log.id)}>Delete</Button>
+                  <div className="flex gap-1.5">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleEdit(log)}>Edit</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => setDeletingId(log.id)}>Delete</Button>
                   </div>
                 </div>
                 
-                <div className="text-sm text-slate-700 whitespace-pre-wrap mt-2">
+                <div className="text-xs sm:text-sm text-foreground/90 whitespace-pre-wrap mt-1">
                   {log.notes}
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500 bg-slate-50 p-2 rounded">
-                  <div>Contact: {log.contact_name}</div>
-                  <div>Phone: {formatPhoneNumber(log.phone_number) || '-'}</div>
-                  <div>KDM: {formatYesNo(log.kdm)} | Picked up: {formatYesNo(log.picked_up)}</div>
-                  <div>Analyst: {getAnalystName(log.analyst)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-3 text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-md">
+                  <div>Contact: <span className="text-foreground font-medium">{log.contact_name || '-'}</span></div>
+                  <div>Phone: <span className="text-foreground font-medium">{formatPhoneNumber(log.phone_number) || '-'}</span></div>
+                  <div>KDM: <span className="text-foreground font-medium">{formatYesNo(log.kdm)}</span> | Picked up: <span className="text-foreground font-medium">{formatYesNo(log.picked_up)}</span></div>
+                  <div>Analyst: <span className="text-foreground font-medium">{getAnalystName(log.analyst)}</span></div>
                 </div>
               </div>
             ))}
             
             {logs?.length === 0 && !editingId && (
-              <div className="text-center text-slate-500 p-8 border border-dashed rounded-lg">
+              <div className="text-center text-muted-foreground p-8 border border-dashed rounded-lg text-xs sm:text-sm">
                 No activity logs yet.
               </div>
             )}

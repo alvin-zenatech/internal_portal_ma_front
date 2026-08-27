@@ -106,47 +106,47 @@ export default function RoleGroupPermissions() {
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6 w-full">
+    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 sm:gap-6 animate-in fade-in duration-500 p-3 sm:p-5 md:p-6 w-full bg-background">
       
       {/* Left Panel: Roles List */}
-      <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4 lg:border-r border-slate-200 dark:border-zinc-800 lg:pr-6 pb-6 lg:pb-0 border-b lg:border-b-0 min-h-0">
+      <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-3 lg:border-r border-slate-200 dark:border-zinc-800 lg:pr-4 pb-4 lg:pb-0 border-b lg:border-b-0 min-h-0">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Roles</h2>
-          <p className="text-sm text-slate-500 dark:text-zinc-400">Select a role to configure permissions.</p>
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Roles</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Select a role to configure permissions.</p>
         </div>
         
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500 dark:text-zinc-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input 
             placeholder="Search roles..." 
-            className="pl-9 h-10 bg-white dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 focus-visible:ring-blue-500/30 rounded-xl"
+            className="pl-8 bg-card border-border h-8.5 sm:h-9 text-xs sm:text-sm"
             value={roleSearchQuery}
             onChange={(e) => setRoleSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[300px]">
+        <div className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[300px] lg:max-h-none">
           {isLoadingRoles ? (
-             <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+             <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : filteredRoles.length === 0 ? (
-            <div className="text-center p-4 text-slate-500 text-sm">No roles found.</div>
+            <div className="text-center p-4 text-muted-foreground text-xs">No roles found.</div>
           ) : (
             filteredRoles.map(role => (
               <button
                 key={role.id}
                 onClick={() => handleRoleSelect(role.id)}
-                className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
+                className={`w-full text-left p-2.5 rounded-lg border transition-all flex flex-col gap-0.5 ${
                   roleId === role.id 
-                    ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700 ring-1 ring-blue-500/20'
-                    : 'bg-white border-slate-200 hover:border-blue-300 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:border-zinc-700'
+                    ? 'bg-blue-50 border-blue-500/50 dark:bg-blue-950/40 dark:border-blue-500/50 shadow-xs' 
+                    : 'border-transparent hover:bg-muted/50 text-foreground'
                 }`}
               >
-                <div className="font-semibold text-slate-900 dark:text-zinc-100 truncate text-sm">
+                <div className="font-semibold text-xs sm:text-sm truncate">
                   {role.name}
                 </div>
-                <div className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">{role.code}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{role.code}</div>
                 {role.is_system_role && (
-                  <Badge variant="secondary" className="mt-2 text-[9px] h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 uppercase font-bold tracking-wider">
+                  <Badge variant="secondary" className="mt-1 text-[9px] h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 uppercase font-bold tracking-wider">
                     System Role
                   </Badge>
                 )}
@@ -158,19 +158,19 @@ export default function RoleGroupPermissions() {
 
       {/* Right Panel: Permissions Configuration */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-              Simplified Permissions <ShieldCheck className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              Simplified Permissions <ShieldCheck className="h-4.5 w-4.5 text-blue-500" />
             </h2>
-            <p className="text-sm text-slate-500 dark:text-zinc-400">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               {selectedRole ? `Manage access groups for ${selectedRole.name}` : "Select a role from the list to begin."}
             </p>
           </div>
           {roleId && hasPermission("CONFIG_ROLES_UPDATE") && (
             <div className="flex-shrink-0">
-              <Button onClick={handleSave} disabled={updateMutation.isPending || isLoadingAssigned} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]">
-                {updateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending || isLoadingAssigned} className="h-8.5 sm:h-9 text-xs min-w-[110px]">
+                {updateMutation.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
                 Save Changes
               </Button>
             </div>

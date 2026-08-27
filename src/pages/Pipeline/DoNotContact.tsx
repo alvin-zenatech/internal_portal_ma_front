@@ -88,86 +88,87 @@ export default function DoNotContact() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6 w-full h-full flex flex-col">
-      <div className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-red-600 dark:text-red-500 flex items-center gap-2">
-            <AlertTriangle className="h-8 w-8" />
-            Do Not Contact List
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Companies that have been explicitly marked as 'Do Not Contact'. These companies will be highlighted in the Pipeline Dashboard.
-          </p>
-        </div>
+    <div className="h-full flex flex-col w-full min-h-0 bg-background">
+      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b bg-card shrink-0">
+        <h2 className="text-lg sm:text-xl font-bold tracking-tight text-red-600 dark:text-red-500 flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5" />
+          Do Not Contact List
+        </h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+          Companies explicitly marked as 'Do Not Contact'. These companies are flagged across the pipeline.
+        </p>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="relative w-[300px]">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search company..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportDnc} className="gap-1.5">
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Export CSV
-          </Button>
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" /> Add Record
-              </Button>
-            </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Do Not Contact Record</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Company Name</Label>
-                <AutocompleteCombobox
-                  value={newCompanyName}
-                  onChange={(v) => setNewCompanyName(v as string)}
-                  options={companyOptions}
-                  onCreate={async (name) => name}
-                  placeholder="e.g. Acme Corp"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Reason (Optional)</Label>
-                <Input 
-                  value={newReason} 
-                  onChange={(e) => setNewReason(e.target.value)} 
-                  placeholder="e.g. Requested removal"
-                />
-              </div>
+      <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col p-2.5 sm:p-4 md:p-5 space-y-3 min-h-0 overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shrink-0">
+            <div className="relative w-full sm:w-64 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search company..."
+                className="pl-8 h-8.5 sm:h-9 text-xs sm:text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={!newCompanyName.trim() || createDnc.isPending}>
-                {createDnc.isPending ? "Saving..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        </div>
-      </div>
 
-      <div className="rounded-md border bg-card flex-1 shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-auto flex-1">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[300px]">Company Name</TableHead>
-                <TableHead>Reason / Notes</TableHead>
-                <TableHead className="w-[200px]">Date Added</TableHead>
-                <TableHead className="w-[100px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+            <div className="flex items-center gap-2 flex-wrap ml-auto sm:ml-0">
+              <Button variant="outline" size="sm" onClick={handleExportDnc} className="gap-1.5 h-8.5 sm:h-9 text-xs">
+                <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Export CSV
+              </Button>
+              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1.5 h-8.5 sm:h-9 text-xs">
+                    <Plus className="h-3.5 w-3.5" /> Add Record
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[92vw] max-w-md p-4 sm:p-6 bg-card">
+                  <DialogHeader>
+                    <DialogTitle className="text-base sm:text-lg">Add Do Not Contact Record</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 py-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs sm:text-sm">Company Name</Label>
+                      <AutocompleteCombobox
+                        value={newCompanyName}
+                        onChange={(v) => setNewCompanyName(v as string)}
+                        options={companyOptions}
+                        onCreate={async (name) => name}
+                        placeholder="e.g. Acme Corp"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs sm:text-sm">Reason (Optional)</Label>
+                      <Input 
+                        value={newReason} 
+                        onChange={(e) => setNewReason(e.target.value)} 
+                        placeholder="e.g. Requested removal"
+                        className="h-8.5 sm:h-9 text-xs sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2 pt-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                    <Button size="sm" onClick={handleCreate} disabled={!newCompanyName.trim() || createDnc.isPending}>
+                      {createDnc.isPending ? "Saving..." : "Save"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-card flex-1 shadow-xs overflow-hidden flex flex-col min-h-[260px]">
+            <div className="overflow-auto flex-1">
+              <Table containerClassName="none">
+                <TableHeader className="sticky top-0 z-10 bg-muted/90 backdrop-blur">
+                  <TableRow>
+                    <TableHead className="w-[260px] py-2 text-xs font-semibold">Company Name</TableHead>
+                    <TableHead className="py-2 text-xs font-semibold">Reason / Notes</TableHead>
+                    <TableHead className="w-[180px] py-2 text-xs font-semibold">Date Added</TableHead>
+                    <TableHead className="w-[90px] text-right py-2 text-xs font-semibold">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
@@ -224,6 +225,8 @@ export default function DoNotContact() {
             </TableBody>
           </Table>
         </div>
+      </div>
+      </div>
       </div>
 
       <Dialog open={!!editRecord} onOpenChange={(open) => !open && setEditRecord(null)}>

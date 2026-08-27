@@ -4,11 +4,14 @@ import { useUpdateTask, useAnalysts, type PipelineTask } from "@/hooks/usePipeli
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Building2, User, Edit, Trash2, UserPlus, CalendarClock } from "lucide-react";
-import { 
+import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
   ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent,
   ContextMenuRadioGroup, ContextMenuRadioItem, ContextMenuSeparator
 } from "@/components/ui/context-menu";
+
+import { memo, useCallback, useMemo } from "react";
+import { getPriorityColors } from "@/lib/utils";
 
 const getInitials = (name: string) => {
   if (!name) return "";
@@ -16,30 +19,8 @@ const getInitials = (name: string) => {
   return parts.map(p => p.charAt(0)).join('').toUpperCase();
 };
 
-export const getPriorityColors = (taskOrName: Partial<PipelineTask> | string) => {
-
-  const color = typeof taskOrName === 'string' ? null : taskOrName?.priority_color;
-
-  if (color && color.startsWith('#')) {
-    return {
-      borderStyle: { borderLeftColor: color },
-      borderTopStyle: { borderTopColor: color },
-      badgeStyle: { backgroundColor: `${color}20`, color: color },
-    };
-  }
-
-  // fallback to slate if no color
-  return {
-    borderStyle: { borderLeftColor: '#94a3b8' },
-    borderTopStyle: { borderTopColor: '#94a3b8' },
-    badgeStyle: { backgroundColor: '#f1f5f9', color: '#475569' }
-  };
-};
-
-import { memo, useCallback, useMemo } from "react";
-
-const PureKanbanCard = memo(({ 
-  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isDragging, analysts, handleAnalystChange, colors, isCompact 
+const PureKanbanCard = memo(({
+  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isDragging, analysts, handleAnalystChange, colors, isCompact
 }: any) => {
   const followUpDate = task.follow_up_date ? new Date(task.follow_up_date + "T00:00:00") : null;
   let followUpTone = "text-muted-foreground";
@@ -53,7 +34,7 @@ const PureKanbanCard = memo(({
 
 
   const cardContent = (
-    <Card 
+    <Card
       onClick={() => {
         if (!isDragging && !isUpdating) {
           onClick();
@@ -64,14 +45,14 @@ const PureKanbanCard = memo(({
         ${isDragging ? "shadow-lg scale-105 z-50" : ""}
         ${isUpdating ? "opacity-50 pointer-events-none cursor-not-allowed" : ""}`}
     >
-      <div 
-        className="absolute left-0 top-0 bottom-0 w-1.5" 
-        style={{ backgroundColor: colors.borderStyle.borderLeftColor }} 
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5"
+        style={{ backgroundColor: colors.borderStyle.borderLeftColor }}
       />
       <div className="flex flex-col gap-2 h-full">
         <div className="flex flex-col items-start mb-1">
           <h4 className={`font-semibold text-foreground break-words leading-tight pr-2 ${isCompact ? "text-xs line-clamp-2" : "text-sm line-clamp-2"}`}>
-            {task.company_name} 
+            {task.company_name}
           </h4>
           {(!isCompact && (task.location || task.country_name)) ? (
             <span className="text-xs text-muted-foreground font-normal mt-1 truncate w-full">
@@ -79,7 +60,7 @@ const PureKanbanCard = memo(({
             </span>
           ) : null}
         </div>
-        
+
         <div className="space-y-1.5 mt-auto">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <User className="h-3 w-3 shrink-0" />
@@ -100,7 +81,7 @@ const PureKanbanCard = memo(({
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50 shrink-0">
           <div className="flex items-center gap-2">
             {task.analyst_name ? (
@@ -117,7 +98,7 @@ const PureKanbanCard = memo(({
             {task.analyst_name && <span className="text-xs text-muted-foreground font-medium">{task.analyst_name}</span>}
           </div>
           {(task.outcome_name || task.priority_name) && (
-            <span 
+            <span
               className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
               style={colors.badgeStyle}
             >
@@ -140,14 +121,14 @@ const PureKanbanCard = memo(({
         <ContextMenuItem onClick={() => onEdit(task)} className="gap-2">
           <Edit className="h-4 w-4" /> Edit Task
         </ContextMenuItem>
-        
+
         <ContextMenuSub>
           <ContextMenuSubTrigger className="gap-2">
             <UserPlus className="h-4 w-4" /> Modify Analyst
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="w-48 max-h-64 overflow-y-auto">
-            <ContextMenuRadioGroup 
-              value={task.analyst_id || "unassigned"} 
+            <ContextMenuRadioGroup
+              value={task.analyst_id || "unassigned"}
               onValueChange={handleAnalystChange}
             >
               <ContextMenuRadioItem value="unassigned">Unassigned</ContextMenuRadioItem>
@@ -170,12 +151,12 @@ const PureKanbanCard = memo(({
   );
 });
 
-export default function KanbanCard({ 
-  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isCompact 
-}: { 
+export default function KanbanCard({
+  task, onClick, onEdit, onDelete, isOverlay, isUpdating, isCompact
+}: {
   task: PipelineTask, onClick: () => void, onEdit: (task: PipelineTask) => void, onDelete: (id: number) => void, isOverlay?: boolean, isUpdating?: boolean, isCompact?: boolean
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "Task", task },
     disabled: isOverlay || isUpdating
@@ -198,7 +179,7 @@ export default function KanbanCard({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <PureKanbanCard 
+      <PureKanbanCard
         task={task} onClick={onClick} onEdit={onEdit} onDelete={onDelete} isOverlay={isOverlay} isUpdating={isUpdating}
         isDragging={isDragging} analysts={analysts} handleAnalystChange={handleAnalystChange} colors={colors} isCompact={isCompact}
       />

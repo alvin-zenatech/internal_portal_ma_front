@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, CheckCheck, Building2, FileText, Loader2, LogOut, User, Mail, BellRing, Settings2 } from "lucide-react";
+import { Search, Bell, CheckCheck, Building2, FileText, Loader2, LogOut, User, Mail, BellRing, Settings2, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -48,11 +48,11 @@ function TopBarClock() {
   });
 
   return (
-    <div className="hidden lg:flex flex-col items-end justify-center mr-2">
-      <span className="text-sm font-bold text-foreground leading-tight tracking-tight">
+    <div className="hidden laptop:flex flex-col items-end justify-center mr-1">
+      <span className="text-xs font-bold text-foreground leading-tight tracking-tight">
         {formattedTime}
       </span>
-      <span className="text-[11px] font-semibold text-muted-foreground mt-0.5">
+      <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">
         {formattedDate}
       </span>
     </div>
@@ -60,7 +60,7 @@ function TopBarClock() {
 }
 
 
-export default function TopBar() {
+export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [inputValue, setInputValue] = useState("");
   const [debouncedValue, setDebouncedValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -155,13 +155,25 @@ export default function TopBar() {
   };
 
   return (
-    <header className="h-20 border-b border-border bg-card text-card-foreground flex items-center justify-between px-4 sm:px-6 md:px-8 shrink-0 transition-all duration-300 gap-4">
-      <div className="flex-1 flex items-center min-w-0">
-        <div ref={containerRef} className="relative w-full max-w-md z-20">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <header className="h-10 tablet:h-11 border-b border-border bg-card text-card-foreground flex items-center justify-between px-2 phone:px-3 tablet:px-4 shrink-0 transition-all duration-300 gap-1.5 phone:gap-2 tablet:gap-3">
+      <div className="flex-1 flex items-center min-w-0 gap-1.5">
+        {onToggleSidebar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleSidebar}
+            className="laptop:hidden h-7.5 w-7.5 text-muted-foreground hover:text-foreground shrink-0"
+            title="Toggle Menu"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        )}
+
+        <div ref={containerRef} className="relative w-full max-w-[140px] phone:max-w-[170px] large:max-w-[220px] tablet:max-w-[260px] laptop:max-w-[280px] desktop:max-w-[320px] wide:max-w-[360px] z-20">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input 
-            placeholder="Search for anything here..." 
-            className="w-full pl-11 bg-muted border-none rounded-full h-11 text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
+            placeholder="Search..." 
+            className="w-full pl-8 bg-muted border-none rounded-full h-7 tablet:h-7.5 text-xs shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
@@ -173,35 +185,35 @@ export default function TopBar() {
           />
           
           {isOpen && debouncedValue.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border shadow-lg rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border shadow-lg rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               {isLoading || isFetching ? (
-                <div className="p-6 flex items-center justify-center text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  <span className="text-sm">Searching...</span>
+                <div className="p-4 flex items-center justify-center text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-xs">Searching...</span>
                 </div>
               ) : results.length > 0 ? (
-                <div className="max-h-[400px] overflow-y-auto py-2">
+                <div className="max-h-[360px] overflow-y-auto py-1">
                   {results.map((result: any, idx: number) => {
                     return (
                       <div 
                         key={`${result.url}-${idx}`}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
                         onClick={() => handleResultClick(result.url)}
                       >
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-sm text-muted-foreground">
+                        <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-xs text-muted-foreground">
                           {getIcon(result.type)}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-semibold text-foreground truncate">{result.title}</span>
-                          {result.subtitle && <span className="text-xs text-muted-foreground truncate">{result.subtitle}</span>}
+                          <span className="text-xs font-semibold text-foreground truncate">{result.title}</span>
+                          {result.subtitle && <span className="text-[11px] text-muted-foreground truncate">{result.subtitle}</span>}
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="p-8 flex flex-col items-center justify-center text-center">
-                  <span className="text-sm text-muted-foreground">
+                <div className="p-6 flex flex-col items-center justify-center text-center">
+                  <span className="text-xs text-muted-foreground">
                     No results found for "{debouncedValue}"
                   </span>
                 </div>
@@ -211,55 +223,55 @@ export default function TopBar() {
         </div>
       </div>
       
-      <div className="flex items-center gap-2 sm:gap-4 md:gap-5 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
         <TopBarClock />
 
 
         <TooltipProvider delayDuration={0}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div><ThemeSwitch /></div>
+              <div className="flex items-center"><ThemeSwitch /></div>
             </TooltipTrigger>
             <TooltipContent>
               <p>Toggle Theme</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <div className="hidden sm:flex items-center gap-1.5 border-r pr-2 sm:pr-4 md:pr-5 mr-1">
+        <div className="hidden sm:flex items-center gap-1 border-r pr-1.5 sm:pr-2.5 mr-0.5">
           <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-10 w-10 outline-none focus-visible:ring-0">
-                <Bell className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-7.5 w-7.5 outline-none focus-visible:ring-0">
+                <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-card" />
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-card" />
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[420px] p-0 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b">
+            <DropdownMenuContent align="end" className="w-[380px] p-0 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-3.5 py-2 bg-muted/30 border-b">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">Notifications</span>
+                  <span className="font-semibold text-xs">Notifications</span>
                   {unreadCount > 0 && (
-                    <span className="text-xs font-medium text-blue-600 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 px-2 py-0.5 rounded-full whitespace-nowrap">{unreadCount} new</span>
+                    <span className="text-[10px] font-medium text-blue-600 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 px-1.5 py-0.2 rounded-full whitespace-nowrap">{unreadCount} new</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAllAsRead(); }} disabled={isMarkingAll}>
-                      <CheckCheck className={`h-3.5 w-3.5 mr-1 ${isMarkingAll ? "animate-pulse" : ""}`} />
+                    <Button variant="ghost" size="sm" className="h-5.5 text-[11px] px-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAllAsRead(); }} disabled={isMarkingAll}>
+                      <CheckCheck className={`h-3 w-3 mr-1 ${isMarkingAll ? "animate-pulse" : ""}`} />
                       Mark all as read
                     </Button>
                   )}
                   {hasReadNotifications && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearRead(); }}>
+                    <Button variant="ghost" size="sm" className="h-5.5 text-[11px] px-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap" onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearRead(); }}>
                       Clear
                     </Button>
                   )}
                 </div>
               </div>
-              <div className="max-h-[340px] overflow-y-auto">
+              <div className="max-h-[300px] overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">
+                  <div className="p-6 text-center text-xs text-muted-foreground">
                     You have no notifications.
                   </div>
                 ) : (
@@ -275,30 +287,30 @@ export default function TopBar() {
                           navigate(notification.link_url);
                         }
                       }}
-                      className={`p-4 border-b last:border-0 cursor-pointer transition-colors duration-500 ${
+                      className={`p-3 border-b last:border-0 cursor-pointer transition-colors duration-500 ${
                         !notification.is_read ? "bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20" : "hover:bg-muted/50"
                       }`}
                     >
-                      <div className="flex gap-3">
-                        <div className="flex-1 space-y-1">
+                      <div className="flex gap-2.5">
+                        <div className="flex-1 space-y-0.5">
                           <div className="flex items-center justify-between">
-                            <p className={`text-sm leading-snug transition-colors duration-500 ${!notification.is_read ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>
+                            <p className={`text-xs leading-snug transition-colors duration-500 ${!notification.is_read ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>
                               {notification.title}
                             </p>
                             {notification.type === "call_log_preview" && (
-                              <span className="text-[10px] bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold px-1.5 py-0.5 rounded">
+                              <span className="text-[9px] bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold px-1.5 py-0.2 rounded">
                                 Ready
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
+                          <p className="text-[11px] text-muted-foreground line-clamp-2">
                             {notification.message}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-1.5 font-medium uppercase tracking-wider">
+                          <p className="text-[9px] text-muted-foreground mt-1 font-medium uppercase tracking-wider">
                             {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
-                        <div className={`w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0 shadow-sm transition-all duration-500 ${!notification.is_read ? "opacity-100 scale-100" : "opacity-0 scale-0"}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 shrink-0 shadow-xs transition-all duration-500 ${!notification.is_read ? "opacity-100 scale-100" : "opacity-0 scale-0"}`} />
                       </div>
                     </div>
                   ))
@@ -310,13 +322,13 @@ export default function TopBar() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-muted p-1.5 sm:p-2 sm:pr-3 rounded-xl transition-colors border border-transparent hover:border-border outline-none">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 border border-border shadow-sm">
+            <div className="flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-muted p-1 sm:px-2 rounded-lg transition-colors border border-transparent hover:border-border outline-none">
+              <div className="h-6.5 w-6.5 sm:h-7 sm:w-7 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 border border-border shadow-xs">
                 <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || user?.email || "User")}&background=eff6ff&color=2563eb&rounded=true&bold=true`} alt="User avatar" className="h-full w-full object-cover" />
               </div>
               <div className="hidden md:flex flex-col text-left">
-                <span className="text-sm font-bold text-foreground leading-tight">{user?.full_name || "User"}</span>
-                <span className="text-[11px] font-semibold text-muted-foreground mt-0.5">
+                <span className="text-xs font-bold text-foreground leading-tight">{user?.full_name || "User"}</span>
+                <span className="text-[10px] font-semibold text-muted-foreground">
                   {user?.is_super_admin ? "Super Admin" : roles.length > 0 ? roles[0].name : "Standard User"}
                 </span>
               </div>

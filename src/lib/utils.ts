@@ -56,3 +56,32 @@ export function formatPhoneNumber(val: string | number | null | undefined): stri
   }
   return s;
 }
+
+export function formatCurrencyShort(amount: number): string {
+  if (!amount || amount === 0) return "$0";
+  if (Math.abs(amount) >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (Math.abs(amount) >= 1_000) {
+    return `$${(amount / 1_000).toFixed(0)}k`;
+  }
+  return `$${amount.toLocaleString()}`;
+}
+
+export const getPriorityColors = (taskOrName: { priority_color?: string | null; priority_name?: string | null; [key: string]: any } | string | null | undefined) => {
+  const color = typeof taskOrName === 'string' ? null : taskOrName?.priority_color;
+
+  if (color && color.startsWith('#')) {
+    return {
+      borderStyle: { borderLeftColor: color },
+      borderTopStyle: { borderTopColor: color },
+      badgeStyle: { backgroundColor: `${color}20`, color: color },
+    };
+  }
+
+  return {
+    borderStyle: { borderLeftColor: '#94a3b8' },
+    borderTopStyle: { borderTopColor: '#94a3b8' },
+    badgeStyle: { backgroundColor: '#f1f5f9', color: '#475569' }
+  };
+};

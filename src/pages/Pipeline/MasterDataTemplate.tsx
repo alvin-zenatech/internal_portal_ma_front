@@ -156,63 +156,63 @@ export function MasterDataTemplate({ title, data, isLoading, onCreate, onDelete,
   }, [data, searchQuery]);
 
   return (
-    <div className="p-8 w-full space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-end gap-4">
+    <div className="p-3 sm:p-5 md:p-6 w-full space-y-4 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{title} Management</h1>
-          <p className="text-muted-foreground mt-2">Manage available options for {title.toLowerCase()}s in the pipeline.</p>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight">{title} Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Manage available options for {title.toLowerCase()}s in the pipeline.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-64 relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <div className="w-full sm:w-64 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input 
               placeholder={`Search ${title.toLowerCase()}s...`}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9 bg-card h-9"
+              className="pl-8 bg-card h-8.5 sm:h-9 text-xs sm:text-sm"
             />
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportData} className="h-9 gap-1.5 text-xs">
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Export CSV
+          <Button variant="outline" size="sm" onClick={handleExportData} className="h-8.5 sm:h-9 gap-1.5 text-xs shrink-0">
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Export CSV
           </Button>
         </div>
       </div>
 
-      <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b bg-muted/30">
-          <form onSubmit={handleCreate} className="flex flex-col gap-4 max-w-3xl">
-            <div className="flex gap-4">
+      <div className="bg-card border rounded-lg overflow-hidden shadow-xs">
+        <div className="p-3 sm:p-4 border-b bg-muted/30">
+          <form onSubmit={handleCreate} className="flex flex-col gap-3 max-w-3xl">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
               <Input 
                 placeholder={`New ${title} name...`} 
                 value={newName} 
                 onChange={(e) => setNewName(e.target.value)} 
-                className="flex-1"
+                className="flex-1 h-8.5 sm:h-9 text-xs sm:text-sm"
               />
               {hasCode && (
-                <Input placeholder="Code (e.g. AUS)" value={code} onChange={(e) => setCode(e.target.value)} className="w-32" required />
+                <Input placeholder="Code (e.g. AUS)" value={code} onChange={(e) => setCode(e.target.value)} className="w-full sm:w-28 h-8.5 sm:h-9 text-xs sm:text-sm" required />
               )}
-              <Button type="submit" disabled={!newName.trim() || isCreating}>
-                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" size="sm" disabled={!newName.trim() || isCreating} className="h-8.5 sm:h-9 text-xs shrink-0">
+                {isCreating && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Add {title}
               </Button>
             </div>
             {hasColor && (
-              <div className="flex items-center gap-4 pt-2">
-                <span className="text-sm font-medium text-muted-foreground">Color:</span>
+              <div className="flex items-center gap-3 pt-1">
+                <span className="text-xs font-medium text-muted-foreground">Color:</span>
                 {renderColorPicker(color, setColor)}
               </div>
             )}
           </form>
         </div>
 
-        <Table>
+        <Table containerClassName="none">
           <TableHeader>
             <TableRow>
-              {renderExpandedContent && <TableHead className="w-[40px]"></TableHead>}
-              <TableHead>Name</TableHead>
-              {hasCode && <TableHead>Code</TableHead>}
-              {hasColor && <TableHead>Color</TableHead>}
-              <TableHead className="w-[120px]">Actions</TableHead>
+              {renderExpandedContent && <TableHead className="w-[36px]"></TableHead>}
+              <TableHead className="py-2 text-xs font-semibold">Name</TableHead>
+              {hasCode && <TableHead className="py-2 text-xs font-semibold">Code</TableHead>}
+              {hasColor && <TableHead className="py-2 text-xs font-semibold">Color</TableHead>}
+              <TableHead className="w-[100px] py-2 text-xs font-semibold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -75,27 +75,27 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
 
   return (
     <Sheet open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent aria-describedby={undefined} className="!w-[90vw] sm:!max-w-[85vw] sm:!w-[85vw] p-0 flex flex-col h-full max-h-screen overflow-hidden">
+      <SheetContent aria-describedby={undefined} className="!w-[95vw] sm:!max-w-[85vw] sm:!w-[85vw] p-0 flex flex-col h-full max-h-screen overflow-hidden bg-background">
         {task && (
           <>
-            <div className="p-6 border-b flex justify-between items-start bg-muted/20">
-              <div>
+            <div className="p-3 sm:p-4 md:p-5 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-muted/20 shrink-0">
+              <div className="min-w-0 flex-1">
                 <SheetHeader>
-                  <SheetTitle className="text-2xl font-bold">{task.company_name}</SheetTitle>
+                  <SheetTitle className="text-lg sm:text-xl font-bold truncate">{task.company_name}</SheetTitle>
                 </SheetHeader>
-                <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1"><User className="h-4 w-4" /> {task.name}</span>
-                  {task.industry_name && <span className="flex items-center gap-1"><Building2 className="h-4 w-4" /> {task.industry_name}</span>}
-                  <span className="flex items-center gap-1"><Mail className="h-4 w-4" /> {task.email}</span>
-                  {task.phone && <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {task.phone}</span>}
+                <div className="flex flex-wrap gap-2 sm:gap-3.5 mt-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> {task.name}</span>
+                  {task.industry_name && <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {task.industry_name}</span>}
+                  <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {task.email}</span>
+                  {task.phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {task.phone}</span>}
                 </div>
               </div>
-              <div className="flex gap-2 mr-8">
-                <Button variant="destructive" onClick={() => setIsConfirmDeleteTask(true)} className="gap-2">
-                  <Trash2 className="h-4 w-4" /> Remove Task
+              <div className="flex items-center gap-2 sm:mr-8 shrink-0">
+                <Button variant="destructive" size="sm" onClick={() => setIsConfirmDeleteTask(true)} className="gap-1.5 h-8 text-xs">
+                  <Trash2 className="h-3.5 w-3.5" /> Remove Task
                 </Button>
-                <Button variant="outline" onClick={() => onEdit(task)} className="gap-2">
-                  <Edit className="h-4 w-4" /> Edit Task
+                <Button variant="outline" size="sm" onClick={() => onEdit(task)} className="gap-1.5 h-8 text-xs">
+                  <Edit className="h-3.5 w-3.5" /> Edit Task
                 </Button>
               </div>
             </div>
@@ -104,8 +104,8 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
               
               {/* Left Column: Details */}
               <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-card">
-                <div className="flex-1 min-h-0 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <div className="flex-1 min-h-0 p-3.5 sm:p-5 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full pr-2">
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-3 sm:gap-y-4 text-xs sm:text-sm">
                   <div className="space-y-4">
                     <div>
                       <dt className="text-muted-foreground">Priority</dt>

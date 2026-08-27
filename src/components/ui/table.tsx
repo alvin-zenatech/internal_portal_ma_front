@@ -8,11 +8,21 @@ interface TableProps extends React.ComponentProps<"table"> {
 }
 
 function Table({ className, containerClassName, containerRef, ...props }: TableProps) {
+  if (containerClassName === "none") {
+    return (
+      <table
+        data-slot="table"
+        className={cn("w-full caption-bottom text-sm", className)}
+        {...props}
+      />
+    )
+  }
+
   return (
     <div
       ref={containerRef}
       data-slot="table-container"
-      className={cn("relative w-full h-full overflow-auto", containerClassName)}
+      className={cn("relative w-full overflow-auto", containerClassName)}
     >
       <table
         data-slot="table"
@@ -27,7 +37,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className, "sticky top-0 z-10 bg-slate-50 dark:bg-zinc-950 backdrop-blur shadow-sm")}
+      className={cn("[&_tr]:border-b", className, "sticky top-0 z-10 bg-muted/90 backdrop-blur shadow-xs")}
       {...props}
     />
   )

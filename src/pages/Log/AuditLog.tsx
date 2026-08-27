@@ -268,47 +268,49 @@ export default function AuditLog() {
   });
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full gap-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex-1 min-h-0 flex flex-col w-full gap-3 sm:gap-4 max-w-[1600px] mx-auto animate-in fade-in duration-500 p-3 sm:p-5 md:p-6 bg-background">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             Audit & Security Logs
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Track system activity, configuration changes, and login attempts.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Track system activity, configuration changes, and login attempts.</p>
         </div>
       </div>
 
       <Tabs defaultValue="logs" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-[400px] grid-cols-2 mb-4" variant="line">
-          <TabsTrigger value="logs">Logs</TabsTrigger>
-          <TabsTrigger value="logins">Login Activities</TabsTrigger>
+        <TabsList className="grid w-full sm:w-[360px] grid-cols-2 mb-3 h-8.5 sm:h-9" variant="line">
+          <TabsTrigger value="logs" className="text-xs sm:text-sm">Logs</TabsTrigger>
+          <TabsTrigger value="logins" className="text-xs sm:text-sm">Login Activities</TabsTrigger>
         </TabsList>
         
         <TabsContent value="logs" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex">
-          <div className="space-y-4 flex-1 flex flex-col min-h-0">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
+          <div className="space-y-3 flex-1 flex flex-col min-h-0">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center justify-between shrink-0">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   type="text" 
                   placeholder="Search logs..." 
                   value={auditGlobalFilter}
                   onChange={(e) => setAuditGlobalFilter(e.target.value)}
-                  className="pl-10 w-[280px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+                  className="pl-8 w-full sm:w-72 bg-card border-border h-8.5 sm:h-9 text-xs sm:text-sm"
                 />
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <Button 
                   variant="outline" 
+                  size="sm"
                   onClick={() => { refetchAudit(); refetchLogin(); }} 
                   disabled={isFetchingAudit || isFetchingLogin}
+                  className="h-8.5 w-8.5 p-0"
                 >
-                  <RefreshCw className={`h-4 w-4 ${(isFetchingAudit || isFetchingLogin) ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 ${(isFetchingAudit || isFetchingLogin) ? "animate-spin" : ""}`} />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      Columns <ChevronDown className="ml-2 h-4 w-4" />
+                    <Button variant="outline" size="sm" className="h-8.5 sm:h-9 text-xs">
+                      Columns <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -319,7 +321,7 @@ export default function AuditLog() {
                       return (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize"
+                          className="capitalize text-xs"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
@@ -332,78 +334,83 @@ export default function AuditLog() {
             </div>
           </div>
             
-            <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
-              <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
-                <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 shadow-sm border-b">
-                  {auditTable.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="border-t-0">
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="h-12">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {auditTable.getRowModel().rows?.length ? (
-                    auditTable.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
+            <Card className="flex-1 min-h-[260px] rounded-lg border bg-card overflow-hidden shadow-xs flex flex-col p-0">
+              <div className="overflow-auto flex-1">
+                <Table className="m-0 relative" containerClassName="none">
+                  <TableHeader className="bg-muted/90 backdrop-blur sticky top-0 z-10 shadow-xs border-b">
+                    {auditTable.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id} className="border-t-0 bg-muted/90 hover:bg-muted/90">
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id} className="py-2 text-xs font-semibold">
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
                         ))}
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={auditColumns.length} className="text-center py-8 text-slate-500">No logs found.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {auditTable.getRowModel().rows?.length ? (
+                      auditTable.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                          className="hover:bg-muted/40"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="py-2 sm:py-2.5 px-3 text-xs sm:text-sm">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={auditColumns.length} className="text-center py-8 text-xs sm:text-sm text-muted-foreground">No logs found.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
 
-            <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3">
+            <div className="border-t bg-card py-2 shrink-0">
               <DataTablePagination table={auditTable} noun="log(s)" />
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="logins" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex">
-          <div className="space-y-4 flex-1 flex flex-col min-h-0">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
+          <div className="space-y-3 flex-1 flex flex-col min-h-0">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center justify-between shrink-0">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                 <Input 
                   type="text" 
                   placeholder="Search activities..." 
                   value={loginGlobalFilter}
                   onChange={(e) => setLoginGlobalFilter(e.target.value)}
-                  className="pl-10 w-[280px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+                  className="pl-8 w-full sm:w-72 bg-card border-border h-8.5 sm:h-9 text-xs sm:text-sm"
                 />
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <Button 
                   variant="outline" 
+                  size="sm"
                   onClick={() => { refetchAudit(); refetchLogin(); }} 
                   disabled={isFetchingAudit || isFetchingLogin}
+                  className="h-8.5 w-8.5 p-0"
                 >
-                  <RefreshCw className={`h-4 w-4 ${(isFetchingAudit || isFetchingLogin) ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 ${(isFetchingAudit || isFetchingLogin) ? "animate-spin" : ""}`} />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      Columns <ChevronDown className="ml-2 h-4 w-4" />
+                    <Button variant="outline" size="sm" className="h-8.5 sm:h-9 text-xs">
+                      Columns <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -414,7 +421,7 @@ export default function AuditLog() {
                       return (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize"
+                          className="capitalize text-xs"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
@@ -427,26 +434,27 @@ export default function AuditLog() {
             </div>
             </div>
             
-            <Card className="flex-1 min-h-0 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col p-0">
-              <Table className="m-0 relative" containerClassName="max-h-[calc(100vh-16rem)]">
-                <TableHeader className="bg-slate-50/80 dark:bg-zinc-950/50 sticky top-0 z-10 shadow-sm border-b">
-                  {loginTable.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="border-t-0">
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="h-12">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {isLoginLoading ? (
+            <Card className="flex-1 min-h-[260px] rounded-lg border bg-card overflow-hidden shadow-xs flex flex-col p-0">
+              <div className="overflow-auto flex-1">
+                <Table className="m-0 relative" containerClassName="none">
+                  <TableHeader className="bg-muted/90 backdrop-blur sticky top-0 z-10 shadow-xs border-b">
+                    {loginTable.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id} className="border-t-0 bg-muted/90 hover:bg-muted/90">
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id} className="py-2 text-xs font-semibold">
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {isLoginLoading ? (
                     <TableRow>
                       <TableCell colSpan={loginColumns.length} className="text-center py-8">
                         <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
@@ -470,12 +478,13 @@ export default function AuditLog() {
                       <TableCell colSpan={loginColumns.length} className="text-center py-8 text-slate-500">No login activities found.</TableCell>
                     </TableRow>
                   )}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
 
             {/* PAGINATION FOR LOGINS */}
-            <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3">
+            <div className="border-t bg-card py-2 shrink-0">
               <DataTablePagination table={loginTable} noun="activity(ies)" />
             </div>
           </div>

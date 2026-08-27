@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiClient as api } from "@/services/apiClient";
 import { toast } from "sonner";
 
@@ -153,6 +153,59 @@ export const useAnalysts = () => useQuery({
 });
 
 // Master Data Hooks
+export interface ExecutionAnalystData {
+  id: number;
+  name: string;
+  initials: string;
+  email?: string | null;
+  color?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export const useExecutionAnalysts = (activeOnly: boolean = true) => useQuery({
+  queryKey: ["execution-analysts", { activeOnly }],
+  queryFn: () => api.get<ExecutionAnalystData[]>(`/api/pipeline/execution-analysts?active_only=${activeOnly}`),
+});
+
+export function useCreateExecutionAnalyst() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; initials: string; email?: string; color?: string }) => {
+      return await api.post<ExecutionAnalystData>("/api/pipeline/execution-analysts", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["execution-analysts"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useUpdateExecutionAnalyst() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { name?: string; initials?: string; email?: string; color?: string; is_active?: boolean } }) => {
+      return await api.put<ExecutionAnalystData>(`/api/pipeline/execution-analysts/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["execution-analysts"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export const useDeleteExecutionAnalyst = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`/api/pipeline/execution-analysts/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["execution-analysts"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+};
+
 export const useIndustries = () => useQuery({ queryKey: ["industries"], queryFn: () => api.get<MasterData[]>("/api/pipeline/industries") });
 export function useCreateIndustry() {
   const queryClient = useQueryClient();
@@ -576,6 +629,7 @@ export function useInfiniteCallTrackingSummary(search?: string) {
       if (!lastPage || !lastPage.has_more) return undefined;
       return lastPage.offset + lastPage.limit;
     },
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -608,6 +662,7 @@ export function useCreateCallLog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["call-logs"] });
       queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary-infinite"] });
     }
   });
 }
@@ -621,6 +676,7 @@ export function useUpdateCallLog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["call-logs"] });
       queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary-infinite"] });
     }
   });
 }
@@ -634,6 +690,7 @@ export function useDeleteCallLog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["call-logs"] });
       queryClient.invalidateQueries({ queryKey: ["call-tracking-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["call-tracking-summary-infinite"] });
     }
   });
 }
@@ -749,6 +806,7 @@ export interface CallLogPreviewRow {
   is_confirmed?: boolean;
   has_user_changed?: boolean;
   selected_for_import: boolean;
+  is_imported?: boolean;
 }
 
 export interface ExistingCallLogItem {
@@ -764,32 +822,30 @@ export interface CallLogPreviewResponse {
   existing_logs?: ExistingCallLogItem[];
 }
 
-export function usePreviewCallLog(onProgress?: (progress: number, message: string) => void) {
+export interface CallLogPreviewTask {
+  task_id: string;
+  message: string;
+}
+
+export function usePreviewCallLog() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await api.post<{ task_id?: string; summary?: CallLogPreviewSummary; rows?: CallLogPreviewRow[] }>("/api/pipeline/preview-call-log", formData);
-      
-      if (res.task_id) {
-        const taskId = res.task_id;
-        while (true) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          const statusRes = await api.get<{ status: string; progress: number; message: string; result?: CallLogPreviewResponse }>(`/api/pipeline/import/status/${taskId}`);
-          
-          if (onProgress) {
-            onProgress(statusRes.progress, statusRes.message);
-          }
-          
-          if (statusRes.status === "completed" && statusRes.result) {
-            return statusRes.result;
-          } else if (statusRes.status === "failed" || statusRes.status === "error") {
-            throw new Error(statusRes.message || "Failed to parse call log file");
-          }
-        }
+      const task = await api.post<CallLogPreviewTask>("/api/pipeline/preview-call-log", formData);
+
+      if (!task.task_id) {
+        throw new Error("The call log upload did not create a preview task.");
       }
-      return res as unknown as CallLogPreviewResponse;
-    }
+
+      return task;
+    },
+    onSuccess: () => {
+      // The queue owns progress polling, so every new upload appears immediately.
+      queryClient.invalidateQueries({ queryKey: ["pipeline-import-tasks"] });
+    },
   });
 }
 
@@ -820,9 +876,33 @@ export function useImportTasks() {
 export function useDeleteImportTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (taskId: string) => api.delete(`/api/pipeline/import-tasks/${taskId}`),
-    onSuccess: () => {
+    mutationFn: async (taskId: string) => {
+      try {
+        return await api.delete(`/api/pipeline/import-tasks/${taskId}`);
+      } catch (err: any) {
+        console.warn("Delete import task notice:", err);
+        return { success: true };
+      }
+    },
+    onMutate: async (taskId: string) => {
+      await qc.cancelQueries({ queryKey: ["pipeline-import-tasks"] });
+      const prev = qc.getQueryData<ImportTaskItem[]>(["pipeline-import-tasks"]);
+      if (prev) {
+        qc.setQueryData<ImportTaskItem[]>(["pipeline-import-tasks"], prev.filter(t => t.task_id !== taskId));
+      }
+      return { prev };
+    },
+    onError: (_err, _taskId, context) => {
+      if (context?.prev) {
+        qc.setQueryData(["pipeline-import-tasks"], context.prev);
+      }
+      toast.error("Failed to dismiss task");
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["pipeline-import-tasks"] });
+    },
+    onSuccess: () => {
+      toast.success("Task dismissed");
     }
   });
 }
@@ -854,4 +934,3 @@ export function useConfirmImportCallLog() {
     }
   });
 }
-

@@ -79,8 +79,8 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
   };
 
   return (
-    <Card className="mb-4 border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 shadow-xs">
-      <CardContent className="p-4 space-y-3">
+    <Card className="shrink-0 mb-3 border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 shadow-xs">
+      <CardContent className="p-3.5 sm:p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -88,12 +88,12 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
               Call Log Import Jobs
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground font-medium">
             {tasks.length} file{tasks.length === 1 ? "" : "s"} processed
           </span>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
           {tasks.map((task) => (
             <div
               key={task.task_id}
@@ -101,13 +101,13 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
             >
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-xs sm:text-sm text-foreground truncate max-w-[280px]">
+                  <span className="font-medium text-xs sm:text-sm text-foreground truncate max-w-[260px] sm:max-w-sm md:max-w-md lg:max-w-lg" title={task.filename}>
                     {task.filename}
                   </span>
                   {getStatusBadge(task)}
                   {task.total_rows ? (
                     <span className="text-[11px] text-muted-foreground font-medium">
-                      ({task.total_rows} rows)
+                      ({task.total_rows.toLocaleString()} rows)
                     </span>
                   ) : null}
                 </div>
@@ -139,21 +139,21 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs px-2.5 gap-1 text-muted-foreground hover:text-foreground"
+                      className="h-7.5 sm:h-8 text-xs px-2.5 gap-1.5 text-muted-foreground hover:text-foreground"
                       onClick={() => handleExportJob(task.task_id, task.filename)}
                       title="Export Job CSV"
                     >
-                      <Download className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                      Export
+                      <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Export</span>
                     </Button>
                     <Button
                       type="button"
                       size="sm"
-                      className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-1.5 shadow-xs"
+                      className="h-7.5 sm:h-8 text-xs px-3 bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-1.5 shadow-xs"
                       onClick={() => onOpenPreview(task.task_id)}
                     >
-                      <Play className="h-3 w-3 fill-current" />
-                      Open Preview
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <span>Open Preview</span>
                     </Button>
                   </>
                 )}
@@ -161,8 +161,12 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => deleteTask.mutate(task.task_id)}
+                  className="h-7.5 w-7.5 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    deleteTask.mutate(task.task_id);
+                  }}
                   title="Dismiss task"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

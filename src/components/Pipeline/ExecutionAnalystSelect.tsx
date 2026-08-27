@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useAnalysts, useUsers } from '@/hooks/usePipeline';
 import { getUserInitials } from '@/lib/utils';
 import {
   Select,
@@ -20,86 +19,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Plus, Search, UserPlus, Save } from 'lucide-react';
+import { Plus, Search, UserPlus, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useExecutionAnalystOptions, type ExecutionAnalystOption } from '@/hooks/useExecutionAnalyst';
 
-export interface ExecutionAnalystOption {
-  id?: string;
-  name: string;
-  initials: string;
-  email?: string;
-}
-
-export const DEFAULT_EXECUTION_ANALYSTS = ['JH', 'EH', 'AM', 'NS'];
-
-const STORAGE_KEY = 'pipeline_execution_analysts_custom_list_v1';
-
-export function useExecutionAnalystOptions() {
-  const { data: analysts } = useAnalysts();
-  const { data: users } = useUsers();
-
-  const [customList, setCustomList] = useState<ExecutionAnalystOption[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [];
-  });
-
-  const saveSelectedAnalysts = (selectedList: ExecutionAnalystOption[]) => {
-    // Keep custom additions beyond defaults
-    const customOnly = selectedList.filter(
-      (item) => !DEFAULT_EXECUTION_ANALYSTS.includes(item.initials.toUpperCase())
-    );
-    setCustomList(customOnly);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(customOnly));
-    } catch {}
-  };
-
-  const options = useMemo(() => {
-    const map = new Map<string, ExecutionAnalystOption>();
-
-    // Helper to find name for an initials string from existing users/analysts
-    const findUserByInitials = (init: string) => {
-      const upper = init.toUpperCase();
-      const all = [...(analysts || []), ...(users || [])];
-      for (const u of all) {
-        if (!u.full_name) continue;
-        if (getUserInitials(u.full_name).toUpperCase() === upper) {
-          return { id: u.id, name: u.full_name, email: u.email || undefined };
-        }
-      }
-      return null;
-    };
-
-    // 1. Always include default execution analysts: JH, EH, AM, NS
-    for (const init of DEFAULT_EXECUTION_ANALYSTS) {
-      const matched = findUserByInitials(init);
-      map.set(init, {
-        id: matched?.id,
-        name: matched ? matched.name : init,
-        initials: init,
-        email: matched?.email,
-      });
-    }
-
-    // 2. Add custom added from storage
-    for (const c of customList) {
-      const upper = c.initials.toUpperCase();
-      if (!map.has(upper)) {
-        map.set(upper, c);
-      }
-    }
-
-    return Array.from(map.values());
-  }, [analysts, users, customList]);
-
-  return { options, saveSelectedAnalysts, allUsers: users || [], allAnalysts: analysts || [] };
-}
+export type { ExecutionAnalystOption };
 
 interface ExecutionAnalystSelectProps {
   value?: string | null;
@@ -116,10 +40,15 @@ export default function ExecutionAnalystSelect({
   className,
   placeholder = "Select execution analyst",
 }: ExecutionAnalystSelectProps) {
-  const { options, saveSelectedAnalysts, allUsers, allAnalysts } = useExecutionAnalystOptions();
+  const { options, dbAnalysts, addAnalyst, removeAnalyst, allUsers, allAnalysts } = useExecutionAnalystOptions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInitials, setSelectedInitials] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Custom analyst form state
+  const [customName, setCustomName] = useState("");
+  const [customInitials, setCustomInitials] = useState("");
 
   const currentInitials = (value || "").toUpperCase().trim();
 
@@ -129,6 +58,14 @@ export default function ExecutionAnalystSelect({
       setSelectedInitials(new Set(options.map((o) => o.initials.toUpperCase())));
     }
   }, [isDialogOpen, options]);
+
+  // Auto-fill initials when typing custom name
+  const handleCustomNameChange = (val: string) => {
+    setCustomName(val);
+    if (!customInitials || customInitials === getUserInitials(customName).toUpperCase()) {
+      setCustomInitials(getUserInitials(val).toUpperCase());
+    }
+  };
 
   // Combine all active, non-super-admin users for the "Add User" dialog
   const candidateUsers = useMemo(() => {
@@ -209,33 +146,62 @@ export default function ExecutionAnalystSelect({
     });
   };
 
-  const handleSave = () => {
-    const allCandidatesMap = new Map<string, ExecutionAnalystOption>();
-    for (const u of candidateUsers) {
-      allCandidatesMap.set(u.initials.toUpperCase(), {
-        id: u.id,
-        name: u.name,
-        initials: u.initials,
-        email: u.email,
+  const handleAddCustomAnalyst = async () => {
+    if (!customName.trim() || !customInitials.trim()) {
+      toast.error("Please provide both name and initials");
+      return;
+    }
+    try {
+      setIsSaving(true);
+      await addAnalyst({
+        name: customName.trim(),
+        initials: customInitials.trim().toUpperCase(),
       });
+      toast.success(`Execution analyst "${customName}" added to database`);
+      setCustomName("");
+      setCustomInitials("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err?.message || "Failed to add execution analyst");
+    } finally {
+      setIsSaving(false);
     }
-    for (const opt of options) {
-      if (!allCandidatesMap.has(opt.initials.toUpperCase())) {
-        allCandidatesMap.set(opt.initials.toUpperCase(), opt);
-      }
-    }
+  };
 
-    const selectedList: ExecutionAnalystOption[] = [];
-    for (const init of selectedInitials) {
-      const item = allCandidatesMap.get(init);
-      if (item) {
-        selectedList.push(item);
-      }
-    }
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const existingInitialsMap = new Map(dbAnalysts.map(a => [a.initials.toUpperCase(), a]));
 
-    saveSelectedAnalysts(selectedList);
-    toast.success("Execution analysts updated");
-    setIsDialogOpen(false);
+      // 1. Add newly selected candidates
+      for (const u of candidateUsers) {
+        const init = u.initials.toUpperCase();
+        if (selectedInitials.has(init) && !existingInitialsMap.has(init)) {
+          try {
+            await addAnalyst({
+              name: u.name,
+              initials: init,
+              email: u.email,
+            });
+          } catch {}
+        }
+      }
+
+      // 2. Remove unselected db items
+      for (const [init, analyst] of existingInitialsMap.entries()) {
+        if (!selectedInitials.has(init)) {
+          try {
+            await removeAnalyst(analyst.id);
+          } catch {}
+        }
+      }
+
+      toast.success("Execution analysts updated");
+      setIsDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save execution analysts");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -243,32 +209,26 @@ export default function ExecutionAnalystSelect({
       <Select
         value={currentInitials || "none"}
         onValueChange={(val) => {
-          if (val === "__ADD_MORE__") {
-            setIsDialogOpen(true);
-          } else if (val === "none") {
-            onChange("");
-          } else {
-            onChange(val);
-          }
+          onChange(val === "none" ? "" : val);
         }}
         disabled={disabled}
       >
-        <SelectTrigger className={className}>
+        <SelectTrigger className={className || "h-9 text-xs sm:text-sm"}>
           <SelectValue placeholder={placeholder}>
             {(() => {
-              if (!currentInitials || currentInitials === "none") {
+              if (!currentInitials || currentInitials === "NONE") {
                 return <span className="text-muted-foreground">{placeholder}</span>;
               }
-              const opt = options.find((o) => o.initials.toUpperCase() === currentInitials);
-              if (opt) {
+              const matched = options.find((o) => o.initials === currentInitials);
+              if (matched) {
                 return (
                   <div className="flex items-center gap-2">
                     <Avatar className="h-5 w-5">
                       <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-bold">
-                        {opt.initials}
+                        {matched.initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate">{opt.name}</span>
+                    <span className="font-medium truncate">{matched.name}</span>
                   </div>
                 );
               }
@@ -306,7 +266,7 @@ export default function ExecutionAnalystSelect({
               type="button"
               variant="ghost"
               size="sm"
-              className="w-full justify-start text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 h-8 px-2"
+              className="w-full justify-start text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 h-8 px-2 cursor-pointer"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -314,13 +274,13 @@ export default function ExecutionAnalystSelect({
               }}
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add more user...
+              Manage Analysts...
             </Button>
           </div>
         </SelectContent>
       </Select>
 
-      {/* Add User Dialog */}
+      {/* Add / Manage Execution Analysts Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent
           onPointerDownOutside={(e) => e.preventDefault()}
@@ -330,25 +290,55 @@ export default function ExecutionAnalystSelect({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" />
-              Add User to Execution Analysts
+              Manage Execution Analysts
             </DialogTitle>
             <DialogDescription>
-              Select system users to include in the Execution Analysts dropdown options.
+              Select system users or add custom analysts to include in the database and pipeline views.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Quick Add Custom Analyst */}
+            <div className="p-3 border rounded-md bg-muted/30 space-y-2">
+              <div className="text-xs font-semibold text-foreground">Add Custom Analyst</div>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Full Name (e.g. Jane Doe)"
+                  value={customName}
+                  onChange={(e) => handleCustomNameChange(e.target.value)}
+                  className="h-8 text-xs flex-1"
+                />
+                <Input
+                  placeholder="Initials"
+                  value={customInitials}
+                  onChange={(e) => setCustomInitials(e.target.value.toUpperCase())}
+                  className="h-8 text-xs w-20 uppercase font-mono"
+                  maxLength={5}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isSaving || !customName.trim()}
+                  onClick={handleAddCustomAnalyst}
+                  className="h-8 px-3 text-xs gap-1"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
+              </div>
+            </div>
+
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search system users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
+                className="pl-8 h-9 text-xs"
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-1.5 border rounded-md p-2 bg-muted/20">
+            <div className="max-h-56 overflow-y-auto space-y-1.5 border rounded-md p-2 bg-muted/20">
               {candidateUsers.length > 0 ? (
                 candidateUsers.map((u) => {
                   const isSelected = selectedInitials.has(u.initials.toUpperCase());
@@ -374,14 +364,14 @@ export default function ExecutionAnalystSelect({
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{u.name}</div>
-                          {u.email && <div className="text-xs text-muted-foreground truncate">{u.email}</div>}
+                          <div className="truncate font-medium text-xs">{u.name}</div>
+                          {u.email && <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {u.isAdded && (
                           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                            In list
+                            In DB
                           </span>
                         )}
                       </div>
@@ -389,7 +379,7 @@ export default function ExecutionAnalystSelect({
                   );
                 })
               ) : (
-                <div className="p-4 text-center text-sm text-muted-foreground">
+                <div className="p-4 text-center text-xs text-muted-foreground">
                   No users found matching "{searchQuery}"
                 </div>
               )}
@@ -400,6 +390,7 @@ export default function ExecutionAnalystSelect({
             <Button
               type="button"
               variant="outline"
+              disabled={isSaving}
               onClick={() => {
                 setIsDialogOpen(false);
                 setSearchQuery("");
@@ -409,10 +400,11 @@ export default function ExecutionAnalystSelect({
             </Button>
             <Button
               type="button"
+              disabled={isSaving}
               onClick={handleSave}
             >
-              <Save className="h-4 w-4 mr-1.5" />
-              Save
+              {isSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

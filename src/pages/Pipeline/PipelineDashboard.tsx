@@ -12,17 +12,19 @@ import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { 
   usePipelineTasks, 
+  useAnalysts,
   usePriorities, 
   type PipelineTask, 
   useImportPipeline, 
   useDeleteTask, 
-  useAnalysts, 
   useCreateCompany, 
   useCountries, 
   useStates 
 } from "@/hooks/usePipeline";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import ExecutionAnalystKPICards from "@/components/Pipeline/ExecutionAnalystKPICards";
+import { useExecutionAnalystOptions } from "@/hooks/useExecutionAnalyst";
+import { X } from "lucide-react";
 
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -34,6 +36,9 @@ const DEFAULT_SORT = [{ id: "priority_name", desc: false }];
 export default function PipelineDashboard() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [analystFilter, setAnalystFilter] = useState<string>("all");
+  const [executionAnalystFilter, setExecutionAnalystFilter] = useState<string>("all");
+  const { data: analystOptions } = useAnalysts();
+  const { options: executionAnalystOptions } = useExecutionAnalystOptions();
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PipelineTask | null>(null);
@@ -53,7 +58,6 @@ export default function PipelineDashboard() {
 
   const { data: tasks, isLoading: tasksLoading } = usePipelineTasks();
   const { isLoading: prioritiesLoading } = usePriorities();
-  const { data: analystOptions } = useAnalysts();
 
   const { data: countries } = useCountries();
   const { data: states } = useStates(newCompanyCountryCode || undefined);
@@ -89,11 +93,20 @@ export default function PipelineDashboard() {
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
     let result = tasks;
+
     if (analystFilter !== "all") {
       if (analystFilter === "unassigned") {
         result = result.filter(t => !t.analyst_id);
       } else {
         result = result.filter(t => t.analyst_id === analystFilter);
+      }
+    }
+
+    if (executionAnalystFilter !== "all") {
+      if (executionAnalystFilter === "unassigned") {
+        result = result.filter(t => !t.execution_analyst || !t.execution_analyst.trim());
+      } else {
+        result = result.filter(t => (t.execution_analyst || "").toUpperCase().trim() === executionAnalystFilter.toUpperCase().trim());
       }
     }
 
@@ -110,7 +123,7 @@ export default function PipelineDashboard() {
     });
 
     return result;
-  }, [tasks, analystFilter]);
+  }, [tasks, analystFilter, executionAnalystFilter]);
 
   const selectedTaskData = tasks?.find(t => t.id === selectedTask?.id) || selectedTask;
 
@@ -215,20 +228,20 @@ export default function PipelineDashboard() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
+    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0 bg-background">
       {/* 1. Top Section: Execution Analysts KPI Cards Banner with Carousel Arrows */}
-      <div className="px-6 py-2.5 border-b bg-card shrink-0">
-        <ExecutionAnalystKPICards tasks={tasks || []} />
+      <div className="px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 border-b bg-card shrink-0">
+        <ExecutionAnalystKPICards tasks={tasks || []} selectedAnalyst={executionAnalystFilter} onSelectAnalyst={setExecutionAnalystFilter} />
       </div>
 
       {/* 2. Bottom Section: Filter & Action Controls Bar */}
-      <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3">
+      <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-2.5 sm:gap-3">
         {/* Left Side: Filter Analysts, Search, and Export CSV */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           <div className="flex items-center shrink-0">
             <Select value={analystFilter} onValueChange={setAnalystFilter}>
-              <SelectTrigger className="w-[170px] h-9 bg-white dark:bg-card">
-                <User className="h-4 w-4 text-muted-foreground mr-1.5" />
+              <SelectTrigger className="w-[140px] sm:w-[160px] h-8.5 sm:h-9 bg-card text-xs sm:text-sm">
+                <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
                 <SelectValue placeholder="All Analysts" />
               </SelectTrigger>
               <SelectContent>
@@ -240,35 +253,68 @@ export default function PipelineDashboard() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex items-center shrink-0">
+            <Select value={executionAnalystFilter} onValueChange={setExecutionAnalystFilter}>
+              <SelectTrigger className="w-[155px] sm:w-[185px] h-8.5 sm:h-9 bg-card text-xs sm:text-sm">
+                <User className="h-3.5 w-3.5 text-blue-500 mr-1.5" />
+                <SelectValue placeholder="All Execution Analysts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Execution Analysts</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {executionAnalystOptions.map(ea => (
+                  <SelectItem key={ea.initials} value={ea.initials}>
+                    {ea.name} ({ea.initials})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {executionAnalystFilter !== "all" && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/30 text-primary text-xs rounded-full font-medium animate-in fade-in">
+              <span>Execution: {executionAnalystOptions.find(o => o.initials.toUpperCase() === executionAnalystFilter.toUpperCase())?.name || executionAnalystFilter}</span>
+              <button 
+                type="button"
+                onClick={() => setExecutionAnalystFilter("all")}
+                className="hover:bg-primary/20 rounded-full p-0.5"
+                aria-label="Clear Execution Analyst Filter"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           
           <div className="flex items-center shrink-0">
              <Input 
                 placeholder="Search pipeline..." 
                 value={globalFilter} 
                 onChange={(event) => setGlobalFilter(event.target.value)} 
-                className="w-56 max-w-sm h-9" 
+                className="w-44 sm:w-56 max-w-sm h-8.5 sm:h-9 text-xs sm:text-sm" 
               />
           </div>
 
           <Button 
             variant="outline" 
+            size="sm"
             onClick={handleExportTasks} 
-            className="gap-1.5 h-9 shrink-0"
+            className="gap-1.5 h-8.5 sm:h-9 shrink-0 text-xs"
           >
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export CSV</span>
           </Button>
         </div>
 
         {/* Right Side: Follow-ups, Add Company, Import, New Task */}
-        <div className="flex items-center gap-3 flex-wrap ml-auto">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap ml-auto">
           <TooltipProvider delayDuration={300}>
-            <Button variant="outline" asChild className="hidden md:flex gap-1.5 h-9 shrink-0 px-3">
+            <Button variant="outline" size="sm" asChild className="hidden md:flex gap-1.5 h-8.5 sm:h-9 shrink-0 px-2.5 sm:px-3 text-xs">
               <Link to="/pipeline/follow-ups">
-                <CalendarClock className="h-4 w-4 text-blue-500" />
-                <span className="text-xs font-medium">Follow-ups</span>
+                <CalendarClock className="h-3.5 w-3.5 text-blue-500" />
+                <span className="font-medium">Follow-ups</span>
                 {dueFollowUpCount > 0 && (
-                  <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  <span className="ml-1 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     {dueFollowUpCount}
                   </span>
                 )}
@@ -277,10 +323,11 @@ export default function PipelineDashboard() {
 
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => setIsCompanyModalOpen(true)} 
-              className="gap-2 h-9"
+              className="gap-1.5 h-8.5 sm:h-9 text-xs"
             >
-              <Building2 className="h-4 w-4 text-primary" />
+              <Building2 className="h-3.5 w-3.5 text-primary" />
               <span>Add Company</span>
             </Button>
 
@@ -333,7 +380,7 @@ export default function PipelineDashboard() {
 
       {/* Table Container - Switch to full screen without duplicate instances */}
       {isFullScreen ? (
-        <div className="fixed inset-0 z-40 bg-background flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in duration-200">
           {/* Full Screen Header */}
           <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3 shadow-sm">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -343,7 +390,7 @@ export default function PipelineDashboard() {
 
               <div className="flex items-center shrink-0">
                 <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                  <SelectTrigger className="w-[170px] h-9 bg-white dark:bg-card">
+                  <SelectTrigger className="w-[160px] h-9 bg-white dark:bg-card">
                     <User className="h-4 w-4 text-muted-foreground mr-1.5" />
                     <SelectValue placeholder="All Analysts" />
                   </SelectTrigger>
@@ -356,6 +403,38 @@ export default function PipelineDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex items-center shrink-0">
+                <Select value={executionAnalystFilter} onValueChange={setExecutionAnalystFilter}>
+                  <SelectTrigger className="w-[185px] h-9 bg-white dark:bg-card">
+                    <User className="h-4 w-4 text-blue-500 mr-1.5" />
+                    <SelectValue placeholder="All Execution Analysts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Execution Analysts</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {executionAnalystOptions.map(ea => (
+                      <SelectItem key={ea.initials} value={ea.initials}>
+                        {ea.name} ({ea.initials})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {executionAnalystFilter !== "all" && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/30 text-primary text-xs rounded-full font-medium animate-in fade-in">
+                  <span>Execution: {executionAnalystOptions.find(o => o.initials.toUpperCase() === executionAnalystFilter.toUpperCase())?.name || executionAnalystFilter}</span>
+                  <button 
+                    type="button"
+                    onClick={() => setExecutionAnalystFilter("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                    aria-label="Clear Execution Analyst Filter"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center shrink-0">
                 <Input 
@@ -404,7 +483,7 @@ export default function PipelineDashboard() {
           </div>
 
           {/* Full Screen Table Container */}
-          <div className="flex-1 overflow-hidden relative bg-muted/20">
+          <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0">
             {tasksLoading || prioritiesLoading ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
             ) : (
@@ -421,7 +500,7 @@ export default function PipelineDashboard() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden relative bg-muted/20">
+        <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0">
           {tasksLoading || prioritiesLoading ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">Loading pipeline...</div>
           ) : (

@@ -91,49 +91,50 @@ export default function UserRoleAssignment() {
   const isSuperAdmin = selectedUser?.is_super_admin === true;
   const activeRoles = allRoles?.filter(r => r.is_active && r.code !== 'PENDING_USER') || [];
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out p-6 w-full">
+    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 sm:gap-6 animate-in fade-in duration-500 p-3 sm:p-5 md:p-6 w-full bg-background">
       {/* Left Panel: Users List */}
-      <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4 lg:border-r border-slate-200 dark:border-zinc-800 lg:pr-6 pb-6 lg:pb-0 border-b lg:border-b-0 min-h-0">
+      <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-3 lg:border-r border-slate-200 dark:border-zinc-800 lg:pr-4 pb-4 lg:pb-0 border-b lg:border-b-0 min-h-0">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Users</h2>
-          <p className="text-sm text-slate-500 dark:text-zinc-400">Select a user to configure access.</p>
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Users</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Select a user to configure access.</p>
         </div>
-        
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500 dark:text-zinc-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input 
             placeholder="Search users..." 
-            className="pl-9 h-10 bg-white dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 focus-visible:ring-blue-500/30 rounded-xl"
+            className="pl-8 bg-card border-border h-8.5 sm:h-9 text-xs sm:text-sm"
             value={userSearchQuery}
             onChange={(e) => setUserSearchQuery(e.target.value)}
           />
         </div>
-
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[300px]">
+        <div className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[300px] lg:max-h-none">
           {filteredUsers.length === 0 ? (
-            <div className="text-center p-4 text-slate-500 text-sm">No users found.</div>
+            <div className="text-center p-4 text-muted-foreground text-xs">No users found.</div>
           ) : (
-            filteredUsers.map(user => (
-              <button
-                key={user.id}
-                onClick={() => handleUserSelect(user.id)}
-                className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                  selectedUserId === user.id 
-                    ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700 ring-1 ring-blue-500/20'
-                    : 'bg-white border-slate-200 hover:border-blue-300 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:border-zinc-700'
-                }`}
-              >
-                <div className="font-semibold text-slate-900 dark:text-zinc-100 truncate text-sm">
-                  {user.full_name || user.email.split('@')[0]}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">{user.email}</div>
-                {user.is_super_admin && (
-                  <Badge variant="secondary" className="mt-2 text-[9px] h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 uppercase font-bold tracking-wider">
-                    Super Admin
-                  </Badge>
-                )}
-              </button>
-            ))
+            filteredUsers.map((user) => {
+              const isSelected = user.id === selectedUserId;
+              return (
+                <button
+                  key={user.id}
+                  onClick={() => handleUserSelect(user.id)}
+                  className={`w-full text-left p-2.5 rounded-lg border transition-all flex flex-col gap-0.5 ${
+                    isSelected 
+                      ? "bg-blue-50 border-blue-500/50 dark:bg-blue-950/40 dark:border-blue-500/50 shadow-xs" 
+                      : "border-transparent hover:bg-muted/50 text-foreground"
+                  }`}
+                >
+                  <div className="font-semibold text-xs sm:text-sm truncate">
+                    {user.full_name || user.email.split('@')[0]}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
+                  {user.is_super_admin && (
+                    <Badge variant="secondary" className="mt-1 text-[9px] h-4 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 uppercase font-bold tracking-wider">
+                      Super Admin
+                    </Badge>
+                  )}
+                </button>
+              );
+            })
           )}
         </div>
       </div>

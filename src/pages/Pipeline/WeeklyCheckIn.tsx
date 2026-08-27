@@ -51,17 +51,17 @@ export default function WeeklyCheckIn() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0">
-      <div className="px-8 py-6 border-b bg-card shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+    <div className="h-full flex flex-col w-full animate-in fade-in duration-500 min-h-0 bg-background">
+      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b bg-card shrink-0">
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
           Weekly Check-In
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
           Review high-priority tasks (High Value, Good Fit, 50/50) ordered by highest revenue.
         </p>
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-muted/20">
+      <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0">
         {tasksLoading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />

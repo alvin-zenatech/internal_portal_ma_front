@@ -44,7 +44,7 @@ import {
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search } from "lucide-react";
+import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search, FileSpreadsheet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import CallLogUploadQueuePanel from "@/components/Pipeline/CallLogUploadQueuePanel";
 import { Input } from "@/components/ui/input";
@@ -148,20 +148,29 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
   const isLocationColumn = title === "Country / Province" || title === "State / Country" || column.id === "location";
 
   return (
-    <div className={cn("inline-flex items-center gap-0.5 group whitespace-nowrap", isLocationColumn ? "justify-center w-full text-center" : "justify-start text-left")}>
+    <div
+      className={cn(
+        "flex items-center gap-0.5 group whitespace-nowrap w-full min-w-0",
+        isLocationColumn ? "justify-center text-center" : "justify-start text-left"
+      )}
+    >
       <GripVertical className="h-3.5 w-3.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 cursor-grab active:cursor-grabbing text-muted-foreground shrink-0 -ml-1 transition-opacity" />
       <Button
         variant="ghost"
         size="sm"
-        className={cn("-ml-1 h-8 flex data-[state=open]:bg-accent px-2", isLocationColumn ? "justify-center" : "justify-start")}
+        className={cn(
+          "-ml-1 h-7 min-w-0 flex-1 px-1.5 text-xs font-medium",
+          "overflow-hidden",
+          isLocationColumn ? "justify-center" : "justify-start"
+        )}
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        <span>{title}</span>
-        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50 group-hover:opacity-100" />
+        <span className="truncate">{title}</span>
+        <ArrowUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50 group-hover:opacity-100" />
       </Button>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-6 shrink-0 -ml-1">
+          <Button variant="ghost" size="icon" className="h-7 w-5 shrink-0 -ml-1">
             <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
@@ -321,33 +330,16 @@ export default function CallTracking() {
   }, [previewTaskId]);
 
   const deleteTask = useDeleteImportTask();
-  const previewCallLog = usePreviewCallLog((progress, message) => {
-    toast.loading(message || `Analyzing call log ${progress}%...`, { id: "preview-loading" });
-  });
+  const previewCallLog = usePreviewCallLog();
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      toast.loading("Analyzing call log in background...", { id: "preview-loading" });
       previewCallLog.mutate(file, {
-        onSuccess: (data) => {
-          toast.dismiss("preview-loading");
-          toast.success("Call log analysis ready!", {
-            description: `Parsed rows for '${file.name}'.`,
-            action: {
-              label: "Open Preview",
-              onClick: () => {
-                setPreviewData(data);
-                setPreviewOpen(true);
-              }
-            },
-            duration: 8000
-          });
-          setPreviewData(data);
-          setPreviewOpen(true);
+        onSuccess: () => {
+          toast.success(`Added '${file.name}' to the call log import queue.`);
         },
         onError: (err: any) => {
-          toast.dismiss("preview-loading");
           toast.error(err?.message || "Failed to parse call log file");
         }
       });
@@ -534,10 +526,10 @@ export default function CallTracking() {
           const { name, avatar } = getAnalystDetails(row.original.latest_analyst);
           return (
             <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px] bg-slate-200 text-slate-700">{avatar}</AvatarFallback>
+              <Avatar className="h-5 w-5">
+                <AvatarFallback className="text-[9px] bg-slate-200 text-slate-700">{avatar}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium truncate">{name}</span>
+              <span className="text-xs font-medium truncate">{name}</span>
             </div>
           );
         }
@@ -807,8 +799,8 @@ export default function CallTracking() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-muted/20">
-        <div className="h-full flex flex-col p-6 space-y-4">
+      <div className="flex-1 overflow-auto relative bg-muted/20 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col p-6 space-y-4 min-h-0">
           <CallLogUploadQueuePanel
             onOpenPreview={(taskId) => {
               toast.loading("Loading preview...", { id: "load-preview" });
@@ -841,6 +833,17 @@ export default function CallTracking() {
                 <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Export CSV</span>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="text-xs h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <a href="/templates/Call_Log_Template.xlsx" download="Call_Log_Template.xlsx">
+                  <FileSpreadsheet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span>Download Blank Template</span>
+                </a>
+              </Button>
               {isCustomOrder && (
                 <>
                   <Button
@@ -867,19 +870,36 @@ export default function CallTracking() {
             </div>
           </div>
 
-          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
-            <div className="flex-1 overflow-auto relative" ref={parentRef} onScroll={handleScroll}>
-              <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1550px]">
+          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden min-h-[600px] h-[650px]">
+            <div
+              className="flex-1 min-h-0 overflow-auto relative"
+              ref={parentRef}
+              onScroll={handleScroll}
+            >
+              <Table
+                containerClassName="overflow-visible"
+                className="table-fixed min-w-[1550px] w-full text-xs"
+                style={{ tableLayout: "fixed" }}
+              >
                 <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
                   {table.getHeaderGroups().map((hg) => (
                     <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
                       {hg.headers.map((h) => (
                         <TableHead
                           key={h.id}
-                          className={`bg-muted/50 whitespace-nowrap select-none transition-colors duration-150 ${
-                            dragOverColumnId === h.column.id ? "bg-primary/20 border-l-2 border-primary" : ""
-                          } ${draggedColumnId === h.column.id ? "opacity-30" : ""}`}
-                          style={{ width: h.column.getSize() }}
+                          className={cn(
+                            "bg-muted/50 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold",
+                            "overflow-hidden",
+                            "transition-colors duration-150",
+                            dragOverColumnId === h.column.id &&
+                              "bg-primary/20 border-l-2 border-primary",
+                            draggedColumnId === h.column.id && "opacity-30"
+                          )}
+                          style={{
+                            width: h.column.getSize(),
+                            minWidth: h.column.getSize(),
+                            maxWidth: h.column.getSize(),
+                          }}
                           draggable
                           onDragStart={(e) => {
                             setDraggedColumnId(h.column.id);
@@ -927,8 +947,27 @@ export default function CallTracking() {
                           onClick={() => setSelectedCompany(row.original.normalized_company_name)}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className={cn("py-3 whitespace-nowrap truncate", cell.column.id === "location" ? "text-center" : "text-left")} style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            <TableCell
+                              key={cell.id}
+                              className={cn(
+                                "py-1.5 px-2 text-xs",
+                                "whitespace-nowrap",
+                                "overflow-hidden",
+                                "text-ellipsis",
+                                cell.column.id === "location"
+                                  ? "text-center"
+                                  : "text-left"
+                              )}
+                              style={{
+                                width: cell.column.getSize(),
+                                minWidth: cell.column.getSize(),
+                                maxWidth: cell.column.getSize(),
+                              }}
+                            >
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}
                             </TableCell>
                           ))}
                         </TableRow>

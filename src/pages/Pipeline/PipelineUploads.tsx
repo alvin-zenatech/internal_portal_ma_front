@@ -188,18 +188,18 @@ export default function PipelineUploads() {
   });
 
   return (
-    <div className="p-6 h-full flex flex-col space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="h-full flex flex-col w-full min-h-0 bg-background">
+      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b bg-card shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Uploads</h1>
-          <p className="text-muted-foreground">View all files attached to pipeline tasks.</p>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Uploads</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">View all files attached to pipeline tasks.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input 
               placeholder="Search files, companies..." 
-              className="pl-9 bg-background"
+              className="pl-8 bg-background h-8.5 sm:h-9 text-xs sm:text-sm"
               value={actualGlobalFilter}
               onChange={e => setActualGlobalFilter(e.target.value)}
             />
@@ -208,9 +208,9 @@ export default function PipelineUploads() {
             variant="outline"
             size="sm"
             onClick={handleExportUploads}
-            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+            className="h-8.5 sm:h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
           >
-            <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export CSV</span>
           </Button>
           {(actualGlobalFilter || table.getState().columnFilters.length > 0) && (
@@ -221,54 +221,58 @@ export default function PipelineUploads() {
                 setActualGlobalFilter("");
                 table.setColumnFilters([]);
               }}
-              className="h-8 text-muted-foreground hover:text-foreground shrink-0"
+              className="h-8.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
             >
-              Reset Filters <X className="ml-2 h-4 w-4" />
+              Reset Filters <X className="ml-1.5 h-3.5 w-3.5" />
             </Button>
           )}
         </div>
       </div>
 
-      <div className="rounded-md border bg-card flex-1 flex flex-col shadow-sm overflow-hidden">
-        <div className="flex-1 overflow-auto relative">
-          <Table containerClassName="overflow-visible h-auto" className="table-fixed w-full min-w-[1000px]">
-            <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
-              {table.getHeaderGroups().map(hg => (
-                <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
-                  {hg.headers.map(h => (
-                    <TableHead key={h.id} className="bg-muted/50" style={{ width: h.column.getSize() }}>
-                      {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                    </TableHead>
+      <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col p-2.5 sm:p-4 md:p-5 space-y-3 min-h-0 overflow-hidden">
+          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden min-h-[260px]">
+            <div className="flex-1 overflow-auto relative">
+              <Table containerClassName="none" className="table-fixed w-full min-w-[900px]">
+                <TableHeader className="sticky top-0 z-10 shadow-xs bg-muted/90 backdrop-blur">
+                  {table.getHeaderGroups().map(hg => (
+                    <TableRow key={hg.id} className="bg-muted/90 hover:bg-muted/90">
+                      {hg.headers.map(h => (
+                        <TableHead key={h.id} className="bg-muted/90 py-2 text-xs font-semibold" style={{ width: h.column.getSize() }}>
+                          {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-32 text-center">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
-                    {actualGlobalFilter || table.getState().columnFilters.length > 0 ? "No files match your search." : "No uploaded files found."}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map(row => (
-                  <TableRow key={row.id} className="hover:bg-muted/30">
-                    {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id} className="px-2 truncate" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className="h-32 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </TableRow>
+                  ) : table.getRowModel().rows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className="h-32 text-center text-xs sm:text-sm text-muted-foreground">
+                        {actualGlobalFilter || table.getState().columnFilters.length > 0 ? "No files match your search." : "No uploaded files found."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    table.getRowModel().rows.map(row => (
+                      <TableRow key={row.id} className="hover:bg-muted/30">
+                        {row.getVisibleCells().map(cell => (
+                          <TableCell key={cell.id} className="px-2 py-2 sm:py-2.5 text-xs sm:text-sm truncate" style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize() }}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

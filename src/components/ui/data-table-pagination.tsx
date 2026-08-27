@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import type { Table } from "@tanstack/react-table"
 import {
   ChevronLeft,
@@ -24,6 +25,14 @@ export function DataTablePagination<TData>({
   table,
   noun = "row(s)",
 }: DataTablePaginationProps<TData>) {
+  const pageIndex = table.getState().pagination.pageIndex;
+  const pageCount = table.getPageCount() || 1;
+  const [inputVal, setInputVal] = useState(String(pageIndex + 1));
+
+  useEffect(() => {
+    setInputVal(String(pageIndex + 1));
+  }, [pageIndex]);
+
   return (
     <div className="flex flex-col gap-4 px-2 py-2 text-sm text-slate-600 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-center sm:text-left">
@@ -50,9 +59,44 @@ export function DataTablePagination<TData>({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-[100px] items-center justify-center font-medium">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {table.getPageCount() || 1}
+        <div className="flex items-center gap-1.5 font-medium">
+          <span>Page</span>
+          <input
+            type="number"
+            min={1}
+            max={pageCount}
+            value={inputVal}
+            onChange={(e) => {
+              setInputVal(e.target.value);
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val) && val >= 1 && val <= pageCount) {
+                table.setPageIndex(val - 1);
+              }
+            }}
+            onBlur={() => {
+              const val = parseInt(inputVal, 10);
+              if (isNaN(val) || val < 1) {
+                table.setPageIndex(0);
+                setInputVal("1");
+              } else if (val > pageCount) {
+                table.setPageIndex(pageCount - 1);
+                setInputVal(String(pageCount));
+              } else {
+                table.setPageIndex(val - 1);
+                setInputVal(String(val));
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const val = parseInt(inputVal, 10);
+                if (!isNaN(val) && val >= 1 && val <= pageCount) {
+                  table.setPageIndex(val - 1);
+                }
+              }
+            }}
+            className="h-6 w-9 sm:w-10 rounded border border-input bg-background px-1 py-0 text-center text-xs font-medium text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span>of {pageCount}</span>
         </div>
         <div className="flex items-center space-x-2">
           <Button

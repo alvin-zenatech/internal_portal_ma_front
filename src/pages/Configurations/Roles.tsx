@@ -441,33 +441,33 @@ export default function Roles() {
   const hasPendingMoves = Object.keys(pendingMoves).length > 0;
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out h-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-4 animate-in fade-in duration-500 bg-background">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Roles</h2>
-          <p className="text-sm text-slate-500 dark:text-zinc-400">Manage organizational role hierarchy and security groups.</p>
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Role Hierarchy</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Define organization roles, drag & drop to restructure inheritance.</p>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-6">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-3 sm:gap-4">
         {/* Left Panel: Tree */}
-        <div className="w-full md:w-1/3 flex flex-col rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm h-full">
-          <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-950/50">
-            <h3 className="font-semibold text-slate-800 dark:text-zinc-200">Role Hierarchy</h3>
+        <div className="w-full md:w-1/3 flex flex-col rounded-lg border bg-card overflow-hidden shadow-xs h-full min-h-[220px]">
+          <div className="p-3 border-b flex justify-between items-center bg-muted/30">
+            <h3 className="font-semibold text-xs sm:text-sm text-foreground">Role Hierarchy</h3>
             <div className="flex items-center gap-2">
               {hasPendingMoves && (
-                <div className="flex gap-2 mr-2">
-                   <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setPendingMoves({})}>
-                     <X className="h-3.5 w-3.5" />
+                <div className="flex gap-1.5 mr-1">
+                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setPendingMoves({})}>
+                     <X className="h-3 w-3" />
                    </Button>
-                   <Button size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-white" onClick={() => bulkSaveHierarchyMutation.mutate()} disabled={bulkSaveHierarchyMutation.isPending}>
-                     {bulkSaveHierarchyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                   <Button size="sm" className="h-7 bg-green-600 hover:bg-green-700 text-white text-xs px-2" onClick={() => bulkSaveHierarchyMutation.mutate()} disabled={bulkSaveHierarchyMutation.isPending}>
+                     {bulkSaveHierarchyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
                      Save
                    </Button>
                 </div>
               )}
               {!hasPendingMoves && hasPermission("CONFIG_ROLES_CREATE") && (
-                <Button size="sm" variant="outline" onClick={handleAddRoot} className="h-8 text-xs">
+                <Button size="sm" variant="outline" onClick={handleAddRoot} className="h-7 text-xs px-2">
                   <Plus className="mr-1 h-3 w-3" /> Root
                 </Button>
               )}
@@ -475,7 +475,7 @@ export default function Roles() {
           </div>
           <div className="flex-1 overflow-y-auto p-2 relative">
             {isLoadingRoles ? (
-              <div className="p-4 text-center text-slate-500 text-sm">Loading tree...</div>
+              <div className="p-4 text-center text-muted-foreground text-xs">Loading tree...</div>
             ) : optimisticTree && optimisticTree.length > 0 ? (
               <div className="min-h-full flex flex-col relative">
                 <div className="relative z-10 flex flex-col">
@@ -495,14 +495,14 @@ export default function Roles() {
                 </div>
 
                 <div
-                  className={`flex-1 min-h-[120px] mt-4 mx-2 rounded-xl border-2 border-dashed flex items-center justify-center transition-all duration-200 ${
+                  className={`flex-1 min-h-[100px] mt-3 mx-2 rounded-lg border-2 border-dashed flex items-center justify-center transition-all duration-200 ${
                     draggingId 
                       ? 'opacity-100 pointer-events-auto' 
                       : 'opacity-0 pointer-events-none h-0 min-h-0 mt-0 overflow-hidden'
                   } ${
                     isRootDragOver 
                       ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-400' 
-                      : 'border-slate-300 bg-slate-50 text-slate-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400'
+                      : 'border-border bg-muted/30 text-muted-foreground'
                   }`}
                   onDragEnter={(e) => {
                     e.preventDefault();
@@ -527,41 +527,41 @@ export default function Roles() {
                     if (draggedId) handleMoveRole(draggedId, null);
                   }}
                 >
-                  <span className="text-sm font-medium">Drop here to move to root level</span>
+                  <span className="text-xs font-medium">Drop here to move to root level</span>
                 </div>
               </div>
             ) : (
-              <div className="p-4 text-center text-slate-500 text-sm">No roles found.</div>
+              <div className="p-4 text-center text-muted-foreground text-xs">No roles found.</div>
             )}
           </div>
         </div>
 
         {/* Right Panel: Details / Editor */}
-        <div className="w-full md:w-2/3 flex flex-col rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm h-full">
+        <div className="w-full md:w-2/3 flex flex-col rounded-lg border bg-card overflow-hidden shadow-xs h-full min-h-[260px]">
           {!selectedRole ? (
-            <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-zinc-500 p-8 text-center flex-col">
-              <Shield className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-lg font-medium text-slate-600 dark:text-zinc-300">No Role Selected</p>
-              <p className="text-sm max-w-sm mt-2">Select a role from the hierarchy to view its details, or create a new root role to get started.</p>
+            <div className="flex-1 flex items-center justify-center text-muted-foreground p-6 text-center flex-col">
+              <Shield className="w-10 h-10 mb-3 opacity-20" />
+              <p className="text-base font-medium text-foreground">No Role Selected</p>
+              <p className="text-xs max-w-sm mt-1 text-muted-foreground">Select a role from the hierarchy to view its details, or create a new root role to get started.</p>
             </div>
           ) : (
             <div className="flex flex-col h-full overflow-hidden">
-              <div className="p-6 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div className="p-4 sm:p-5 border-b bg-muted/30 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <h2 className="text-lg sm:text-xl font-bold text-foreground">
                       {isEditing && selectedRole.id === "new" ? "Create New Role" : selectedRole.name}
                     </h2>
                     {!isEditing && selectedRole.id !== "new" && (
-                      <Badge variant={selectedRole.is_active ? "default" : "secondary"} className={selectedRole.is_active ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400" : ""}>
+                      <Badge variant={selectedRole.is_active ? "default" : "secondary"} className={selectedRole.is_active ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 text-xs" : "text-xs"}>
                         {selectedRole.is_active ? "Active" : "Inactive"}
                       </Badge>
                     )}
                   </div>
                   {!isEditing && selectedRole.id !== "new" && (
-                    <div className="flex items-center text-sm text-slate-500 dark:text-zinc-400 gap-4">
-                      <span className="flex items-center"><Key className="w-4 h-4 mr-1.5" /> Code: {selectedRole.code}</span>
-                      {selectedRole.is_system_role && <span className="flex items-center text-purple-600 dark:text-purple-400 font-medium"><Shield className="w-4 h-4 mr-1.5" /> System Role</span>}
+                    <div className="flex items-center text-xs text-muted-foreground gap-3 flex-wrap">
+                      <span className="flex items-center"><Key className="w-3.5 h-3.5 mr-1" /> Code: {selectedRole.code}</span>
+                      {selectedRole.is_system_role && <span className="flex items-center text-purple-600 dark:text-purple-400 font-medium"><Shield className="w-3.5 h-3.5 mr-1" /> System Role</span>}
                     </div>
                   )}
                 </div>
@@ -569,23 +569,23 @@ export default function Roles() {
                 {!isEditing && selectedRole.id !== "new" && (
                   <div className="flex flex-wrap items-center gap-2">
                     {hasPermission("CONFIG_ROLES_CREATE") && (
-                       <Button variant="outline" size="sm" onClick={handleAddChild} className="bg-white dark:bg-zinc-900">
-                         <Plus className="w-4 h-4 mr-2" /> Add Child
+                       <Button variant="outline" size="sm" onClick={handleAddChild} className="h-8 text-xs">
+                         <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Child
                        </Button>
                     )}
                     {hasPermission("CONFIG_ROLES_UPDATE") && !selectedRole.is_system_role && (
-                      <Button variant="outline" size="sm" onClick={startEdit} className="bg-white dark:bg-zinc-900 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900 dark:text-blue-400 dark:hover:bg-blue-900/20">
-                        <Edit className="w-4 h-4 mr-2" /> Edit
+                      <Button variant="outline" size="sm" onClick={startEdit} className="h-8 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-900 dark:text-blue-400 dark:hover:bg-blue-900/20">
+                        <Edit className="w-3.5 h-3.5 mr-1.5" /> Edit
                       </Button>
                     )}
                     {hasPermission("CONFIG_ROLES_DELETE") && !selectedRole.is_system_role && (
                       selectedRole.is_active ? (
-                        <Button variant="outline" size="sm" onClick={() => setIsDeactivateDialogOpen(true)} className="bg-white dark:bg-zinc-900 text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 dark:border-orange-900 dark:text-orange-400 dark:hover:bg-orange-900/20">
-                          <Ban className="w-4 h-4 mr-2" /> Deactivate
+                        <Button variant="outline" size="sm" onClick={() => setIsDeactivateDialogOpen(true)} className="h-8 text-xs text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 dark:border-orange-900 dark:text-orange-400 dark:hover:bg-orange-900/20">
+                          <Ban className="w-3.5 h-3.5 mr-1.5" /> Deactivate
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => setIsDeleteDialogOpen(true)} className="bg-white dark:bg-zinc-900 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20">
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        <Button variant="outline" size="sm" onClick={() => setIsDeleteDialogOpen(true)} className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20">
+                          <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
                         </Button>
                       )
                     )}
