@@ -380,7 +380,12 @@ export default function PipelineDashboard() {
 
       {/* Table Container - Switch to full screen without duplicate instances */}
       {isFullScreen ? (
-        <div className="fixed inset-0 z-[2000] bg-background flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] bg-background flex flex-col animate-in fade-in duration-200">
+          {/* Top Section: Execution Analysts KPI Cards Banner with Carousel Arrows */}
+          <div className="px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 border-b bg-card shrink-0">
+            <ExecutionAnalystKPICards tasks={tasks || []} selectedAnalyst={executionAnalystFilter} onSelectAnalyst={setExecutionAnalystFilter} />
+          </div>
+
           {/* Full Screen Header */}
           <div className="px-6 py-2.5 border-b bg-card flex justify-between items-center shrink-0 flex-wrap gap-3 shadow-sm">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -456,18 +461,53 @@ export default function PipelineDashboard() {
             </div>
 
             <div className="flex items-center gap-2.5 flex-wrap ml-auto">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsCompanyModalOpen(true)} 
-                className="gap-2 h-9"
-              >
-                <Building2 className="h-4 w-4 text-primary" />
-                <span>Add Company</span>
-              </Button>
+              <TooltipProvider delayDuration={300}>
+                <Button variant="outline" size="sm" asChild className="hidden md:flex gap-1.5 h-9 shrink-0 px-2.5 sm:px-3 text-xs">
+                  <Link to="/pipeline/follow-ups">
+                    <CalendarClock className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="font-medium">Follow-ups</span>
+                    {dueFollowUpCount > 0 && (
+                      <span className="ml-1 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                        {dueFollowUpCount}
+                      </span>
+                    )}
+                  </Link>
+                </Button>
 
-              <Button size="icon" onClick={() => handleCreate()} className="h-9 w-9">
-                <Plus className="h-4 w-4" />
-              </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsCompanyModalOpen(true)} 
+                  className="gap-2 h-9"
+                >
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <span>Add Company</span>
+                </Button>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size={isPending ? "default" : "icon"} onClick={() => fileInputRef.current?.click()} disabled={isPending} className="h-9">
+                      {isPending ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-xs font-medium">{importProgress}%</span>
+                        </div>
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Import XLSX</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" onClick={() => handleCreate()} className="h-9 w-9">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>New Task</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
               <div className="h-6 w-px bg-border mx-1" />
 
