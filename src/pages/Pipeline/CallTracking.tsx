@@ -379,6 +379,57 @@ export default function CallTracking() {
     return { name: strVal, avatar: valInitials };
   }, [users]);
 
+  const { analystCounts, unassignedCount } = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    let unassigned = 0;
+    if (!summaries || !users) return { analystCounts: counts, unassignedCount: 0 };
+
+    const nameToId = new Map<string, string>();
+    const initialsToId = new Map<string, string>();
+
+    const getInitials = (str: string) => {
+      const parts = str.trim().split(/\s+/);
+      return parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : str.substring(0, 2).toUpperCase();
+    };
+
+    users.forEach(u => {
+      if (u.full_name) {
+        const idStr = String(u.id);
+        nameToId.set(u.full_name.toUpperCase().trim(), idStr);
+        initialsToId.set(getInitials(u.full_name), idStr);
+        counts[idStr] = 0;
+      }
+    });
+
+    summaries.forEach(s => {
+      if (!s.latest_analyst || s.latest_analyst === '-' || String(s.latest_analyst).trim() === '') {
+        unassigned++;
+        return;
+      }
+      const raw = String(s.latest_analyst).trim().toUpperCase();
+      let matchedId = nameToId.get(raw);
+      if (!matchedId) {
+        matchedId = initialsToId.get(raw);
+      }
+      if (!matchedId) {
+        const details = getAnalystDetails(s.latest_analyst);
+        if (details?.name && details.name !== '-') {
+          matchedId = nameToId.get(details.name.toUpperCase().trim()) || initialsToId.get(getInitials(details.name));
+        }
+      }
+
+      if (matchedId && counts[matchedId] !== undefined) {
+        counts[matchedId]++;
+      } else {
+        unassigned++;
+      }
+    });
+
+    return { analystCounts: counts, unassignedCount: unassigned };
+  }, [summaries, users, getAnalystDetails]);
+
   const filteredSummaries = React.useMemo(() => {
     if (!summaries) return [];
     if (analystFilter === "all") return summaries;
@@ -971,13 +1022,6 @@ export default function CallTracking() {
           )}
         </TableBody>
       </Table>
-
-      {/* Background loading indicator */}
-      {isFetchingNextPage && (
-        <div className="py-2 text-center text-xs text-primary font-medium border-t bg-muted/10 shrink-0">
-          Loading more calls from server...
-        </div>
-      )}
     </div>
   );
 
@@ -997,16 +1041,21 @@ export default function CallTracking() {
 
               <div className="flex items-center shrink-0">
                 <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px] h-9 bg-card text-xs sm:text-sm">
-                    <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
+                  <SelectTrigger className="w-[180px] sm:w-[220px] h-9 bg-card text-xs sm:text-sm">
+                    <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5 shrink-0" />
                     <SelectValue placeholder="All Analysts" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Analysts</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {(users ?? []).filter(u => u.full_name).map(u => (
-                      <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>
-                    ))}
+                  <SelectContent className="max-h-[300px] z-[1000]">
+                    <SelectItem value="all">All Analysts ({totalCount.toLocaleString()} {totalCount === 1 ? 'company' : 'companies'})</SelectItem>
+                    <SelectItem value="unassigned">Unassigned ({unassignedCount.toLocaleString()} {unassignedCount === 1 ? 'company' : 'companies'})</SelectItem>
+                    {(users ?? []).filter(u => u.full_name).map(u => {
+                      const count = analystCounts[String(u.id)] || 0;
+                      return (
+                        <SelectItem key={u.id} value={String(u.id)}>
+                          {u.full_name} ({count.toLocaleString()} {count === 1 ? 'company' : 'companies'})
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -1105,7 +1154,7 @@ export default function CallTracking() {
                 {renderTableContent()}
               </div>
               <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium shrink-0">
-                Showing {allRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length === totalCount && totalCount > 0 ? ' (100% loaded)' : allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
+                Showing {visibleRows.length.toLocaleString()} of {allRows.length.toLocaleString()} companies{allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
               </div>
             </div>
           </div>
@@ -1186,16 +1235,21 @@ export default function CallTracking() {
 
                   <div className="flex items-center shrink-0">
                     <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                      <SelectTrigger className="w-[140px] sm:w-[160px] h-9 bg-card text-xs sm:text-sm">
-                        <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
+                      <SelectTrigger className="w-[180px] sm:w-[220px] h-9 bg-card text-xs sm:text-sm">
+                        <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5 shrink-0" />
                         <SelectValue placeholder="All Analysts" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Analysts</SelectItem>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {(users ?? []).filter(u => u.full_name).map(u => (
-                          <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>
-                        ))}
+                      <SelectContent className="max-h-[300px] z-[1000]">
+                        <SelectItem value="all">All Analysts ({totalCount.toLocaleString()} {totalCount === 1 ? 'company' : 'companies'})</SelectItem>
+                        <SelectItem value="unassigned">Unassigned ({unassignedCount.toLocaleString()} {unassignedCount === 1 ? 'company' : 'companies'})</SelectItem>
+                        {(users ?? []).filter(u => u.full_name).map(u => {
+                          const count = analystCounts[String(u.id)] || 0;
+                          return (
+                            <SelectItem key={u.id} value={String(u.id)}>
+                              {u.full_name} ({count.toLocaleString()} {count === 1 ? 'company' : 'companies'})
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1264,7 +1318,7 @@ export default function CallTracking() {
                   {renderTableContent()}
                 </div>
                 <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium shrink-0">
-                  Showing {allRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length === totalCount && totalCount > 0 ? ' (100% loaded)' : allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
+                  Showing {visibleRows.length.toLocaleString()} of {allRows.length.toLocaleString()} companies{allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
                 </div>
               </div>
             </div>
