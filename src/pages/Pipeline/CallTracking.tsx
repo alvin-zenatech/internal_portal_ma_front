@@ -28,7 +28,7 @@ import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useInfiniteCallTrackingSummary, useTableColumnOrder, useUpdateTableColumnOrder, type CallTrackingSummary, useAnalysts, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useInfiniteCallTrackingSummary, useTableColumnOrder, useUpdateTableColumnOrder, type CallTrackingSummary, useAnalysts, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,14 +69,25 @@ const formatDate = (dateStr?: string | null) => {
   return dateStr;
 };
 
-function ColumnHeader({ column, title }: { column: any, title: string }) {
+function ColumnHeader({ 
+  column, 
+  title, 
+  customOptions 
+}: { 
+  column: any; 
+  title: string; 
+  customOptions?: { label: string; value: string }[]; 
+}) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const uniqueValues = React.useMemo(() => {
-    return Array.from(column.getFacetedUniqueValues().keys())
-      .filter(Boolean)
-      .sort() as string[];
-  }, [column.getFacetedUniqueValues()]);
+    if (customOptions && customOptions.length > 0) {
+      return customOptions.map(o => o.value).sort((a, b) => a.localeCompare(b));
+    }
+    const fromData = Array.from(column.getFacetedUniqueValues().keys())
+      .filter(Boolean) as string[];
+    return fromData.sort((a, b) => a.localeCompare(b));
+  }, [column.getFacetedUniqueValues(), customOptions]);
 
   const isLocation = title === "Country / Province" || title === "State / Country" || column.id === "location";
 
@@ -106,7 +117,7 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
     };
   }, [isLocation, uniqueValues]);
 
-  const isDropdown = uniqueValues.length > 0 && uniqueValues.length <= 300 || isLocation;
+  const isDropdown = (uniqueValues.length > 0 && uniqueValues.length <= 300) || isLocation || (customOptions !== undefined && customOptions.length > 0);
   const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
 
   const toggleOption = (val: string) => {
@@ -118,7 +129,12 @@ function ColumnHeader({ column, title }: { column: any, title: string }) {
     }
   };
 
-  const renderOptions = uniqueValues.map(val => ({ label: val, value: val }));
+  const renderOptions = React.useMemo(() => {
+    if (customOptions && customOptions.length > 0) {
+      return customOptions;
+    }
+    return uniqueValues.map(val => ({ label: val, value: val }));
+  }, [uniqueValues, customOptions]);
 
   const filteredOptions = renderOptions.filter(opt =>
     opt.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
@@ -306,6 +322,33 @@ export default function CallTracking() {
 
   const totalCount = infiniteData?.pages?.[0]?.total ?? summaries.length;
   const { data: users } = useAnalysts();
+  const { data: industries } = useIndustries();
+
+  const analystCustomOptions = React.useMemo(() => {
+    if (!users) return [];
+    return users
+      .filter(u => u.full_name)
+      .map(u => ({ label: u.full_name!, value: u.full_name! }));
+  }, [users]);
+
+  const industryCustomOptions = React.useMemo(() => {
+    if (!industries) return [];
+    return industries
+      .filter(i => i.name)
+      .map(i => ({ label: i.name, value: i.name }));
+  }, [industries]);
+
+  const yesNoOptions = React.useMemo(() => [
+    { label: "Yes", value: "Yes" },
+    { label: "No", value: "No" }
+  ], []);
+
+  // Automatically fetch remaining pages in the background so all filter options and records are loaded
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -440,7 +483,7 @@ export default function CallTracking() {
       },
       {
         accessorKey: 'industry',
-        header: ({ column }) => <ColumnHeader column={column} title="Industry" />,
+        header: ({ column }) => <ColumnHeader column={column} title="Industry" customOptions={industryCustomOptions} />,
         size: 180
       },
       {
@@ -492,7 +535,7 @@ export default function CallTracking() {
       {
         accessorKey: 'kdm',
         accessorFn: (row) => formatYesNo(row.kdm),
-        header: ({ column }) => <ColumnHeader column={column} title="KDM" />,
+        header: ({ column }) => <ColumnHeader column={column} title="KDM" customOptions={yesNoOptions} />,
         size: 130,
         minSize: 110,
         maxSize: 150,
@@ -503,7 +546,7 @@ export default function CallTracking() {
       },
       {
         accessorKey: 'picked_up',
-        header: ({ column }) => <ColumnHeader column={column} title="Picked Up" />,
+        header: ({ column }) => <ColumnHeader column={column} title="Picked Up" customOptions={yesNoOptions} />,
         size: 130,
         cell: ({ row }) => <span>{formatYesNo(row.original.picked_up)}</span>
       },
@@ -520,7 +563,11 @@ export default function CallTracking() {
       },
       {
         accessorKey: 'latest_analyst',
-        header: ({ column }) => <ColumnHeader column={column} title="Analyst" />,
+        accessorFn: (row: CallTrackingSummary) => {
+          const details = getAnalystDetails(row.latest_analyst);
+          return details.name !== '-' ? details.name : (row.latest_analyst || '');
+        },
+        header: ({ column }) => <ColumnHeader column={column} title="Analyst" customOptions={analystCustomOptions} />,
         size: 160,
         cell: ({ row }) => {
           const { name, avatar } = getAnalystDetails(row.original.latest_analyst);
@@ -715,12 +762,29 @@ export default function CallTracking() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     filterFns: {
-            multiSelect: (row: any, columnId: string, filterValue: any) => {
+      multiSelect: (row: any, columnId: string, filterValue: any) => {
         if (!filterValue || filterValue.length === 0) return true;
         const val = String(row.getValue(columnId) || "").toLowerCase().trim();
-        if (!val) return false;
 
         if (Array.isArray(filterValue)) {
+          if (columnId === "latest_analyst") {
+            const raw = (row.original.latest_analyst || "").toLowerCase().trim();
+            const fullName = getAnalystDetails(row.original.latest_analyst).name.toLowerCase().trim();
+            return filterValue.some((f: string) => {
+              const filter = String(f).toLowerCase().trim();
+              if (filter === raw || filter === fullName) return true;
+              if (fullName && fullName.includes(filter)) return true;
+              if (filter && filter.includes(fullName)) return true;
+              // Check initials of the filter against raw
+              const parts = filter.split(/\s+/).filter(Boolean);
+              if (parts.length >= 2) {
+                const filterInitials = (parts[0][0] + parts[parts.length - 1][0]).toLowerCase();
+                if (raw === filterInitials) return true;
+              }
+              return false;
+            });
+          }
+
           if (columnId === "location") {
             const selectedCountries = filterValue.filter((f: string) => !f.includes(",")).map((f: string) => f.toLowerCase().trim());
             const selectedProvinces = filterValue.filter((f: string) => f.includes(",")).map((f: string) => f.toLowerCase().trim());
@@ -877,7 +941,7 @@ export default function CallTracking() {
               onScroll={handleScroll}
             >
               <Table
-                containerClassName="overflow-visible"
+                containerClassName="none"
                 className="table-fixed min-w-[1550px] w-full text-xs"
                 style={{ tableLayout: "fixed" }}
               >

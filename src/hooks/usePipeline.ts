@@ -637,7 +637,10 @@ export function useCallTrackingSummary() {
   return useQuery({
     queryKey: ["call-tracking-summary"],
     queryFn: async () => {
-      return await api.get<CallTrackingSummary[]>("/api/pipeline/call-tracking/summary");
+      const res = await api.get<any>("/api/pipeline/call-tracking/summary");
+      if (res && Array.isArray(res.items)) return res.items as CallTrackingSummary[];
+      if (Array.isArray(res)) return res as CallTrackingSummary[];
+      return [];
     }
   });
 }

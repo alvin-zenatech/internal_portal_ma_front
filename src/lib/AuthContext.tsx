@@ -37,7 +37,7 @@ interface AuthContextType {
   hasPermission: (permissionCode: string) => boolean;
   hasRole: (roleCode: string) => boolean;
   logout: () => Promise<void>;
-  refreshPermissions: () => Promise<void>;
+  refreshPermissions: () => Promise<PermissionsData | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchRequestId = useRef(0);
 
-  const fetchPermissions = useCallback(async () => {
+  const fetchPermissions = useCallback(async (): Promise<PermissionsData | null> => {
     const requestId = ++fetchRequestId.current;
     setIsLoading(true);
     try {
@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (requestId === fetchRequestId.current) {
         setPermissions(data);
       }
+      return data;
     } catch {
       if (requestId === fetchRequestId.current) {
         setPermissions(null);
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('ms_id_token');
         sessionStorage.clear();
       }
+      return null;
     } finally {
       if (requestId === fetchRequestId.current) {
         setIsLoading(false);

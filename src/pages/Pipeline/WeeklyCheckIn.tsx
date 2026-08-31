@@ -63,12 +63,13 @@ export default function WeeklyCheckIn() {
       }
     }
 
-    const allowedPriorities = ["high value", "good fit", "50/50"];
+    const allowedPriorities = ["high value", "good fit", "50/50", "50 / 50"];
 
     // Filter by specific priorities
-    result = result.filter(t => 
-      t.priority_name && allowedPriorities.includes(t.priority_name.toLowerCase())
-    );
+    result = result.filter(t => {
+      const p = (t.priority_name || "").toLowerCase().trim();
+      return allowedPriorities.some(ap => p === ap || p.replace(/\s+/g, "") === ap.replace(/\s+/g, ""));
+    });
 
     // Sort by revenue (highest to lowest)
     result.sort((a, b) => {

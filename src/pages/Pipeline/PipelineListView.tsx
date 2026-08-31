@@ -17,7 +17,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask, useDeleteTask, usePriorities } from "@/hooks/usePipeline";
+import { type PipelineTask, useDeleteTask, usePriorities, useAnalysts } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -319,7 +319,25 @@ const PipelineListView = React.memo(function PipelineListView({
     return new Map<string, string>(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
   }, [executionAnalystOptions]);
 
+  const { data: analysts } = useAnalysts();
+  const analystOptions = React.useMemo(() => {
+    return (analysts || [])
+      .filter(a => a.full_name)
+      .map(a => ({ label: a.full_name!, value: a.full_name! }));
+  }, [analysts]);
+
   const { data: priorities } = usePriorities();
+  const priorityOptions = React.useMemo(() => {
+    return (priorities || [])
+      .filter(p => p.name)
+      .map(p => ({ label: p.name, value: p.name }));
+  }, [priorities]);
+
+  const yesNoOptions = React.useMemo(() => [
+    { label: "Yes", value: "Yes" },
+    { label: "No", value: "No" }
+  ], []);
+
   const priorityOrderMap = React.useMemo(() => {
     const map = new Map<string, number>();
     (priorities || []).forEach((p, idx) => {
@@ -350,7 +368,7 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "priority_name", 
-      header: ({ column }) => <ColumnHeader column={column} title="Priority" />,
+      header: ({ column }) => <ColumnHeader column={column} title="Priority" customOptions={priorityOptions} />,
       size: 160,
       cell: ({ row }) => {
         const priority = row.original.priority_name;
@@ -413,7 +431,7 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "analyst_name", 
-      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" />,
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" customOptions={analystOptions} />,
       cell: ({ row }: { row: { original: PipelineTask } }) => {
         const initials = getInitials(row.original.analyst_name || '');
         return (
@@ -487,19 +505,19 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "nda", 
-      header: ({ column }) => <ColumnHeader column={column} title="NDA" />, 
+      header: ({ column }) => <ColumnHeader column={column} title="NDA" customOptions={yesNoOptions} />, 
       size: 130, 
       minSize: 110, 
       maxSize: 160 
     },
     { 
       accessorKey: "p_and_l", 
-      header: ({ column }) => <ColumnHeader column={column} title="P&L" />, 
+      header: ({ column }) => <ColumnHeader column={column} title="P&L" customOptions={yesNoOptions} />, 
       size: 110, 
       minSize: 95, 
       maxSize: 140 
     }
-  ], [onEdit, analystNameMap, priorityOrderMap]);
+  ], [onEdit, analystNameMap, priorityOrderMap, priorityOptions, analystOptions, yesNoOptions, executionAnalystOptions]);
 
   const table = useReactTable({
     data: tasks,
@@ -583,7 +601,7 @@ const PipelineListView = React.memo(function PipelineListView({
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight + 200) {
+    if (scrollHeight - scrollTop <= clientHeight + 350) {
       if (visibleCount < allRows.length) {
         setVisibleCount(prev => Math.min(prev + 50, allRows.length));
       }
@@ -637,7 +655,7 @@ const PipelineListView = React.memo(function PipelineListView({
           onScroll={handleScroll}
         >
         <Table
-          containerClassName="overflow-visible"
+          containerClassName="none"
           className="table-fixed w-full min-w-[1500px] text-xs"
           style={{ tableLayout: "fixed" }}
         >
@@ -703,7 +721,7 @@ const PipelineListView = React.memo(function PipelineListView({
             {visibleCount < allRows.length && (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-12 text-center text-muted-foreground text-xs">
-                  Scroll to load more...
+                  Scroll to load more (showing {visibleRows.length} of {allRows.length})...
                 </TableCell>
               </TableRow>
             )}
@@ -711,7 +729,7 @@ const PipelineListView = React.memo(function PipelineListView({
         </Table>
         </div>
         <div className="bg-muted/20 border-t px-3 sm:px-4 py-1.5 sm:py-2 text-xs text-muted-foreground font-medium shrink-0">
-          Total rows: {allRows.length}
+          Showing {visibleRows.length.toLocaleString()} of {allRows.length.toLocaleString()} companies{allRows.length !== tasks.length ? ` (filtered from ${tasks.length.toLocaleString()} total)` : ''}
         </div>
       </div>
 

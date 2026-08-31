@@ -55,13 +55,15 @@ export default function Login() {
             sessionStorage.setItem("token", token);
             localStorage.setItem("token", token);
           }
-          await refreshPermissions();
+          const permissionsData = await refreshPermissions();
+          if (!permissionsData || !permissionsData.user) {
+            throw new Error("Failed to load user permissions");
+          }
           toast.success("Successfully logged in");
-          window.history.replaceState({}, document.title, window.location.pathname);
-          navigate("/");
+          navigate("/", { replace: true });
         } catch (error) {
           console.error("Failed to process SSO login", error);
-          toast.error("Failed to process login");
+          toast.error("Failed to process login. Please check server connection.");
         } finally {
           setIsLoading(false);
         }
