@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { List, type RowComponentProps } from 'react-window';
 import {
   useReactTable,
   getCoreRowModel,
@@ -42,7 +43,6 @@ import {
   getFilteredRowModel,
   type SortingState,
 } from '@tanstack/react-table';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search, FileSpreadsheet, Maximize2, Minimize2, User, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -80,21 +80,26 @@ function ColumnHeader({
   title: string; 
   customOptions?: { label: string; value: string }[]; 
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
+  const hasFilter = filterArray.length > 0 || Boolean(column.getFilterValue());
+
   const uniqueValues = React.useMemo(() => {
+    if (!isOpen) return [];
     if (customOptions && customOptions.length > 0) {
       return customOptions.map(o => o.value).sort((a, b) => a.localeCompare(b));
     }
     const fromData = Array.from(column.getFacetedUniqueValues().keys())
       .filter(Boolean) as string[];
     return fromData.sort((a, b) => a.localeCompare(b));
-  }, [column.getFacetedUniqueValues(), customOptions]);
+  }, [isOpen, column, customOptions]);
 
   const isLocation = title === "Country / Province" || title === "State / Country" || column.id === "location";
 
   const { countries, states } = React.useMemo(() => {
-    if (!isLocation) return { countries: [], states: [] };
+    if (!isOpen || !isLocation) return { countries: [], states: [] };
     const countryMap = new Map<string, { code: string, fullName: string }>();
     const stateList: string[] = [];
 
@@ -117,10 +122,9 @@ function ColumnHeader({
       countries: countryList,
       states: stateList.sort()
     };
-  }, [isLocation, uniqueValues]);
+  }, [isOpen, isLocation, uniqueValues]);
 
-  const isDropdown = (uniqueValues.length > 0 && uniqueValues.length <= 300) || isLocation || (customOptions !== undefined && customOptions.length > 0);
-  const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
+  const isDropdown = (customOptions !== undefined && customOptions.length > 0) || isLocation || (uniqueValues.length > 0 && uniqueValues.length <= 300);
 
   const toggleOption = (val: string) => {
     if (filterArray.includes(val)) {
@@ -132,11 +136,12 @@ function ColumnHeader({
   };
 
   const renderOptions = React.useMemo(() => {
+    if (!isOpen) return [];
     if (customOptions && customOptions.length > 0) {
       return customOptions;
     }
     return uniqueValues.map(val => ({ label: val, value: val }));
-  }, [uniqueValues, customOptions]);
+  }, [isOpen, uniqueValues, customOptions]);
 
   const filteredOptions = renderOptions.filter(opt =>
     opt.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
@@ -186,10 +191,10 @@ function ColumnHeader({
         <span className="truncate">{title}</span>
         <ArrowUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50 group-hover:opacity-100" />
       </Button>
-      <Popover>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className="h-7 w-5 shrink-0 -ml-1">
-            <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
+            <Filter className={`h-3 w-3 ${hasFilter ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
                 <PopoverContent className={isLocation ? "w-[500px] p-3" : "w-56 p-2"} align="start">
@@ -614,7 +619,7 @@ export default function CallTracking() {
         size: 140,
         cell: ({ row }) => {
           const val = row.original.call_length;
-          return <span className="text-xs" title={val}>{val || '-'}</span>;
+          return <span className="text-xs" title={val ?? undefined}>{val || '-'}</span>;
         }
       },
       {
@@ -770,22 +775,12 @@ export default function CallTracking() {
   const table = useReactTable({
     data: filteredSummaries || [],
     columns,
-    state: { sorting, columnFilters, globalFilter: deferredGlobalFilter, columnOrder },
+    state: { sorting, columnFilters, columnOrder },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
     onColumnOrderChange: (updater) => {
       const newOrder = typeof updater === 'function' ? updater(columnOrder) : updater;
       handleColumnOrderChange(newOrder);
-    },
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const search = filterValue.toLowerCase();
-      const dateVal = getLatestCallDate(row.original) || '';
-      const notesVal = getCallNotes(row.original) || '';
-      return Object.values(row.original).some(val =>
-        typeof val === 'string' && val.toLowerCase().includes(search)
-      ) || (dateVal !== '-' && dateVal.toLowerCase().includes(search))
-        || (notesVal !== '-' && notesVal.toLowerCase().includes(search));
     },
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getCoreRowModel: getCoreRowModel(),
@@ -847,49 +842,63 @@ export default function CallTracking() {
     defaultColumn: { filterFn: 'multiSelect' as any },
   });
 
-  const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
-  const [visibleCount, setVisibleCount] = useState(50);
 
-  useEffect(() => {
-    setVisibleCount(50);
-  }, [deferredGlobalFilter, columnFilters, sorting, analystFilter]);
+interface RowDataProps {
+  rows: any[];
+  onSelect: (name: string) => void;
+}
 
-  const visibleRows = React.useMemo(() => {
-    return allRows.slice(0, visibleCount);
-  }, [allRows, visibleCount]);
+const TableRowComponent = ({ index, style, rows, onSelect }: RowComponentProps<RowDataProps>): React.ReactElement | null => {
+  const row = rows[index];
+  if (!row) return null;
+  return (
+    <div
+      style={style}
+      className="flex items-center hover:bg-muted/50 cursor-pointer border-b text-xs transition-colors"
+      onClick={() => onSelect(row.original.normalized_company_name)}
+    >
+      {row.getVisibleCells().map((cell: any) => (
+        <div
+          key={cell.id}
+          className={cn(
+            "py-1.5 px-2 text-xs truncate shrink-0 flex items-center",
+            cell.column.id === "location" ? "justify-center text-center" : "justify-start text-left"
+          )}
+          style={{
+            width: cell.column.getSize(),
+            minWidth: cell.column.getSize(),
+            maxWidth: cell.column.getSize(),
+          }}
+        >
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </div>
+      ))}
+    </div>
+  );
+};
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight + 350) {
-      if (visibleCount < allRows.length) {
-        setVisibleCount(prev => Math.min(prev + 50, allRows.length));
-      } else if (hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    }
-  };
+  const itemData = React.useMemo(() => ({
+    rows: allRows,
+    onSelect: setSelectedCompany,
+  }), [allRows]);
 
   if (isLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
   const renderTableContent = () => (
-    <Table
-      containerClassName="none"
-      className="table-fixed min-w-[1550px] w-full text-xs"
-      style={{ tableLayout: "fixed" }}
-    >
-      <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
+    <div className="flex flex-col h-full w-full overflow-x-auto min-w-0">
+      {/* Sticky Table Header */}
+      <div className="sticky top-0 z-10 shadow-sm bg-muted/50 border-b min-w-[1550px] shrink-0">
         {table.getHeaderGroups().map((hg) => (
-          <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
+          <div key={hg.id} className="flex items-center">
             {hg.headers.map((h) => (
-              <TableHead
+              <div
                 key={h.id}
                 className={cn(
-                  "bg-muted/50 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold",
-                  "overflow-hidden",
-                  "transition-colors duration-150",
+                  "bg-muted/50 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold shrink-0 flex items-center",
+                  "overflow-hidden transition-colors duration-150",
                   dragOverColumnId === h.column.id &&
                     "bg-primary/20 border-l-2 border-primary",
                   draggedColumnId === h.column.id && "opacity-30"
@@ -931,65 +940,45 @@ export default function CallTracking() {
                 }}
               >
                 {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-              </TableHead>
+              </div>
             ))}
-          </TableRow>
+          </div>
         ))}
-      </TableHeader>
-      <TableBody>
-        {visibleRows.length ? (
-          visibleRows.map(row => {
-            return (
-              <TableRow
-                key={row.id}
-                className="hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedCompany(row.original.normalized_company_name)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    key={cell.id}
-                    className={cn(
-                      "py-1.5 px-2 text-xs",
-                      "whitespace-nowrap",
-                      "overflow-hidden",
-                      "text-ellipsis",
-                      cell.column.id === "location"
-                        ? "text-center"
-                        : "text-left"
-                    )}
-                    style={{
-                      width: cell.column.getSize(),
-                      minWidth: cell.column.getSize(),
-                      maxWidth: cell.column.getSize(),
-                    }}
-                  >
-                    {flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext()
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })
+      </div>
+
+      {/* Virtualized Rows via react-window */}
+      <div className="flex-1 min-h-0 w-full min-w-[1550px]">
+        {allRows.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground text-sm">
+            No call logs found.
+          </div>
         ) : (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
-              No call logs found.
-            </TableCell>
-          </TableRow>
+          <List
+            className="w-full h-full min-w-[1550px]"
+            style={{ height: '100%', width: '100%', overflowX: 'hidden' }}
+            rowCount={allRows.length}
+            rowHeight={40}
+            overscanCount={15}
+            rowProps={itemData}
+            rowComponent={TableRowComponent}
+            onRowsRendered={(visibleRows) => {
+              if (visibleRows.stopIndex >= allRows.length - 20) {
+                if (hasNextPage && !isFetchingNextPage) {
+                  fetchNextPage();
+                }
+              }
+            }}
+          />
         )}
-        {(isFetchingNextPage || visibleCount < allRows.length) && (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="py-3 text-center text-muted-foreground text-xs">
-              <span className="text-xs text-primary font-medium">
-                {isFetchingNextPage ? "Loading more calls from server..." : `Scroll to load more (showing ${visibleRows.length} of ${allRows.length})...`}
-              </span>
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+      </div>
+
+      {/* Background loading indicator */}
+      {isFetchingNextPage && (
+        <div className="py-1.5 text-center text-xs text-primary font-medium border-t bg-muted/10 shrink-0">
+          Loading more calls from server...
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -1112,15 +1101,11 @@ export default function CallTracking() {
           {/* Full Screen Table Container */}
           <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0 p-4">
             <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden h-full min-h-0">
-              <div
-                className="flex-1 min-h-0 overflow-auto relative"
-                ref={parentRef}
-                onScroll={handleScroll}
-              >
+              <div className="flex-1 min-h-0 relative">
                 {renderTableContent()}
               </div>
               <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium shrink-0">
-                Showing {visibleRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
+                Showing {allRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length === totalCount && totalCount > 0 ? ' (100% loaded)' : allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
               </div>
             </div>
           </div>
@@ -1173,7 +1158,7 @@ export default function CallTracking() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto relative bg-muted/20 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden relative bg-muted/20 flex flex-col min-h-0">
             <div className="flex-1 flex flex-col p-6 space-y-4 min-h-0">
               <CallLogUploadQueuePanel
                 onOpenPreview={(taskId) => {
@@ -1275,15 +1260,11 @@ export default function CallTracking() {
               </div>
 
               <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden min-h-[600px] h-[650px]">
-                <div
-                  className="flex-1 min-h-0 overflow-auto relative"
-                  ref={parentRef}
-                  onScroll={handleScroll}
-                >
+                <div className="flex-1 min-h-0 relative">
                   {renderTableContent()}
                 </div>
                 <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium shrink-0">
-                  Showing {visibleRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
+                  Showing {allRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length === totalCount && totalCount > 0 ? ' (100% loaded)' : allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
                 </div>
               </div>
             </div>
