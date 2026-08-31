@@ -621,7 +621,7 @@ export function useInfiniteCallTrackingSummary(search?: string) {
     queryFn: async ({ pageParam = 0 }) => {
       const searchParam = search && search.trim() ? `&search=${encodeURIComponent(search.trim())}` : "";
       return await api.get<PaginatedCallTrackingSummary>(
-        `/api/pipeline/call-tracking/summary?limit=250&offset=${pageParam}${searchParam}`
+        `/api/pipeline/call-tracking/summary?limit=100&offset=${pageParam}${searchParam}`
       );
     },
     initialPageParam: 0,

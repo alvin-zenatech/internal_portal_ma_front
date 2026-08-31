@@ -33,7 +33,6 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { List, type RowComponentProps } from 'react-window';
 import {
   useReactTable,
   getCoreRowModel,
@@ -43,6 +42,7 @@ import {
   getFilteredRowModel,
   type SortingState,
 } from '@tanstack/react-table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search, FileSpreadsheet, Maximize2, Minimize2, User, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -348,23 +348,55 @@ export default function CallTracking() {
       .map(i => ({ label: i.name, value: i.name }));
   }, [industries]);
 
+  const getAnalystDetails = React.useCallback((val: any) => {
+    if (!val || val === '-') return { name: '-', avatar: '?' };
+
+    const strVal = String(val).trim();
+    if (!strVal || strVal === '-') return { name: '-', avatar: '?' };
+
+    const getInitials = (str: string) => {
+      const parts = str.trim().split(/\s+/);
+      return parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : str.substring(0, 2).toUpperCase();
+    };
+
+    const upperVal = strVal.toUpperCase();
+    const valInitials = getInitials(strVal);
+
+    if (!users) return { name: strVal, avatar: valInitials };
+
+    let user = users.find(u => (u.full_name || '').toUpperCase() === upperVal);
+
+    if (!user) {
+      user = users.find(u => u.full_name ? getInitials(u.full_name) === upperVal : false);
+    }
+
+    if (user && user.full_name) {
+      return { name: user.full_name, avatar: getInitials(user.full_name) };
+    }
+
+    return { name: strVal, avatar: valInitials };
+  }, [users]);
+
   const filteredSummaries = React.useMemo(() => {
     if (!summaries) return [];
     if (analystFilter === "all") return summaries;
 
     if (analystFilter === "unassigned") {
-      return summaries.filter(s => !s.latest_analyst || s.latest_analyst === "-" || s.latest_analyst.trim() === "");
+      return summaries.filter(s => !s.latest_analyst || s.latest_analyst === "-" || String(s.latest_analyst).trim() === "");
     }
 
     const selectedUser = users?.find(u => String(u.id) === analystFilter || u.full_name === analystFilter);
-    const targetName = (selectedUser?.full_name || analystFilter).toLowerCase().trim();
+    const targetName = String(selectedUser?.full_name || analystFilter || "").toLowerCase().trim();
+    if (!targetName) return summaries;
 
     return summaries.filter(s => {
       if (!s.latest_analyst) return false;
-      const raw = s.latest_analyst.toLowerCase().trim();
+      const raw = String(s.latest_analyst).toLowerCase().trim();
       const details = getAnalystDetails(s.latest_analyst);
-      const fullName = details.name.toLowerCase().trim();
-      if (raw === targetName || fullName === targetName || (fullName && fullName.includes(targetName)) || (targetName && targetName.includes(fullName))) {
+      const fullName = String(details?.name || "").toLowerCase().trim();
+      if (raw === targetName || (fullName !== '-' && fullName === targetName) || (fullName !== '-' && fullName.includes(targetName)) || (targetName && fullName !== '-' && targetName.includes(fullName))) {
         return true;
       }
       const parts = targetName.split(/\s+/).filter(Boolean);
@@ -374,7 +406,7 @@ export default function CallTracking() {
       }
       return false;
     });
-  }, [summaries, analystFilter, users]);
+  }, [summaries, analystFilter, users, getAnalystDetails]);
 
   const yesNoOptions = React.useMemo(() => [
     { label: "Yes", value: "Yes" },
@@ -420,35 +452,6 @@ export default function CallTracking() {
     }
     e.target.value = '';
   };
-
-
-  const getAnalystDetails = React.useCallback((val: string | null) => {
-    if (!val) return { name: '-', avatar: '?' };
-
-    const getInitials = (str: string) => {
-      const parts = str.trim().split(/\s+/);
-      return parts.length >= 2
-        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-        : str.substring(0, 2).toUpperCase();
-    };
-
-    const upperVal = val.toUpperCase();
-    const valInitials = getInitials(val);
-
-    if (!users) return { name: val, avatar: valInitials };
-
-    let user = users.find(u => (u.full_name || '').toUpperCase() === upperVal);
-
-    if (!user) {
-      user = users.find(u => u.full_name ? getInitials(u.full_name) === upperVal : false);
-    }
-
-    if (user && user.full_name) {
-      return { name: user.full_name, avatar: getInitials(user.full_name) };
-    }
-
-    return { name: val, avatar: valInitials };
-  }, [users]);
 
   const getCallCount = React.useCallback((row: CallTrackingSummary) => {
     return row.call_count ?? 1;
@@ -793,13 +796,15 @@ export default function CallTracking() {
 
         if (Array.isArray(filterValue)) {
           if (columnId === "latest_analyst") {
-            const raw = (row.original.latest_analyst || "").toLowerCase().trim();
-            const fullName = getAnalystDetails(row.original.latest_analyst).name.toLowerCase().trim();
+            const raw = String(row.original.latest_analyst || "").toLowerCase().trim();
+            const analystObj = getAnalystDetails(row.original.latest_analyst);
+            const fullName = String(analystObj?.name || "").toLowerCase().trim();
             return filterValue.some((f: string) => {
+              if (!f) return false;
               const filter = String(f).toLowerCase().trim();
-              if (filter === raw || filter === fullName) return true;
-              if (fullName && fullName.includes(filter)) return true;
-              if (filter && filter.includes(fullName)) return true;
+              if (filter === raw || (fullName !== '-' && filter === fullName)) return true;
+              if (fullName !== '-' && fullName.includes(filter)) return true;
+              if (filter && fullName !== '-' && filter.includes(fullName)) return true;
               // Check initials of the filter against raw
               const parts = filter.split(/\s+/).filter(Boolean);
               if (parts.length >= 2) {
@@ -843,138 +848,133 @@ export default function CallTracking() {
   });
 
   const allRows = table.getRowModel().rows;
+  const [visibleCount, setVisibleCount] = useState(60);
 
-interface RowDataProps {
-  rows: any[];
-  onSelect: (name: string) => void;
-}
+  useEffect(() => {
+    setVisibleCount(60);
+  }, [deferredGlobalFilter, analystFilter, columnFilters, sorting]);
 
-const TableRowComponent = ({ index, style, rows, onSelect }: RowComponentProps<RowDataProps>): React.ReactElement | null => {
-  const row = rows[index];
-  if (!row) return null;
-  return (
-    <div
-      style={style}
-      className="flex items-center hover:bg-muted/50 cursor-pointer border-b text-xs transition-colors"
-      onClick={() => onSelect(row.original.normalized_company_name)}
-    >
-      {row.getVisibleCells().map((cell: any) => (
-        <div
-          key={cell.id}
-          className={cn(
-            "py-1.5 px-2 text-xs truncate shrink-0 flex items-center",
-            cell.column.id === "location" ? "justify-center text-center" : "justify-start text-left"
-          )}
-          style={{
-            width: cell.column.getSize(),
-            minWidth: cell.column.getSize(),
-            maxWidth: cell.column.getSize(),
-          }}
-        >
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-        </div>
-      ))}
-    </div>
-  );
-};
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 400) {
+      if (visibleCount < allRows.length) {
+        setVisibleCount((prev) => Math.min(prev + 50, allRows.length));
+      }
+      if (hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }
+  };
 
-  const itemData = React.useMemo(() => ({
-    rows: allRows,
-    onSelect: setSelectedCompany,
-  }), [allRows]);
+  const visibleRows = allRows.slice(0, visibleCount);
 
   if (isLoading) {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
   const renderTableContent = () => (
-    <div className="flex flex-col h-full w-full overflow-x-auto min-w-0">
-      {/* Sticky Table Header */}
-      <div className="sticky top-0 z-10 shadow-sm bg-muted/50 border-b min-w-[1550px] shrink-0">
-        {table.getHeaderGroups().map((hg) => (
-          <div key={hg.id} className="flex items-center">
-            {hg.headers.map((h) => (
-              <div
-                key={h.id}
-                className={cn(
-                  "bg-muted/50 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold shrink-0 flex items-center",
-                  "overflow-hidden transition-colors duration-150",
-                  dragOverColumnId === h.column.id &&
-                    "bg-primary/20 border-l-2 border-primary",
-                  draggedColumnId === h.column.id && "opacity-30"
-                )}
-                style={{
-                  width: h.column.getSize(),
-                  minWidth: h.column.getSize(),
-                  maxWidth: h.column.getSize(),
-                }}
-                draggable
-                onDragStart={(e) => {
-                  setDraggedColumnId(h.column.id);
-                  e.dataTransfer.setData('text/plain', h.column.id);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (dragOverColumnId !== h.column.id) {
-                    setDragOverColumnId(h.column.id);
-                  }
-                }}
-                onDragLeave={() => {
-                  if (dragOverColumnId === h.column.id) {
+    <div
+      className="flex-1 min-h-0 overflow-auto relative h-full w-full"
+      onScroll={handleScroll}
+    >
+      <Table
+        containerClassName="none"
+        className="table-fixed w-full min-w-[1550px] text-xs"
+        style={{ tableLayout: "fixed" }}
+      >
+        <TableHeader className="sticky top-0 z-10 shadow-xs bg-muted/90 backdrop-blur">
+          {table.getHeaderGroups().map((hg) => (
+            <TableRow key={hg.id} className="bg-muted/90 hover:bg-muted/90">
+              {hg.headers.map((h) => (
+                <TableHead
+                  key={h.id}
+                  className={cn(
+                    "bg-muted/90 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold overflow-hidden transition-colors duration-150",
+                    dragOverColumnId === h.column.id &&
+                      "bg-primary/20 border-l-2 border-primary",
+                    draggedColumnId === h.column.id && "opacity-30"
+                  )}
+                  style={{
+                    width: h.column.getSize(),
+                    minWidth: h.column.getSize(),
+                    maxWidth: h.column.getSize(),
+                  }}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedColumnId(h.column.id);
+                    e.dataTransfer.setData('text/plain', h.column.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverColumnId !== h.column.id) {
+                      setDragOverColumnId(h.column.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverColumnId === h.column.id) {
+                      setDragOverColumnId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const draggedId = e.dataTransfer.getData('text/plain') || draggedColumnId;
+                    if (draggedId) {
+                      reorderColumns(draggedId, h.column.id);
+                    }
+                    setDraggedColumnId(null);
                     setDragOverColumnId(null);
-                  }
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const draggedId = e.dataTransfer.getData('text/plain') || draggedColumnId;
-                  if (draggedId) {
-                    reorderColumns(draggedId, h.column.id);
-                  }
-                  setDraggedColumnId(null);
-                  setDragOverColumnId(null);
-                }}
-                onDragEnd={() => {
-                  setDraggedColumnId(null);
-                  setDragOverColumnId(null);
-                }}
+                  }}
+                  onDragEnd={() => {
+                    setDraggedColumnId(null);
+                    setDragOverColumnId(null);
+                  }}
+                >
+                  {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {visibleRows.length ? (
+            visibleRows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="cursor-pointer hover:bg-muted/50 transition-colors border-b"
+                onClick={() => setSelectedCompany(row.original.normalized_company_name)}
               >
-                {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* Virtualized Rows via react-window */}
-      <div className="flex-1 min-h-0 w-full min-w-[1550px]">
-        {allRows.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground text-sm">
-            No call logs found.
-          </div>
-        ) : (
-          <List
-            className="w-full h-full min-w-[1550px]"
-            style={{ height: '100%', width: '100%', overflowX: 'hidden' }}
-            rowCount={allRows.length}
-            rowHeight={40}
-            overscanCount={15}
-            rowProps={itemData}
-            rowComponent={TableRowComponent}
-            onRowsRendered={(visibleRows) => {
-              if (visibleRows.stopIndex >= allRows.length - 20) {
-                if (hasNextPage && !isFetchingNextPage) {
-                  fetchNextPage();
-                }
-              }
-            }}
-          />
-        )}
-      </div>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    key={cell.id}
+                    className={cn(
+                      "py-1.5 px-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis",
+                      cell.column.id === "location" ? "text-center" : "text-left"
+                    )}
+                    style={{
+                      width: cell.column.getSize(),
+                      minWidth: cell.column.getSize(),
+                      maxWidth: cell.column.getSize(),
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground text-sm">
+                No call logs found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
 
       {/* Background loading indicator */}
       {isFetchingNextPage && (
-        <div className="py-1.5 text-center text-xs text-primary font-medium border-t bg-muted/10 shrink-0">
+        <div className="py-2 text-center text-xs text-primary font-medium border-t bg-muted/10 shrink-0">
           Loading more calls from server...
         </div>
       )}
