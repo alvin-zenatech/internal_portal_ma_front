@@ -348,6 +348,13 @@ export default function CallTracking() {
       .map(i => ({ label: i.name, value: i.name }));
   }, [industries]);
 
+  // Automatically fetch remaining pages in background to fully synchronize all 4,802 records and analyst totals
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const getAnalystDetails = React.useCallback((val: any) => {
     if (!val || val === '-') return { name: '-', avatar: '?' };
 
