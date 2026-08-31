@@ -44,8 +44,10 @@ import {
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search, FileSpreadsheet } from "lucide-react";
+import { ArrowUpDown, Filter, Upload, GripVertical, RotateCcw, Save, Plus, Search, FileSpreadsheet, Maximize2, Minimize2, User, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CallLogUploadQueuePanel from "@/components/Pipeline/CallLogUploadQueuePanel";
 import { Input } from "@/components/ui/input";
 import { type ColumnFiltersState, getFacetedUniqueValues } from "@tanstack/react-table";
@@ -305,6 +307,7 @@ function ColumnHeader({
 export default function CallTracking() {
   const [globalFilter, setGlobalFilter] = useState("");
   const deferredGlobalFilter = useDeferredValue(globalFilter);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const {
     data: infiniteData,
@@ -324,6 +327,8 @@ export default function CallTracking() {
   const { data: users } = useAnalysts();
   const { data: industries } = useIndustries();
 
+  const [analystFilter, setAnalystFilter] = useState("all");
+
   const analystCustomOptions = React.useMemo(() => {
     if (!users) return [];
     return users
@@ -338,17 +343,38 @@ export default function CallTracking() {
       .map(i => ({ label: i.name, value: i.name }));
   }, [industries]);
 
+  const filteredSummaries = React.useMemo(() => {
+    if (!summaries) return [];
+    if (analystFilter === "all") return summaries;
+
+    if (analystFilter === "unassigned") {
+      return summaries.filter(s => !s.latest_analyst || s.latest_analyst === "-" || s.latest_analyst.trim() === "");
+    }
+
+    const selectedUser = users?.find(u => String(u.id) === analystFilter || u.full_name === analystFilter);
+    const targetName = (selectedUser?.full_name || analystFilter).toLowerCase().trim();
+
+    return summaries.filter(s => {
+      if (!s.latest_analyst) return false;
+      const raw = s.latest_analyst.toLowerCase().trim();
+      const details = getAnalystDetails(s.latest_analyst);
+      const fullName = details.name.toLowerCase().trim();
+      if (raw === targetName || fullName === targetName || (fullName && fullName.includes(targetName)) || (targetName && targetName.includes(fullName))) {
+        return true;
+      }
+      const parts = targetName.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        const filterInitials = (parts[0][0] + parts[parts.length - 1][0]).toLowerCase();
+        if (raw === filterInitials) return true;
+      }
+      return false;
+    });
+  }, [summaries, analystFilter, users]);
+
   const yesNoOptions = React.useMemo(() => [
     { label: "Yes", value: "Yes" },
     { label: "No", value: "No" }
   ], []);
-
-  // Automatically fetch remaining pages in the background so all filter options and records are loaded
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -585,7 +611,11 @@ export default function CallTracking() {
       {
         accessorKey: 'call_length',
         header: ({ column }) => <ColumnHeader column={column} title="Call Length" />,
-        size: 140
+        size: 140,
+        cell: ({ row }) => {
+          const val = row.original.call_length;
+          return <span className="text-xs" title={val}>{val || '-'}</span>;
+        }
       },
       {
         accessorKey: 'notes',
@@ -738,7 +768,7 @@ export default function CallTracking() {
   };
 
   const table = useReactTable({
-    data: summaries || [],
+    data: filteredSummaries || [],
     columns,
     state: { sorting, columnFilters, globalFilter: deferredGlobalFilter, columnOrder },
     onSortingChange: setSorting,
@@ -819,11 +849,22 @@ export default function CallTracking() {
 
   const parentRef = React.useRef<HTMLDivElement>(null);
   const allRows = table.getRowModel().rows;
+  const [visibleCount, setVisibleCount] = useState(50);
+
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [deferredGlobalFilter, columnFilters, sorting, analystFilter]);
+
+  const visibleRows = React.useMemo(() => {
+    return allRows.slice(0, visibleCount);
+  }, [allRows, visibleCount]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     if (scrollHeight - scrollTop <= clientHeight + 350) {
-      if (hasNextPage && !isFetchingNextPage) {
+      if (visibleCount < allRows.length) {
+        setVisibleCount(prev => Math.min(prev + 50, allRows.length));
+      } else if (hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
     }
@@ -833,61 +874,167 @@ export default function CallTracking() {
     return <div className="p-8">Loading Call Tracking...</div>;
   }
 
+  const renderTableContent = () => (
+    <Table
+      containerClassName="none"
+      className="table-fixed min-w-[1550px] w-full text-xs"
+      style={{ tableLayout: "fixed" }}
+    >
+      <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
+        {table.getHeaderGroups().map((hg) => (
+          <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
+            {hg.headers.map((h) => (
+              <TableHead
+                key={h.id}
+                className={cn(
+                  "bg-muted/50 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold",
+                  "overflow-hidden",
+                  "transition-colors duration-150",
+                  dragOverColumnId === h.column.id &&
+                    "bg-primary/20 border-l-2 border-primary",
+                  draggedColumnId === h.column.id && "opacity-30"
+                )}
+                style={{
+                  width: h.column.getSize(),
+                  minWidth: h.column.getSize(),
+                  maxWidth: h.column.getSize(),
+                }}
+                draggable
+                onDragStart={(e) => {
+                  setDraggedColumnId(h.column.id);
+                  e.dataTransfer.setData('text/plain', h.column.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (dragOverColumnId !== h.column.id) {
+                    setDragOverColumnId(h.column.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (dragOverColumnId === h.column.id) {
+                    setDragOverColumnId(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const draggedId = e.dataTransfer.getData('text/plain') || draggedColumnId;
+                  if (draggedId) {
+                    reorderColumns(draggedId, h.column.id);
+                  }
+                  setDraggedColumnId(null);
+                  setDragOverColumnId(null);
+                }}
+                onDragEnd={() => {
+                  setDraggedColumnId(null);
+                  setDragOverColumnId(null);
+                }}
+              >
+                {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+              </TableHead>
+            ))}
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody>
+        {visibleRows.length ? (
+          visibleRows.map(row => {
+            return (
+              <TableRow
+                key={row.id}
+                className="hover:bg-muted/50 cursor-pointer transition-colors"
+                onClick={() => setSelectedCompany(row.original.normalized_company_name)}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    key={cell.id}
+                    className={cn(
+                      "py-1.5 px-2 text-xs",
+                      "whitespace-nowrap",
+                      "overflow-hidden",
+                      "text-ellipsis",
+                      cell.column.id === "location"
+                        ? "text-center"
+                        : "text-left"
+                    )}
+                    style={{
+                      width: cell.column.getSize(),
+                      minWidth: cell.column.getSize(),
+                      maxWidth: cell.column.getSize(),
+                    }}
+                  >
+                    {flexRender(
+                      cell.column.columnDef.cell,
+                      cell.getContext()
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })
+        ) : (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+              No call logs found.
+            </TableCell>
+          </TableRow>
+        )}
+        {(isFetchingNextPage || visibleCount < allRows.length) && (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="py-3 text-center text-muted-foreground text-xs">
+              <span className="text-xs text-primary font-medium">
+                {isFetchingNextPage ? "Loading more calls from server..." : `Scroll to load more (showing ${visibleRows.length} of ${allRows.length})...`}
+              </span>
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+
   return (
     <div className="h-full flex flex-col w-full min-h-0">
-      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 border-b bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Call Tracking
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Track and review all client and prospect communication.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept=".xlsx,.xls,.xlsm,.csv"
-            onChange={handleImport}
-          />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap" disabled={previewCallLog.isPending}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Call Log
-          </Button>
-          <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Call Log
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto relative bg-muted/20 flex flex-col min-h-0">
-        <div className="flex-1 flex flex-col p-6 space-y-4 min-h-0">
-          <CallLogUploadQueuePanel
-            onOpenPreview={(taskId) => {
-              toast.loading("Loading preview...", { id: "load-preview" });
-              fetchPreviewCallLogResult(taskId)
-                .then((data) => {
-                  toast.dismiss("load-preview");
-                  setPreviewData(data);
-                  setPreviewOpen(true);
-                })
-                .catch((err) => {
-                  toast.dismiss("load-preview");
-                  toast.error(err?.message || "Failed to load preview.");
-                });
-            }}
-          />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 flex-wrap">
+      {isFullScreen ? (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          {/* Top Bar for Full Screen */}
+          <div className="px-4 py-3 border-b bg-card shrink-0 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-1 flex-wrap">
               <Input
                 placeholder="Search call logs..."
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                className="w-64 max-w-sm"
+                className="w-56 max-w-sm h-9"
               />
+
+              <div className="flex items-center shrink-0">
+                <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px] h-9 bg-card text-xs sm:text-sm">
+                    <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
+                    <SelectValue placeholder="All Analysts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Analysts</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {(users ?? []).filter(u => u.full_name).map(u => (
+                      <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {analystFilter !== "all" && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/30 text-primary text-xs rounded-full font-medium animate-in fade-in">
+                  <span>Analyst: {users?.find(u => String(u.id) === analystFilter)?.full_name || analystFilter}</span>
+                  <button 
+                    type="button"
+                    onClick={() => setAnalystFilter("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                    aria-label="Clear Analyst Filter"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -932,134 +1079,217 @@ export default function CallTracking() {
                 </>
               )}
             </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap ml-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => fileInputRef.current?.click()} 
+                className="gap-2 h-9" 
+                disabled={previewCallLog.isPending}
+              >
+                <Upload className="h-4 w-4" />
+                <span>Upload Call Log</span>
+              </Button>
+
+              <Button onClick={() => setSelectedCompany('__NEW__')} className="gap-2 h-9">
+                <Plus className="h-4 w-4" />
+                <span>Add Call Log</span>
+              </Button>
+
+              <div className="h-6 w-px bg-border mx-1" />
+
+              <Button 
+                variant="secondary" 
+                onClick={() => setIsFullScreen(false)} 
+                className="gap-1.5 h-9 font-medium"
+              >
+                <Minimize2 className="h-4 w-4" />
+                <span>Exit Full Screen</span>
+              </Button>
+            </div>
           </div>
 
-          <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden min-h-[600px] h-[650px]">
-            <div
-              className="flex-1 min-h-0 overflow-auto relative"
-              ref={parentRef}
-              onScroll={handleScroll}
-            >
-              <Table
-                containerClassName="none"
-                className="table-fixed min-w-[1550px] w-full text-xs"
-                style={{ tableLayout: "fixed" }}
+          {/* Full Screen Table Container */}
+          <div className="flex-1 overflow-hidden relative bg-muted/20 flex flex-col min-h-0 p-4">
+            <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden h-full min-h-0">
+              <div
+                className="flex-1 min-h-0 overflow-auto relative"
+                ref={parentRef}
+                onScroll={handleScroll}
               >
-                <TableHeader className="sticky top-0 z-10 shadow-sm bg-muted/50">
-                  {table.getHeaderGroups().map((hg) => (
-                    <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50">
-                      {hg.headers.map((h) => (
-                        <TableHead
-                          key={h.id}
-                          className={cn(
-                            "bg-muted/50 whitespace-nowrap select-none h-8 py-1 px-2 text-xs font-semibold",
-                            "overflow-hidden",
-                            "transition-colors duration-150",
-                            dragOverColumnId === h.column.id &&
-                              "bg-primary/20 border-l-2 border-primary",
-                            draggedColumnId === h.column.id && "opacity-30"
-                          )}
-                          style={{
-                            width: h.column.getSize(),
-                            minWidth: h.column.getSize(),
-                            maxWidth: h.column.getSize(),
-                          }}
-                          draggable
-                          onDragStart={(e) => {
-                            setDraggedColumnId(h.column.id);
-                            e.dataTransfer.setData('text/plain', h.column.id);
-                            e.dataTransfer.effectAllowed = 'move';
-                          }}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            if (dragOverColumnId !== h.column.id) {
-                              setDragOverColumnId(h.column.id);
-                            }
-                          }}
-                          onDragLeave={() => {
-                            if (dragOverColumnId === h.column.id) {
-                              setDragOverColumnId(null);
-                            }
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            const draggedId = e.dataTransfer.getData('text/plain') || draggedColumnId;
-                            if (draggedId) {
-                              reorderColumns(draggedId, h.column.id);
-                            }
-                            setDraggedColumnId(null);
-                            setDragOverColumnId(null);
-                          }}
-                          onDragEnd={() => {
-                            setDraggedColumnId(null);
-                            setDragOverColumnId(null);
-                          }}
-                        >
-                          {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {allRows.length ? (
-                    allRows.map(row => {
-                      return (
-                        <TableRow
-                          key={row.id}
-                          className="hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => setSelectedCompany(row.original.normalized_company_name)}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell
-                              key={cell.id}
-                              className={cn(
-                                "py-1.5 px-2 text-xs",
-                                "whitespace-nowrap",
-                                "overflow-hidden",
-                                "text-ellipsis",
-                                cell.column.id === "location"
-                                  ? "text-center"
-                                  : "text-left"
-                              )}
-                              style={{
-                                width: cell.column.getSize(),
-                                minWidth: cell.column.getSize(),
-                                maxWidth: cell.column.getSize(),
-                              }}
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
-                        No call logs found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {isFetchingNextPage && (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="py-4 text-center text-muted-foreground">
-                        <span className="text-xs text-primary font-medium animate-pulse">Loading more calls...</span>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium">
-              Showing {allRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies
+                {renderTableContent()}
+              </div>
+              <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium shrink-0">
+                Showing {visibleRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 border-b bg-card shrink-0 flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                Call Tracking
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                Track and review all client and prospect communication.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".xlsx,.xls,.xlsm,.csv"
+                onChange={handleImport}
+              />
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="whitespace-nowrap" disabled={previewCallLog.isPending}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Call Log
+              </Button>
+              <Button onClick={() => setSelectedCompany('__NEW__')} className="whitespace-nowrap">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Call Log
+              </Button>
+
+              <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
+
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => setIsFullScreen(true)} 
+                      className="h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Full Screen View</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto relative bg-muted/20 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col p-6 space-y-4 min-h-0">
+              <CallLogUploadQueuePanel
+                onOpenPreview={(taskId) => {
+                  toast.loading("Loading preview...", { id: "load-preview" });
+                  fetchPreviewCallLogResult(taskId)
+                    .then((data) => {
+                      toast.dismiss("load-preview");
+                      setPreviewData(data);
+                      setPreviewOpen(true);
+                    })
+                    .catch((err) => {
+                      toast.dismiss("load-preview");
+                      toast.error(err?.message || "Failed to load preview.");
+                    });
+                }}
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 sm:gap-3 flex-1 flex-wrap">
+                  <Input
+                    placeholder="Search call logs..."
+                    value={globalFilter}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    className="w-64 max-w-sm"
+                  />
+
+                  <div className="flex items-center shrink-0">
+                    <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                      <SelectTrigger className="w-[140px] sm:w-[160px] h-9 bg-card text-xs sm:text-sm">
+                        <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
+                        <SelectValue placeholder="All Analysts" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Analysts</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {(users ?? []).filter(u => u.full_name).map(u => (
+                          <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {analystFilter !== "all" && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/30 text-primary text-xs rounded-full font-medium animate-in fade-in">
+                      <span>Analyst: {users?.find(u => String(u.id) === analystFilter)?.full_name || analystFilter}</span>
+                      <button 
+                        type="button"
+                        onClick={() => setAnalystFilter("all")}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                        aria-label="Clear Analyst Filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCallTracking}
+                    className="text-xs h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Export CSV</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="text-xs h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <a href="/templates/Call_Log_Template.xlsx" download="Call_Log_Template.xlsx">
+                      <FileSpreadsheet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <span>Download Blank Template</span>
+                    </a>
+                  </Button>
+                  {isCustomOrder && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveForTeam}
+                        disabled={updateColumnOrder.isPending}
+                        className="text-xs h-9 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary animate-in fade-in"
+                      >
+                        <Save className="h-3.5 w-3.5 mr-1.5" />
+                        {updateColumnOrder.isPending ? "Saving..." : "Save as Team Default"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetColumnOrder}
+                        className="text-xs text-muted-foreground hover:text-foreground h-9 animate-in fade-in"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                        Reset Columns
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-md border bg-card flex-1 flex flex-col shadow-xs overflow-hidden min-h-[600px] h-[650px]">
+                <div
+                  className="flex-1 min-h-0 overflow-auto relative"
+                  ref={parentRef}
+                  onScroll={handleScroll}
+                >
+                  {renderTableContent()}
+                </div>
+                <div className="bg-muted/20 border-t px-4 py-2 text-sm text-muted-foreground font-medium shrink-0">
+                  Showing {visibleRows.length.toLocaleString()} of {totalCount.toLocaleString()} companies{allRows.length !== totalCount ? ` (filtered from ${totalCount.toLocaleString()} total)` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Slide-over details pane */}
       {selectedCompany && (

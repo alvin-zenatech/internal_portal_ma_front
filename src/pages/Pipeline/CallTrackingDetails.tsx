@@ -245,14 +245,16 @@ export default function CallTrackingDetails({
   };
 
   const handleCallLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, '');
-    if (val.length > 6) val = val.slice(0, 6);
-    
+    // Strip non-digits and limit to 4 characters (mmss)
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.length > 4) val = val.slice(0, 4);
+
     let formatted = val;
-    if (val.length > 4) {
-      formatted = `${val.slice(0, 2)}:${val.slice(2, 4)}:${val.slice(4)}`;
-    } else if (val.length > 2) {
-      formatted = `${val.slice(0, 2)}:${val.slice(2)}`;
+    // If more than 2 digits, format as minutes:seconds
+    if (val.length > 2) {
+      const minutes = val.slice(0, val.length - 2);
+      const seconds = val.slice(-2);
+      formatted = `${minutes}:${seconds}`;
     }
     setFormData({ ...formData, call_length: formatted });
   };
@@ -383,7 +385,7 @@ export default function CallTrackingDetails({
                     <Input 
                       value={formData.call_length || ''} 
                       onChange={handleCallLengthChange}
-                      placeholder="hh:mm:ss"
+                      placeholder="mm:ss"
                       className="h-8.5 sm:h-9 text-xs sm:text-sm font-mono"
                     />
                   </div>
