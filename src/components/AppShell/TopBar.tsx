@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, CheckCheck, Building2, FileText, Loader2, LogOut, User, Mail, BellRing, Settings2, Menu } from "lucide-react";
+import { Bell, CheckCheck, LogOut, User, Mail, BellRing, Settings2, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import ThemeSwitch from "./ThemeSwitch";
-import { useGlobalSearch } from "@/hooks/useSearch";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications, useUnreadNotificationCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useClearReadNotifications } from "@/hooks/useNotifications";
 
@@ -61,15 +60,11 @@ function TopBarClock() {
 
 
 export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
-  const [inputValue, setInputValue] = useState("");
-  const [debouncedValue, setDebouncedValue] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [inAppAlerts, setInAppAlerts] = useState(() => localStorage.getItem("inAppAlerts") !== "false");
-  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user, roles, logout } = useAuth();
   const { data: notifications = [], isFetched: isNotificationsFetched } = useNotifications({ refetchInterval: 8000 });
@@ -116,43 +111,6 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     }
   }, [notifications, isNotificationsFetched, inAppAlerts, navigate, markAsRead]);
   const hasReadNotifications = notifications.some(n => n.is_read);
-  // Debounce input
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(inputValue);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [inputValue]);
-
-  const { data: results = [], isLoading, isFetching } = useGlobalSearch(debouncedValue);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "company": return <Building2 className="h-4 w-4 text-blue-500" />;
-      case "task": return <FileText className="h-4 w-4 text-amber-500" />;
-      default: return <Search className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
-
-  const handleResultClick = (url: string) => {
-    setIsOpen(false);
-    setInputValue("");
-    setDebouncedValue("");
-    if (url) {
-      navigate(url);
-    }
-  };
 
   return (
     <header className="h-10 tablet:h-11 border-b border-border bg-card text-card-foreground flex items-center justify-between px-2 phone:px-3 tablet:px-4 shrink-0 transition-all duration-300 gap-1.5 phone:gap-2 tablet:gap-3">
@@ -168,59 +126,6 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <Menu className="h-4 w-4" />
           </Button>
         )}
-
-        <div ref={containerRef} className="relative w-full max-w-[140px] phone:max-w-[170px] large:max-w-[220px] tablet:max-w-[260px] laptop:max-w-[280px] desktop:max-w-[320px] wide:max-w-[360px] z-20">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input 
-            placeholder="Search..." 
-            className="w-full pl-8 bg-muted border-none rounded-full h-7 tablet:h-7.5 text-xs shadow-inner focus-visible:ring-1 focus-visible:ring-ring"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setIsOpen(true);
-            }}
-            onFocus={() => {
-              if (inputValue.trim().length > 0) setIsOpen(true);
-            }}
-          />
-          
-          {isOpen && debouncedValue.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border shadow-lg rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              {isLoading || isFetching ? (
-                <div className="p-4 flex items-center justify-center text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-xs">Searching...</span>
-                </div>
-              ) : results.length > 0 ? (
-                <div className="max-h-[360px] overflow-y-auto py-1">
-                  {results.map((result: any, idx: number) => {
-                    return (
-                      <div 
-                        key={`${result.url}-${idx}`}
-                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => handleResultClick(result.url)}
-                      >
-                        <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 border border-border/50 shadow-xs text-muted-foreground">
-                          {getIcon(result.type)}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-semibold text-foreground truncate">{result.title}</span>
-                          {result.subtitle && <span className="text-[11px] text-muted-foreground truncate">{result.subtitle}</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="p-6 flex flex-col items-center justify-center text-center">
-                  <span className="text-xs text-muted-foreground">
-                    No results found for "{debouncedValue}"
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
       
       <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
