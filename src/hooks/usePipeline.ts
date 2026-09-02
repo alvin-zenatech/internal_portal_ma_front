@@ -283,11 +283,14 @@ export function useUpdateState() {
 export const useDeleteState = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/states/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["states"] }); qc.invalidateQueries({ queryKey: ["tasks"] }); } }); };
 
 
+export const useNdaTypes = () => useQuery({ queryKey: ["nda-types"], queryFn: () => api.get<string[]>("/api/pipeline/nda-types") });
+export const usePandLTypes = () => useQuery({ queryKey: ["p-and-l-types"], queryFn: () => api.get<string[]>("/api/pipeline/p-and-l-types") });
+
 // Task Hooks
 export const usePipelineTasks = () => useQuery({ queryKey: ["tasks"], queryFn: () => api.get<PipelineTask[]>("/api/pipeline/tasks") });
 export const usePipelineTask = (id: number | null) => useQuery({ queryKey: ["tasks", id], queryFn: () => api.get<PipelineTask>(`/api/pipeline/tasks/${id}`), enabled: !!id });
-export const useCreateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (data: any) => api.post("/api/pipeline/tasks", data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["companies"] }); } }); };
-export const useUpdateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({id, data}: {id: number, data: any}) => api.put(`/api/pipeline/tasks/${id}`, data), onSuccess: (_, {id}) => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["tasks", id] }); qc.invalidateQueries({ queryKey: ["tasks", id, "history"] }); qc.invalidateQueries({ queryKey: ["companies"] }); } }); };
+export const useCreateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (data: any) => api.post("/api/pipeline/tasks", data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["companies"] }); qc.invalidateQueries({ queryKey: ["nda-types"] }); qc.invalidateQueries({ queryKey: ["p-and-l-types"] }); } }); };
+export const useUpdateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({id, data}: {id: number, data: any}) => api.put(`/api/pipeline/tasks/${id}`, data), onSuccess: (_, {id}) => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["tasks", id] }); qc.invalidateQueries({ queryKey: ["tasks", id, "history"] }); qc.invalidateQueries({ queryKey: ["companies"] }); qc.invalidateQueries({ queryKey: ["nda-types"] }); qc.invalidateQueries({ queryKey: ["p-and-l-types"] }); } }); };
 export const useUpdateTaskStatus = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({id, priority_id, note}: {id: number, priority_id: number, note?: string}) => api.patch(`/api/pipeline/tasks/${id}/status`, { priority_id, note }), onSuccess: (_, {id}) => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["tasks", id] }); qc.invalidateQueries({ queryKey: ["tasks", id, "history"] }); } }); };
 export const useDeleteTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: number) => api.delete(`/api/pipeline/tasks/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }) }); };
 

@@ -17,7 +17,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask, useDeleteTask, usePriorities, useAnalysts } from "@/hooks/usePipeline";
+import { type PipelineTask, useDeleteTask, usePriorities, useAnalysts, useNdaTypes, usePandLTypes } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,8 +68,130 @@ function FollowUpDateCell({ dateStr }: { dateStr: string | null }) {
   );
 }
 
-function ColumnHeader({ column, title, customOptions }: { column: any, title: string, customOptions?: { label: string, value: string }[] }) {
+function parseTeamSize(val: any): { min: number; max: number } | null {
+  if (!val) return null;
+  const str = String(val).trim();
+  if (!str) return null;
+
+  const nums = str.match(/\d+/g);
+  if (!nums || nums.length === 0) return null;
+
+  const n1 = parseInt(nums[0], 10);
+  if (nums.length === 1) {
+    return isNaN(n1) ? null : { min: n1, max: n1 };
+  }
+
+  const n2 = parseInt(nums[1], 10);
+  if (isNaN(n1) && isNaN(n2)) return null;
+  if (isNaN(n1)) return { min: n2, max: n2 };
+  if (isNaN(n2)) return { min: n1, max: n1 };
+
+  return {
+    min: Math.min(n1, n2),
+    max: Math.max(n1, n2)
+  };
+}
+
+function parseRevenue(val: any): { min: number; max: number } | null {
+  if (!val) return null;
+  const str = String(val).trim();
+  if (!str) return null;
+
+  if (str.includes("-")) {
+    const parts = str.split("-");
+    const p1 = parts[0].replace(/[^0-9.]/g, "");
+    const p2 = parts[1].replace(/[^0-9.]/g, "");
+    const n1 = parseFloat(p1);
+    const n2 = parseFloat(p2);
+    if (!isNaN(n1) && !isNaN(n2)) {
+      return { min: Math.min(n1, n2), max: Math.max(n1, n2) };
+    }
+    if (!isNaN(n1)) return { min: n1, max: n1 };
+    if (!isNaN(n2)) return { min: n2, max: n2 };
+  }
+
+  const cleaned = str.replace(/[^0-9.]/g, "");
+  if (!cleaned) return null;
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : { min: num, max: num };
+}
+
+function ColumnHeader({ 
+  column, 
+  title, 
+  customOptions, 
+  isRange 
+}: { 
+  column: any, 
+  title: string, 
+  customOptions?: { label: string, value: string }[], 
+  isRange?: boolean 
+}) {
   const [searchQuery, setSearchQuery] = useState("");
+  const isRevenue = column.id === "revenue" || title === "Revenue";
+  const isTeamSize = column.id === "team_size" || title === "Team Size";
+  const isRangeColumn = isRange || isTeamSize || isRevenue;
+
+  const rangePresets = React.useMemo(() => {
+    if (isRevenue) {
+      return [
+        { label: "< 1K", min: "", max: "1000" },
+        { label: "1K - 5K", min: "1000", max: "5000" },
+        { label: "5K - 15K", min: "5000", max: "15000" },
+        { label: "15K - 50K", min: "15000", max: "50000" },
+        { label: "50K+", min: "50000", max: "" }
+      ];
+    }
+    return [
+      { label: "1 - 10", min: "1", max: "10" },
+      { label: "11 - 25", min: "11", max: "25" },
+      { label: "26 - 50", min: "26", max: "50" },
+      { label: "51 - 100", min: "51", max: "100" },
+      { label: "100+", min: "100", max: "" }
+    ];
+  }, [isRevenue]);
+
+  const rawRange = Array.isArray(column.getFilterValue()) 
+    ? (column.getFilterValue() as [string, string]) 
+    : ["", ""];
+  const [minInput, setMinInput] = useState(rawRange[0] ?? "");
+  const [maxInput, setMaxInput] = useState(rawRange[1] ?? "");
+
+  React.useEffect(() => {
+    if (isRangeColumn) {
+      const current = Array.isArray(column.getFilterValue())
+        ? (column.getFilterValue() as [string, string])
+        : ["", ""];
+      setMinInput(current[0] ?? "");
+      setMaxInput(current[1] ?? "");
+    }
+  }, [column.getFilterValue(), isRangeColumn]);
+
+  const applyRange = (min: string, max: string) => {
+    const cMin = min.trim();
+    const cMax = max.trim();
+    if (!cMin && !cMax) {
+      column.setFilterValue(undefined);
+    } else {
+      column.setFilterValue([cMin, cMax]);
+    }
+  };
+
+  const handleApply = () => {
+    applyRange(minInput, maxInput);
+  };
+
+  const handleClearRange = () => {
+    setMinInput("");
+    setMaxInput("");
+    column.setFilterValue(undefined);
+  };
+
+  const setPreset = (min: string, max: string) => {
+    setMinInput(min);
+    setMaxInput(max);
+    applyRange(min, max);
+  };
 
   const uniqueValues = React.useMemo(() => {
     return Array.from(column.getFacetedUniqueValues().keys())
@@ -106,7 +228,7 @@ function ColumnHeader({ column, title, customOptions }: { column: any, title: st
     };
   }, [isLocation, uniqueValues]);
 
-  const isDropdown = (uniqueValues.length > 0 && uniqueValues.length <= 300) || customOptions !== undefined || isLocation;
+  const isDropdown = !isRangeColumn && ((uniqueValues.length > 0 && uniqueValues.length <= 300) || customOptions !== undefined || isLocation);
   const filterArray = Array.isArray(column.getFilterValue()) ? column.getFilterValue() as string[] : [];
   
   const toggleOption = (val: string) => {
@@ -174,8 +296,79 @@ function ColumnHeader({ column, title, customOptions }: { column: any, title: st
             <Filter className={`h-3 w-3 ${filterArray.length > 0 || column.getFilterValue() ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100"}`} />
           </Button>
         </PopoverTrigger>
-                <PopoverContent className={isLocation ? "w-[500px] p-3" : "w-56 p-2"} align="start">
-          {isDropdown ? (
+        <PopoverContent className={isLocation ? "w-[500px] p-3" : isRangeColumn ? "w-64 p-3" : "w-56 p-2"} align="start">
+          {isRangeColumn ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="text-xs font-semibold text-foreground">{title} Range</span>
+                {(minInput || maxInput || column.getFilterValue()) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                    onClick={handleClearRange}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 items-center">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-medium">Min</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={minInput}
+                    onChange={(e) => setMinInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleApply()}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-medium">Max</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="Any"
+                    value={maxInput}
+                    onChange={(e) => setMaxInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleApply()}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Presets</span>
+                <div className="flex flex-wrap gap-1">
+                  {rangePresets.map(preset => {
+                    const isActive = minInput === preset.min && maxInput === preset.max;
+                    return (
+                      <Button
+                        key={preset.label}
+                        type="button"
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        className="h-6 px-2 text-[11px] font-normal"
+                        onClick={() => setPreset(preset.min, preset.max)}
+                      >
+                        {preset.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <Button size="sm" className="w-full h-7 text-xs font-medium" onClick={handleApply}>
+                  Apply Range
+                </Button>
+              </div>
+            </div>
+          ) : isDropdown ? (
             <div className="space-y-2.5">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -338,6 +531,83 @@ const PipelineListView = React.memo(function PipelineListView({
     { label: "No", value: "No" }
   ], []);
 
+  const { data: dbNdaTypes } = useNdaTypes();
+  const { data: dbPandLTypes } = usePandLTypes();
+
+  const ndaOptions = React.useMemo(() => {
+    const typesMap = new Map<string, string>();
+    // Standard NDA statuses
+    typesMap.set("signed", "Signed");
+    typesMap.set("not signed", "Not Signed");
+
+    // Types fetched directly from DB endpoint
+    (dbNdaTypes || []).forEach(val => {
+      const trimmed = (val || "").trim();
+      if (trimmed && !typesMap.has(trimmed.toLowerCase())) {
+        typesMap.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+
+    let hasEmpty = false;
+    (tasks || []).forEach(t => {
+      const raw = (t.nda || "").trim();
+      if (!raw || raw.toLowerCase() === "none" || raw.toLowerCase() === "null" || raw === "-") {
+        hasEmpty = true;
+      } else {
+        const lower = raw.toLowerCase();
+        if (!typesMap.has(lower)) {
+          typesMap.set(lower, raw);
+        }
+      }
+    });
+
+    const list = Array.from(typesMap.values())
+      .sort((a, b) => a.localeCompare(b))
+      .map(val => ({ label: val, value: val }));
+
+    if (hasEmpty) {
+      list.push({ label: "None", value: "None" });
+    }
+    return list;
+  }, [dbNdaTypes, tasks]);
+
+  const pAndLOptions = React.useMemo(() => {
+    const typesMap = new Map<string, string>();
+    // Standard P&L statuses
+    typesMap.set("received", "Received");
+    typesMap.set("requested", "Requested");
+
+    // Types fetched directly from DB endpoint
+    (dbPandLTypes || []).forEach(val => {
+      const trimmed = (val || "").trim();
+      if (trimmed && !typesMap.has(trimmed.toLowerCase())) {
+        typesMap.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+
+    let hasEmpty = false;
+    (tasks || []).forEach(t => {
+      const raw = (t.p_and_l || "").trim();
+      if (!raw || raw.toLowerCase() === "none" || raw.toLowerCase() === "null" || raw === "-") {
+        hasEmpty = true;
+      } else {
+        const lower = raw.toLowerCase();
+        if (!typesMap.has(lower)) {
+          typesMap.set(lower, raw);
+        }
+      }
+    });
+
+    const list = Array.from(typesMap.values())
+      .sort((a, b) => a.localeCompare(b))
+      .map(val => ({ label: val, value: val }));
+
+    if (hasEmpty) {
+      list.push({ label: "None", value: "None" });
+    }
+    return list;
+  }, [dbPandLTypes, tasks]);
+
   const priorityOrderMap = React.useMemo(() => {
     const map = new Map<string, number>();
     (priorities || []).forEach((p, idx) => {
@@ -474,22 +744,28 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "revenue", 
-      header: ({ column }) => <ColumnHeader column={column} title="Revenue" />,
-      size: 160,
-      sortingFn: (rowA, rowB) => {
-        const parseRevenue = (rev: string | null) => {
-          if (!rev) return 0;
-          const normalized = rev.replace(/,/g, "");
-          const matches = normalized.match(/\d+/g);
-          if (!matches) return 0;
-          return Math.max(...matches.map(m => parseInt(m, 10)));
-        };
-        const revA = parseRevenue(rowA.original.revenue);
-        const revB = parseRevenue(rowB.original.revenue);
-        return revA - revB;
+      header: ({ column }) => <ColumnHeader column={column} title="Revenue" isRange />, 
+      size: 130, 
+      minSize: 110, 
+      maxSize: 150,
+      sortingFn: (rowA: { original: PipelineTask }, rowB: { original: PipelineTask }) => {
+        const a = parseRevenue(rowA.original.revenue)?.min ?? -Infinity;
+        const b = parseRevenue(rowB.original.revenue)?.min ?? -Infinity;
+        return a - b;
       }
     },
-    { accessorKey: "team_size", header: ({ column }) => <ColumnHeader column={column} title="Team Size" />, size: 130, minSize: 110, maxSize: 150 },
+    { 
+      accessorKey: "team_size", 
+      header: ({ column }) => <ColumnHeader column={column} title="Team Size" isRange />, 
+      size: 130, 
+      minSize: 110, 
+      maxSize: 150,
+      sortingFn: (rowA: { original: PipelineTask }, rowB: { original: PipelineTask }) => {
+        const a = parseTeamSize(rowA.original.team_size)?.min ?? -Infinity;
+        const b = parseTeamSize(rowB.original.team_size)?.min ?? -Infinity;
+        return a - b;
+      }
+    },
     {
       accessorKey: "follow_up_date" as const,
       header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Follow-up Date" />,
@@ -505,19 +781,19 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "nda", 
-      header: ({ column }) => <ColumnHeader column={column} title="NDA" customOptions={yesNoOptions} />, 
+      header: ({ column }) => <ColumnHeader column={column} title="NDA" customOptions={ndaOptions} />, 
       size: 130, 
       minSize: 110, 
       maxSize: 160 
     },
     { 
       accessorKey: "p_and_l", 
-      header: ({ column }) => <ColumnHeader column={column} title="P&L" customOptions={yesNoOptions} />, 
+      header: ({ column }) => <ColumnHeader column={column} title="P&L" customOptions={pAndLOptions} />, 
       size: 110, 
       minSize: 95, 
       maxSize: 140 
     }
-  ], [onEdit, analystNameMap, priorityOrderMap, priorityOptions, analystOptions, yesNoOptions, executionAnalystOptions]);
+  ], [onEdit, analystNameMap, priorityOrderMap, priorityOptions, analystOptions, yesNoOptions, executionAnalystOptions, ndaOptions, pAndLOptions]);
 
   const table = useReactTable({
     data: tasks,
@@ -531,18 +807,15 @@ const PipelineListView = React.memo(function PipelineListView({
       const search = String(filterValue).toLowerCase().trim();
       if (!search) return true;
 
-      // 1. Check all object values (strings, numbers)
       const matchesRaw = Object.values(row.original).some(val => {
         if (val === null || val === undefined) return false;
         return String(val).toLowerCase().includes(search);
       });
       if (matchesRaw) return true;
 
-      // 2. Check formatted Location string (e.g. "California, USA", "Alberta, CA")
       const loc = formatLocation(row.original);
       if (loc.toLowerCase().includes(search)) return true;
 
-      // 3. Check Execution Analyst full name
       if (row.original.execution_analyst) {
         const eaName = analystNameMap.get(row.original.execution_analyst.toUpperCase());
         if (eaName && eaName.toLowerCase().includes(search)) return true;
@@ -557,20 +830,87 @@ const PipelineListView = React.memo(function PipelineListView({
     filterFns: {
       multiSelect: (row: any, columnId: string, filterValue: any) => {
         if (!filterValue || filterValue.length === 0) return true;
-        const val = String(row.getValue(columnId) || "").toLowerCase().trim();
-        if (!val) return false;
+        const rawVal = row.getValue(columnId);
+
+        if (columnId === "team_size") {
+          const [fMinRaw, fMaxRaw] = Array.isArray(filterValue) ? filterValue : [filterValue?.min, filterValue?.max];
+          const fMin = fMinRaw !== undefined && fMinRaw !== null && fMinRaw !== "" ? Number(fMinRaw) : null;
+          const fMax = fMaxRaw !== undefined && fMaxRaw !== null && fMaxRaw !== "" ? Number(fMaxRaw) : null;
+
+          if (fMin === null && fMax === null) return true;
+
+          const parsed = parseTeamSize(rawVal);
+          if (!parsed) return false;
+
+          if (fMin !== null && fMax !== null) {
+            return parsed.max >= fMin && parsed.min <= fMax;
+          }
+          if (fMin !== null) {
+            return parsed.max >= fMin;
+          }
+          if (fMax !== null) {
+            return parsed.min <= fMax;
+          }
+          return true;
+        }
+
+        if (columnId === "revenue") {
+          const [fMinRaw, fMaxRaw] = Array.isArray(filterValue) ? filterValue : [filterValue?.min, filterValue?.max];
+          const fMin = fMinRaw !== undefined && fMinRaw !== null && fMinRaw !== "" ? Number(fMinRaw) : null;
+          const fMax = fMaxRaw !== undefined && fMaxRaw !== null && fMaxRaw !== "" ? Number(fMaxRaw) : null;
+
+          if (fMin === null && fMax === null) return true;
+
+          const parsed = parseRevenue(rawVal);
+          if (!parsed) return false;
+
+          if (fMin !== null && fMax !== null) {
+            return parsed.max >= fMin && parsed.min <= fMax;
+          }
+          if (fMin !== null) {
+            return parsed.max >= fMin;
+          }
+          if (fMax !== null) {
+            return parsed.min <= fMax;
+          }
+          return true;
+        }
+
+        const val = String(rawVal ?? "").toLowerCase().trim();
 
         if (Array.isArray(filterValue)) {
+          if (columnId === "nda") {
+            const hasEmptyNda = !val || val === "none" || val === "null" || val === "-";
+            return filterValue.some((f: string) => {
+              const filter = String(f).toLowerCase().trim();
+              if (filter === "none" || filter === "empty" || filter === "(empty)") {
+                return hasEmptyNda;
+              }
+              return val === filter;
+            });
+          }
+
+          if (columnId === "p_and_l") {
+            const hasEmptyPandL = !val || val === "none" || val === "null" || val === "-";
+            return filterValue.some((f: string) => {
+              const filter = String(f).toLowerCase().trim();
+              if (filter === "none" || filter === "empty" || filter === "(empty)") {
+                return hasEmptyPandL;
+              }
+              return val === filter;
+            });
+          }
+
+          if (!val) return false;
+
           if (columnId === "location") {
             const selectedCountries = filterValue.filter((f: string) => !f.includes(",")).map((f: string) => f.toLowerCase().trim());
             const selectedProvinces = filterValue.filter((f: string) => f.includes(",")).map((f: string) => f.toLowerCase().trim());
 
-            // 1. If matching any explicitly selected province
             if (selectedProvinces.some((p: string) => val === p || val.startsWith(`${p},`) || val.endsWith(`, ${p}`) || val.includes(p))) {
               return true;
             }
 
-            // 2. For selected countries that do NOT have specific provinces selected, match the entire country
             const countriesWithoutSpecificProvinces = selectedCountries.filter((c: string) =>
               !selectedProvinces.some((p: string) => p.endsWith(`, ${c}`))
             );
@@ -587,6 +927,24 @@ const PipelineListView = React.memo(function PipelineListView({
             return false;
           });
         }
+
+        if (columnId === "nda") {
+          const filter = String(filterValue).toLowerCase().trim();
+          if (filter === "none" || filter === "empty" || filter === "(empty)") {
+            return !val || val === "none" || val === "null" || val === "-";
+          }
+          return val === filter;
+        }
+
+        if (columnId === "p_and_l") {
+          const filter = String(filterValue).toLowerCase().trim();
+          if (filter === "none" || filter === "empty" || filter === "(empty)") {
+            return !val || val === "none" || val === "null" || val === "-";
+          }
+          return val === filter;
+        }
+
+        if (!val) return false;
         return val.includes(String(filterValue).toLowerCase().trim());
       }
     },
@@ -626,11 +984,32 @@ const PipelineListView = React.memo(function PipelineListView({
 
             {columnFilters.length > 0 && (
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                {columnFilters.map((filter) => (
-                  <Badge key={filter.id} variant="secondary" className="h-6 text-[11px] font-normal capitalize">
-                    {filter.id.replace(/_/g, " ")}: {filter.value as string}
-                  </Badge>
-                ))}
+                {columnFilters.map((filter) => {
+                  let label = filter.id.replace(/_/g, " ");
+                  let displayVal = Array.isArray(filter.value) ? filter.value.join(", ") : (filter.value as string);
+
+                  if (filter.id === "p_and_l") {
+                    label = "P&L";
+                  } else if (filter.id === "team_size" || filter.id === "revenue") {
+                    label = filter.id === "team_size" ? "Team Size" : "Revenue";
+                    if (Array.isArray(filter.value)) {
+                      const [fMin, fMax] = filter.value;
+                      if (fMin && fMax) {
+                        displayVal = `${fMin} - ${fMax}`;
+                      } else if (fMin) {
+                        displayVal = `≥ ${fMin}`;
+                      } else if (fMax) {
+                        displayVal = `≤ ${fMax}`;
+                      }
+                    }
+                  }
+
+                  return (
+                    <Badge key={filter.id} variant="secondary" className="h-6 text-[11px] font-normal capitalize">
+                      {label}: {displayVal}
+                    </Badge>
+                  );
+                })}
                 <Button 
                   variant="ghost" 
                   size="sm"
