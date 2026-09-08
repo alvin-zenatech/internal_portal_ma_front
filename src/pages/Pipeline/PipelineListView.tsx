@@ -17,7 +17,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask, useDeleteTask, usePriorities, usePipelineUsers, useNdaTypes, usePandLTypes } from "@/hooks/usePipeline";
+import { type PipelineTask, useDeleteTask, usePriorities, useAnalysts, useNdaTypes, usePandLTypes } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -512,7 +512,7 @@ const PipelineListView = React.memo(function PipelineListView({
     return new Map<string, string>(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
   }, [executionAnalystOptions]);
 
-  const { data: analysts } = usePipelineUsers();
+  const { data: analysts } = useAnalysts();
   const isSuperAdminUser = (u: any) => {
     if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
     const name = (u.full_name || u.name || '').toLowerCase();

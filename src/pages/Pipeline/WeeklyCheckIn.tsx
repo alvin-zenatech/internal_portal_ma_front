@@ -181,7 +181,7 @@ export default function WeeklyCheckIn() {
             <Select value={analystFilter} onValueChange={setAnalystFilter}>
               <SelectTrigger className="w-[140px] sm:w-[160px] h-8.5 sm:h-9 bg-card text-xs sm:text-sm">
                 <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
-                <SelectValue placeholder="All BD Analysts" />
+                <SelectValue placeholder="All Analysts" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Analysts</SelectItem>
@@ -260,10 +260,10 @@ export default function WeeklyCheckIn() {
                 <Select value={analystFilter} onValueChange={setAnalystFilter}>
                   <SelectTrigger className="w-[160px] h-9 bg-white dark:bg-card">
                     <User className="h-4 w-4 text-muted-foreground mr-1.5" />
-                    <SelectValue placeholder="All BD Analysts" />
+                    <SelectValue placeholder="All Analysts" />
                   </SelectTrigger>
                   <SelectContent className="z-[1000]">
-                    <SelectItem value="all">All BD Analysts</SelectItem>
+                    <SelectItem value="all">All Analysts</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {sortedAnalystOptions.map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
