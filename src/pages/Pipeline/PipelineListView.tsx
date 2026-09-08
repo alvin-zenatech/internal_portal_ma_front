@@ -513,9 +513,18 @@ const PipelineListView = React.memo(function PipelineListView({
   }, [executionAnalystOptions]);
 
   const { data: analysts } = usePipelineUsers();
+  const isSuperAdminUser = (u: any) => {
+    if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
+    const name = (u.full_name || u.name || '').toLowerCase();
+    if (name === 'super admin' || name.includes('super admin')) return true;
+    const email = (u.email || '').toLowerCase();
+    if (email.includes('superadmin') || email.includes('super_admin')) return true;
+    return false;
+  };
+
   const analystOptions = React.useMemo(() => {
     return (analysts || [])
-      .filter(a => a.full_name)
+      .filter(a => a.full_name && !isSuperAdminUser(a))
       .map(a => ({ label: a.full_name!.trim(), value: a.full_name!.trim() }))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   }, [analysts]);

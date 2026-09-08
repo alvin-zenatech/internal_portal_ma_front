@@ -316,9 +316,18 @@ export default function CallTracking() {
 
   const { data: callLogs, isLoading, refetch } = useCallLogs();
   const { data: users } = usePipelineUsers();
+  const isSuperAdminUser = (u: any) => {
+    if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
+    const name = (u.full_name || u.name || '').toLowerCase();
+    if (name === 'super admin' || name.includes('super admin')) return true;
+    const email = (u.email || '').toLowerCase();
+    if (email.includes('superadmin') || email.includes('super_admin')) return true;
+    return false;
+  };
+
   const sortedUsers = React.useMemo(() => {
     return (users ?? [])
-      .filter(u => u.full_name)
+      .filter(u => u.full_name && !isSuperAdminUser(u))
       .map(u => ({ ...u, full_name: u.full_name!.trim() }))
       .sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: 'base' }));
   }, [users]);

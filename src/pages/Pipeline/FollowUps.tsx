@@ -93,9 +93,18 @@ export default function FollowUps() {
 
   /** Analysts offered as filters, keyed by id. The endpoint already excludes super
    *  admins and inactive users, so this is exactly the set of real, current analysts. */
+  const isSuperAdminUser = (u: any) => {
+    if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
+    const name = (u.full_name || u.name || '').toLowerCase();
+    if (name === 'super admin' || name.includes('super admin')) return true;
+    const email = (u.email || '').toLowerCase();
+    if (email.includes('superadmin') || email.includes('super_admin')) return true;
+    return false;
+  };
+
   const selectableAnalysts = useMemo(
     () => new Map(
-      (allUsers ?? []).map(a => [a.id, a.full_name || a.email || "Unnamed user"])
+      (allUsers ?? []).filter(u => !isSuperAdminUser(u)).map(a => [a.id, (a.full_name || a.email || "Unnamed user").trim()])
     ),
     [allUsers]
   );
@@ -121,7 +130,7 @@ export default function FollowUps() {
 
   const analystOptions = useMemo(() => {
     const options = (allUsers ?? [])
-      .filter(u => u.full_name)
+      .filter(u => u.full_name && !isSuperAdminUser(u))
       .map(u => ({
         value: u.id,
         label: (u.full_name || u.email || "Unnamed user").trim(),

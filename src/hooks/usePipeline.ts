@@ -124,6 +124,7 @@ export interface AnalystData {
   id: string;
   full_name: string | null;
   email: string | null;
+  is_super_admin?: boolean;
 }
 
 export const useRoles = () => useQuery({ queryKey: ["roles"], queryFn: () => api.get<any[]>("/api/rbac/roles") });
