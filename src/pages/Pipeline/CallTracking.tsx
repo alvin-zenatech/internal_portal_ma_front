@@ -28,7 +28,7 @@ import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallLogs, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, useAnalysts, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useCallLogs, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -315,7 +315,13 @@ export default function CallTracking() {
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const { data: callLogs, isLoading, refetch } = useCallLogs();
-  const { data: users } = useAnalysts();
+  const { data: users } = usePipelineUsers();
+  const sortedUsers = React.useMemo(() => {
+    return (users ?? [])
+      .filter(u => u.full_name)
+      .map(u => ({ ...u, full_name: u.full_name!.trim() }))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: 'base' }));
+  }, [users]);
   const { data: industries } = useIndustries();
 
   const [analystFilter, setAnalystFilter] = useState("all");
@@ -1018,7 +1024,7 @@ export default function CallTracking() {
                   <SelectContent className="max-h-[300px] z-[1000]">
                     <SelectItem value="all">All Analysts ({totalCount.toLocaleString()} {totalCount === 1 ? 'call' : 'calls'})</SelectItem>
                     <SelectItem value="unassigned">Unassigned ({unassignedCount.toLocaleString()} {unassignedCount === 1 ? 'call' : 'calls'})</SelectItem>
-                    {(users ?? []).filter(u => u.full_name).map(u => {
+                    {sortedUsers.map(u => {
                       const count = analystCounts[String(u.id)] || 0;
                       return (
                         <SelectItem key={u.id} value={String(u.id)}>
@@ -1212,7 +1218,7 @@ export default function CallTracking() {
                       <SelectContent className="max-h-[300px] z-[1000]">
                         <SelectItem value="all">All Analysts ({totalCount.toLocaleString()} {totalCount === 1 ? 'call' : 'calls'})</SelectItem>
                         <SelectItem value="unassigned">Unassigned ({unassignedCount.toLocaleString()} {unassignedCount === 1 ? 'call' : 'calls'})</SelectItem>
-                        {(users ?? []).filter(u => u.full_name).map(u => {
+                        {sortedUsers.map(u => {
                           const count = analystCounts[String(u.id)] || 0;
                           return (
                             <SelectItem key={u.id} value={String(u.id)}>

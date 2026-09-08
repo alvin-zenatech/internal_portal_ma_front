@@ -2,7 +2,7 @@ import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { formatNameWithInitial } from "@/lib/utils";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { usePipelineTasks, useBackfillFollowUpDates, useAnalysts, type PipelineTask } from "@/hooks/usePipeline";
+import { usePipelineTasks, useBackfillFollowUpDates, usePipelineUsers, type PipelineTask } from "@/hooks/usePipeline";
 import TaskDetailPanel from "./TaskDetailPanel";
 import TaskFormModal from "./TaskFormModal";
 import FollowUpCalendar from "./FollowUpCalendar";
@@ -63,7 +63,7 @@ export default function FollowUps() {
   const [dayInPopup, setDayInPopup] = useState<Date | null>(null);
 
   const { data: tasks, isLoading } = usePipelineTasks();
-  const { data: analysts } = useAnalysts();
+  const { data: allUsers } = usePipelineUsers();
   const { mutate: backfillFromNotes, isPending: isBackfilling } = useBackfillFollowUpDates();
   const hasAutoBackfilled = useRef(false);
 
@@ -95,9 +95,9 @@ export default function FollowUps() {
    *  admins and inactive users, so this is exactly the set of real, current analysts. */
   const selectableAnalysts = useMemo(
     () => new Map(
-      (analysts ?? []).map(a => [a.id, a.full_name || a.email || "Unnamed analyst"])
+      (allUsers ?? []).map(a => [a.id, a.full_name || a.email || "Unnamed user"])
     ),
-    [analysts]
+    [allUsers]
   );
 
   /** Which filter bucket a follow-up belongs to.
@@ -120,25 +120,17 @@ export default function FollowUps() {
   );
 
   const analystOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    let unassigned = 0;
+    const options = (allUsers ?? [])
+      .filter(u => u.full_name)
+      .map(u => ({
+        value: u.id,
+        label: (u.full_name || u.email || "Unnamed user").trim(),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 
-    (tasks ?? []).forEach(task => {
-      if (!task.follow_up_date) return;
-      const key = ownerKey(task);
-      if (key === UNASSIGNED) {
-        unassigned += 1;
-        return;
-      }
-      seen.set(key, selectableAnalysts.get(key)!);
-    });
-
-    const options = Array.from(seen, ([value, label]) => ({ value, label })).sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
-    if (unassigned > 0) options.push({ value: UNASSIGNED, label: "Unassigned" });
+    options.push({ value: UNASSIGNED, label: "Unassigned" });
     return options;
-  }, [ownerKey, selectableAnalysts, tasks]);
+  }, [allUsers]);
 
   const term = search.trim().toLowerCase();
 
@@ -223,7 +215,7 @@ export default function FollowUps() {
         { header: "Email", accessor: (r) => r.email || "" },
         { header: "Phone", accessor: (r) => r.phone || "" },
         { header: "Follow-up Date", accessor: (r) => r.follow_up_date || "" },
-        { header: "Assigned Analyst", accessor: (r) => r.analyst_name || "" },
+        { header: "BD Analysts", accessor: (r) => r.analyst_name || "" },
         { header: "Priority", accessor: (r) => r.priority_name || "" },
         { header: "Industry", accessor: (r) => r.industry_name || "" },
         { header: "Location", accessor: (r) => [r.state_name || r.state_code, r.country_name || r.country_code].filter(Boolean).join(", ") },

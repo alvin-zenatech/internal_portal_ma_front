@@ -17,7 +17,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender, type SortingState, type ColumnFiltersState, getFacetedUniqueValues
 } from "@tanstack/react-table";
-import { type PipelineTask, useDeleteTask, usePriorities, useAnalysts, useNdaTypes, usePandLTypes } from "@/hooks/usePipeline";
+import { type PipelineTask, useDeleteTask, usePriorities, usePipelineUsers, useNdaTypes, usePandLTypes } from "@/hooks/usePipeline";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -512,11 +512,12 @@ const PipelineListView = React.memo(function PipelineListView({
     return new Map<string, string>(executionAnalystOptions.map((o) => [o.initials.toUpperCase(), o.name]));
   }, [executionAnalystOptions]);
 
-  const { data: analysts } = useAnalysts();
+  const { data: analysts } = usePipelineUsers();
   const analystOptions = React.useMemo(() => {
     return (analysts || [])
       .filter(a => a.full_name)
-      .map(a => ({ label: a.full_name!, value: a.full_name! }));
+      .map(a => ({ label: a.full_name!.trim(), value: a.full_name!.trim() }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   }, [analysts]);
 
   const { data: priorities } = usePriorities();
@@ -701,7 +702,7 @@ const PipelineListView = React.memo(function PipelineListView({
     },
     { 
       accessorKey: "analyst_name", 
-      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="Analyst" customOptions={analystOptions} />,
+      header: ({ column }: { column: any }) => <ColumnHeader column={column} title="BD Analysts" customOptions={analystOptions} />,
       cell: ({ row }: { row: { original: PipelineTask } }) => {
         const initials = getInitials(row.original.analyst_name || '');
         return (

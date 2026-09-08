@@ -1,8 +1,9 @@
+import ManageAnalystsDialog from "@/components/Pipeline/ManageAnalystsDialog";
 import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Upload, CalendarClock, User, Building2, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Loader2, Upload, CalendarClock, User, Users, Building2, Maximize2, Minimize2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,7 +13,7 @@ import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { 
   usePipelineTasks, 
-  useAnalysts,
+  usePipelineUsers,
   usePriorities, 
   type PipelineTask, 
   useImportPipeline, 
@@ -37,7 +38,13 @@ export default function PipelineDashboard() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [executionAnalystFilter, setExecutionAnalystFilter] = useState<string>("all");
-  const { data: analystOptions } = useAnalysts();
+  const { data: analystOptions } = usePipelineUsers();
+  const sortedAnalystOptions = useMemo(() => {
+    return (analystOptions ?? [])
+      .filter(u => u.full_name)
+      .map(u => ({ ...u, full_name: u.full_name!.trim() }))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: 'base' }));
+  }, [analystOptions]);
   const { options: executionAnalystOptions } = useExecutionAnalystOptions();
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -49,6 +56,7 @@ export default function PipelineDashboard() {
 
   // Add Company Modal state
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [isManageAnalystsOpen, setIsManageAnalystsOpen] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newContactName, setNewContactName] = useState("");
   const [newCompanyEmail, setNewCompanyEmail] = useState("");
@@ -188,7 +196,7 @@ export default function PipelineDashboard() {
         { header: "Latest Note", accessor: (r) => r.latest_note || "" },
         { header: "State/Province", accessor: (r) => r.state_name || r.state_code || "" },
         { header: "Country", accessor: (r) => r.country_name || r.country_code || "" },
-        { header: "Assigned Analyst", accessor: (r) => r.analyst_name || "" },
+        { header: "BD Analysts", accessor: (r) => r.analyst_name || "" },
         { header: "Execution Analyst", accessor: (r) => r.execution_analyst || "" },
         { header: "Revenue", accessor: (r) => r.revenue || "" },
         { header: "Team Size", accessor: (r) => r.team_size || "" },
@@ -247,7 +255,7 @@ export default function PipelineDashboard() {
               <SelectContent>
                 <SelectItem value="all">All Analysts</SelectItem>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
-                {(analystOptions ?? []).map(u => (
+                {sortedAnalystOptions.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                 ))}
               </SelectContent>
@@ -319,6 +327,16 @@ export default function PipelineDashboard() {
                   </span>
                 )}
               </Link>
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsManageAnalystsOpen(true)} 
+              className="gap-1.5 h-8.5 sm:h-9 text-xs"
+            >
+              <Users className="h-3.5 w-3.5 text-primary" />
+              <span>Manage Analysts</span>
             </Button>
 
             <Button 
@@ -402,7 +420,7 @@ export default function PipelineDashboard() {
                   <SelectContent className="z-[1000]">
                     <SelectItem value="all">All Analysts</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {(analystOptions ?? []).map(u => (
+                    {sortedAnalystOptions.map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -472,6 +490,15 @@ export default function PipelineDashboard() {
                       </span>
                     )}
                   </Link>
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsManageAnalystsOpen(true)} 
+                  className="gap-2 h-9 text-xs"
+                >
+                  <Users className="h-4 w-4 text-primary" />
+                  <span>Manage Analysts</span>
                 </Button>
 
                 <Button 
@@ -568,6 +595,8 @@ export default function PipelineDashboard() {
         onClose={() => setSelectedTask(null)} 
         onEdit={handleEdit}
       />
+
+      <ManageAnalystsDialog open={isManageAnalystsOpen} onOpenChange={setIsManageAnalystsOpen} />
 
       {/* Add Company Dialog */}
       <Dialog open={isCompanyModalOpen} onOpenChange={setIsCompanyModalOpen}>

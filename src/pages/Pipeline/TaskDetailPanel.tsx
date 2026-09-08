@@ -112,7 +112,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                       <dd className="font-medium">{task.priority_name}</dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Analyst</dt>
+                      <dt className="text-muted-foreground">BD Analysts</dt>
                       <dd className="font-medium">{task.analyst_name || 'Unassigned'}</dd>
                     </div>
                     <div>

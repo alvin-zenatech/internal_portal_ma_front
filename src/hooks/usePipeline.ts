@@ -152,6 +152,65 @@ export const useAnalysts = () => useQuery({
   queryFn: () => api.get<AnalystData[]>("/api/pipeline/analysts"),
 });
 
+export function useCreateAnalyst() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { full_name: string; email?: string }) => {
+      return await api.post<AnalystData>("/api/pipeline/analysts", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-analysts"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useDeleteAnalyst() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return await api.delete(`/api/pipeline/analysts/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-analysts"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+/** All candidate system users selectable for analyst assignment (no CONFIG_USERS_READ permission needed) */
+export const usePipelineUsers = () => useQuery({
+  queryKey: ["pipeline-users"],
+  queryFn: () => api.get<AnalystData[]>("/api/pipeline/users"),
+});
+
+export function useBatchUpdateAnalysts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userIds: string[]) => {
+      return await api.put<AnalystData[]>("/api/pipeline/analysts/batch", { user_ids: userIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-analysts"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-users"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useBatchUpdateExecutionAnalysts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (analysts: { name: string; initials: string; email?: string; color?: string }[]) => {
+      return await api.put<ExecutionAnalystData[]>("/api/pipeline/execution-analysts/batch", { analysts });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["execution-analysts"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
 // Master Data Hooks
 export interface ExecutionAnalystData {
   id: number;

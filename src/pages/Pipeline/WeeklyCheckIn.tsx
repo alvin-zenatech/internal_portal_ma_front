@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { usePipelineTasks, useAnalysts, type PipelineTask } from "@/hooks/usePipeline";
+import { usePipelineTasks, usePipelineUsers, type PipelineTask } from "@/hooks/usePipeline";
 import { useExecutionAnalystOptions } from "@/hooks/useExecutionAnalyst";
 import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import PipelineListView from "./PipelineListView";
@@ -18,7 +18,13 @@ export default function WeeklyCheckIn() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [analystFilter, setAnalystFilter] = useState<string>("all");
   const [executionAnalystFilter, setExecutionAnalystFilter] = useState<string>("all");
-  const { data: analystOptions } = useAnalysts();
+  const { data: analystOptions } = usePipelineUsers();
+  const sortedAnalystOptions = useMemo(() => {
+    return (analystOptions ?? [])
+      .filter(u => u.full_name)
+      .map(u => ({ ...u, full_name: u.full_name!.trim() }))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: 'base' }));
+  }, [analystOptions]);
   const { options: executionAnalystOptions } = useExecutionAnalystOptions();
   const [globalFilter, setGlobalFilter] = useState<string>("");
 
@@ -100,7 +106,7 @@ export default function WeeklyCheckIn() {
         { header: "Latest Note", accessor: (r) => r.latest_note || "" },
         { header: "State/Province", accessor: (r) => r.state_name || r.state_code || "" },
         { header: "Country", accessor: (r) => r.country_name || r.country_code || "" },
-        { header: "Assigned Analyst", accessor: (r) => r.analyst_name || "" },
+        { header: "BD Analysts", accessor: (r) => r.analyst_name || "" },
         { header: "Execution Analyst", accessor: (r) => r.execution_analyst || "" },
         { header: "Revenue", accessor: (r) => r.revenue || "" },
         { header: "Team Size", accessor: (r) => r.team_size || "" },
@@ -166,12 +172,12 @@ export default function WeeklyCheckIn() {
             <Select value={analystFilter} onValueChange={setAnalystFilter}>
               <SelectTrigger className="w-[140px] sm:w-[160px] h-8.5 sm:h-9 bg-card text-xs sm:text-sm">
                 <User className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
-                <SelectValue placeholder="All Analysts" />
+                <SelectValue placeholder="All BD Analysts" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Analysts</SelectItem>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
-                {(analystOptions ?? []).map(u => (
+                {sortedAnalystOptions.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                 ))}
               </SelectContent>
@@ -245,12 +251,12 @@ export default function WeeklyCheckIn() {
                 <Select value={analystFilter} onValueChange={setAnalystFilter}>
                   <SelectTrigger className="w-[160px] h-9 bg-white dark:bg-card">
                     <User className="h-4 w-4 text-muted-foreground mr-1.5" />
-                    <SelectValue placeholder="All Analysts" />
+                    <SelectValue placeholder="All BD Analysts" />
                   </SelectTrigger>
                   <SelectContent className="z-[1000]">
-                    <SelectItem value="all">All Analysts</SelectItem>
+                    <SelectItem value="all">All BD Analysts</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {(analystOptions ?? []).map(u => (
+                    {sortedAnalystOptions.map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                     ))}
                   </SelectContent>

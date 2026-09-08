@@ -17,7 +17,7 @@ import {
   useIndustries, 
   usePriorities, 
   useCountries, 
-  useAnalysts, 
+   
   useStates, 
   useCreateIndustry, 
   useCompanies,
@@ -26,6 +26,7 @@ import {
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import ExecutionAnalystSelect from "@/components/Pipeline/ExecutionAnalystSelect";
+import BDAnalystSelect from "@/components/Pipeline/BDAnalystSelect";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
@@ -55,7 +56,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   });
 
   const { data: states } = useStates(formData.country_code || undefined);
-  const { data: analysts } = useAnalysts();
+  
 
   const { mutateAsync: createTask, isPending: isCreating } = useCreateTask();
   const { mutateAsync: updateTask, isPending: isUpdating } = useUpdateTask();
@@ -235,14 +236,13 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
               </div>
 
               <div className="space-y-1.5 min-w-0">
-                <Label className="text-xs sm:text-sm">Assigned Analyst *</Label>
-                <Select required value={formData.analyst_id} onValueChange={v => setFormData({...formData, analyst_id: v})}>
-                  <SelectTrigger className="h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue placeholder="Select analyst" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {analysts?.map(a => <SelectItem key={a.id} value={a.id}>{a.full_name || a.email}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs sm:text-sm">BD Analysts *</Label>
+                <BDAnalystSelect
+                  required
+                  value={formData.analyst_id}
+                  onChange={(v) => setFormData({ ...formData, analyst_id: v })}
+                  placeholder="Select BD analyst..."
+                />
               </div>
 
               <div className="space-y-1.5 min-w-0">
