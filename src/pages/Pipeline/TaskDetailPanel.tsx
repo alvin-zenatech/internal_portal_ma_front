@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { type PipelineTask, useTaskNotes, useCreateTaskNote, useUpdateTaskNote, useDeleteTaskNote, useDeleteTask, useCompanyCallLogs, useAnalysts } from "@/hooks/usePipeline";
@@ -6,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { BASE_URL } from "@/services/apiClient";
+import { useAuth } from "@/lib/AuthContext";
 import CallTrackingDetails from "./CallTrackingDetails";
 import { formatYesNo } from "@/lib/utils";
 import { FollowUpActions } from "./FollowUpActions";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+  const { user: currentUser } = useAuth();
   const { data: notes } = useTaskNotes(task?.id || null);
 
   const { mutateAsync: createNote, isPending: isCreatingNote } = useCreateTaskNote();
@@ -298,12 +301,12 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                               {new Date(note.created_at).toLocaleString()}
                               {note.updated_at && new Date(note.updated_at).getTime() > new Date(note.created_at).getTime() + 1000 && " (Edited)"}
                             </span>
-                            {editingNoteId !== note.id && (
+                            {editingNoteId !== note.id && (!currentUser || currentUser.is_super_admin || currentUser.id === note.author_id) && (
                               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingNoteId(note.id); setEditContent(note.note); }}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit note" onClick={() => { setEditingNoteId(note.id); setEditContent(note.note); }}>
                                   <Edit2 className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" onClick={() => setNoteToDelete(note.id)}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" title="Remove note" onClick={() => setNoteToDelete(note.id)}>
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
@@ -321,8 +324,13 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                               <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)} disabled={isUpdatingNote}>Cancel</Button>
                               <Button size="sm" disabled={isUpdatingNote} onClick={async () => {
                                 if (task) {
-                                  await updateNote({ noteId: note.id, note: editContent });
-                                  setEditingNoteId(null);
+                                  try {
+                                    await updateNote({ noteId: note.id, note: editContent, taskId: task.id });
+                                    setEditingNoteId(null);
+                                    toast.success("Note updated successfully");
+                                  } catch (err: any) {
+                                    toast.error(err?.message || "Failed to update note");
+                                  }
                                 }
                               }}>
                                 {isUpdatingNote && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
@@ -398,10 +406,17 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
         title="Delete Note"
         description="Are you sure you want to delete this note? This action cannot be undone."
         isLoading={isDeletingNote}
-        onConfirm={() => {
-          if (noteToDelete && task) {
-            deleteNote({ noteId: noteToDelete });
-            setNoteToDelete(null);
+        onConfirm={async () => {
+          const id = noteToDelete;
+          if (id && task) {
+            try {
+              await deleteNote({ noteId: id, taskId: task.id });
+              toast.success("Note removed successfully");
+            } catch (err: any) {
+              toast.error(err?.message || "Failed to remove note");
+            } finally {
+              setNoteToDelete(null);
+            }
           }
         }}
       />
@@ -413,9 +428,14 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
         isLoading={isDeletingTask}
         onConfirm={async () => {
           if (task) {
-            await deleteTask(task.id);
-            setIsConfirmDeleteTask(false);
-            onClose();
+            try {
+              await deleteTask(task.id);
+              toast.success("Task deleted successfully");
+              setIsConfirmDeleteTask(false);
+              onClose();
+            } catch (err: any) {
+              toast.error(err?.message || "Failed to delete task");
+            }
           }
         }}
       />

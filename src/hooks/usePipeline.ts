@@ -378,19 +378,27 @@ export const useCreateTaskNote = () => { const queryClient = useQueryClient();  
 }
 
 export const useUpdateTaskNote = () => { const queryClient = useQueryClient(); return useMutation({
-  mutationFn: async ({ noteId, note, title }: { noteId: number, note: string, title?: string }) => {
-    return await api.put(`/api/pipeline/tasks/notes/${noteId}`, { note, title });
+  mutationFn: async (vars: { noteId: number, note: string, title?: string, taskId?: number }) => {
+    return await api.put(`/api/pipeline/tasks/notes/${vars.noteId}`, { note: vars.note, title: vars.title });
   },
-  onSuccess: () => {
+  onSuccess: (_, variables) => {
+    if (variables.taskId) {
+      queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId] });
+    }
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
   },
 }); }
 
 export const useDeleteTaskNote = () => { const queryClient = useQueryClient(); return useMutation({
-  mutationFn: async ({ noteId }: { noteId: number }) => {
-    return await api.delete(`/api/pipeline/tasks/notes/${noteId}`);
+  mutationFn: async (vars: { noteId: number, taskId?: number }) => {
+    return await api.delete(`/api/pipeline/tasks/notes/${vars.noteId}`);
   },
-  onSuccess: () => {
+  onSuccess: (_, variables) => {
+    if (variables.taskId) {
+      queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", variables.taskId] });
+    }
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
   },
 }); }
