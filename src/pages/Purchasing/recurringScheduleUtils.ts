@@ -302,7 +302,7 @@ export function generatePaymentSchedule(
     totalLimit = calculateInstallmentsCount(startDateStr, schedule.end_date.split("T")[0], frequency);
   }
   if (!totalLimit || totalLimit <= 0) {
-    totalLimit = 24; // Default to 2-year (24 months) window
+    totalLimit = 1; // Default to 1 current active cycle for ongoing recurring
   }
   if (totalLimit > 600) {
     totalLimit = 600; // Hard clamp for UI performance

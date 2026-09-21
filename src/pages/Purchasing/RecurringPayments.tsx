@@ -708,10 +708,10 @@ export default function RecurringPayments() {
             frequency: newForm.frequency || "MONTHLY",
             start_date: newForm.due_date || newForm.start_date || new Date().toISOString().split("T")[0],
             end_date: null,
-            total_installments: 24,
+            total_installments: null,
             completed_installments: 0,
             amount_per_cycle: amt,
-            total_amount: amt * 24,
+            total_amount: null,
           },
     });
   };
@@ -790,10 +790,10 @@ export default function RecurringPayments() {
               frequency: editForm.frequency || "MONTHLY",
               start_date: editForm.start_date || editForm.due_date || new Date().toISOString().split("T")[0],
               end_date: null,
-              total_installments: 24,
+              total_installments: null,
               completed_installments: editForm.completed_installments || 0,
               amount_per_cycle: amt,
-              total_amount: amt * 24,
+              total_amount: null,
             },
       },
     });
@@ -1321,7 +1321,7 @@ export default function RecurringPayments() {
                                 className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold underline text-left flex items-center gap-1 cursor-pointer"
                               >
                                 <TableIcon className="h-2.5 w-2.5 shrink-0" />
-                                Schedule ({req.recurring_schedule.completed_installments || 0}/{req.recurring_schedule.total_installments || "?"})
+                                Schedule ({req.recurring_schedule.total_installments ? `${req.recurring_schedule.completed_installments || 0}/${req.recurring_schedule.total_installments}` : `${req.recurring_schedule.completed_installments || 0} Settled`})
                               </button>
                             </div>
                           )}

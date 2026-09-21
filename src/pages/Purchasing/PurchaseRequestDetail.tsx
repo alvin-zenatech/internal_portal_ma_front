@@ -274,10 +274,10 @@ export default function PurchaseRequestDetail() {
             frequency: editForm.frequency || "MONTHLY",
             start_date: editForm.start_date || editForm.due_date || new Date().toISOString().split("T")[0],
             end_date: null,
-            total_installments: 24,
+            total_installments: null,
             completed_installments: editForm.completed_installments || 0,
             amount_per_cycle: amt,
-            total_amount: amt * 24,
+            total_amount: null,
           },
     });
   };
@@ -330,16 +330,19 @@ export default function PurchaseRequestDetail() {
     frequency: "MONTHLY" as FrequencyType,
     start_date: request.due_date ? String(request.due_date).split("T")[0] : String(request.request_date).split("T")[0],
     end_date: null,
-    total_installments: 24,
+    total_installments: null,
     completed_installments: 0,
     amount_per_cycle: request.amount || 0,
-    total_amount: (request.amount || 0) * 24,
+    total_amount: null,
   };
 
   const isReviewed = request.review_status === "REVIEWED";
   const parsedStatus = parseRequestStatus(request.status);
   const durationInfo = formatRemainingDuration(sched.end_date, sched.start_date);
-  const totalCommitment = sched.total_amount || ((sched.total_installments || 24) * (sched.amount_per_cycle || request.amount || 0));
+  const isOngoing = !sched.total_installments && !sched.end_date;
+  const totalCommitment = sched.total_amount != null 
+    ? sched.total_amount 
+    : (sched.total_installments ? sched.total_installments * (sched.amount_per_cycle || request.amount || 0) : null);
   const paidToDate = (sched.completed_installments || 0) * (sched.amount_per_cycle || request.amount || 0);
 
   // Generate the full payment installments schedule
@@ -612,7 +615,9 @@ export default function PurchaseRequestDetail() {
             </p>
           </div>
           <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 border-indigo-200">
-            {allInstallments.length} Total Payments
+            {isOngoing 
+              ? `${allInstallments.length} Active Cycle (Ongoing)` 
+              : `${allInstallments.length} Total ${allInstallments.length === 1 ? 'Payment' : 'Payments'}`}
           </Badge>
         </CardHeader>
 
@@ -828,7 +833,9 @@ export default function PurchaseRequestDetail() {
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Installment Progress</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {sched.completed_installments || 0} / {sched.total_installments || 24} Cycles Completed
+                    {sched.total_installments 
+                      ? `${sched.completed_installments || 0} / ${sched.total_installments} Cycles Completed` 
+                      : `${sched.completed_installments || 0} Cycles Completed (Ongoing)`}
                   </span>
                 </div>
               </div>
@@ -1029,7 +1036,7 @@ export default function PurchaseRequestDetail() {
                 <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
                   <span>{formatDate(sched.start_date)}</span>
                   <span className="text-slate-400 font-normal">to</span>
-                  <span>{sched.end_date ? formatDate(sched.end_date) : "Ongoing (2 Yrs)"}</span>
+                  <span>{sched.end_date ? formatDate(sched.end_date) : "Ongoing"}</span>
                 </div>
               </div>
 
@@ -1051,19 +1058,23 @@ export default function PurchaseRequestDetail() {
                 <div className="flex items-center justify-between font-semibold">
                   <span className="text-slate-600 dark:text-zinc-400">Cycle Progress</span>
                   <span className="text-slate-900 dark:text-zinc-100">
-                    {sched.completed_installments || 0} / {sched.total_installments || 24} Cycles
+                    {sched.total_installments 
+                      ? `${sched.completed_installments || 0} / ${sched.total_installments} Cycles` 
+                      : `${sched.completed_installments || 0} Cycles Settled (Ongoing)`}
                   </span>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-zinc-800 rounded-full h-2.5 overflow-hidden">
                   <div
                     className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
                     style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round(
-                          ((sched.completed_installments || 0) / (sched.total_installments || 24)) * 100
-                        )
-                      )}%`,
+                      width: sched.total_installments 
+                        ? `${Math.min(
+                            100,
+                            Math.round(
+                              ((sched.completed_installments || 0) / sched.total_installments) * 100
+                            )
+                          )}%`
+                        : ((sched.completed_installments || 0) > 0 ? "100%" : "0%"),
                     }}
                   />
                 </div>
@@ -1071,13 +1082,21 @@ export default function PurchaseRequestDetail() {
 
               {/* Total Commitment Summary Box */}
               <div className="p-3.5 rounded-xl bg-indigo-600 text-white space-y-1 shadow-xs">
-                <div className="text-[11px] font-medium text-indigo-200">Total Commitment</div>
+                <div className="text-[11px] font-medium text-indigo-200">
+                  {totalCommitment != null ? "Total Commitment" : "Cycle Commitment"}
+                </div>
                 <div className="text-xl font-black font-mono tracking-tight">
-                  {formatMoney(totalCommitment)}
+                  {totalCommitment != null 
+                    ? formatMoney(totalCommitment) 
+                    : `${formatMoney(sched.amount_per_cycle || request.amount)} / cycle`}
                 </div>
                 <div className="text-[11px] text-indigo-100 flex items-center justify-between pt-1 border-t border-indigo-500/60">
                   <span>{formatMoney(paidToDate)} paid to date</span>
-                  <span>{formatMoney(Math.max(0, totalCommitment - paidToDate))} remaining</span>
+                  <span>
+                    {totalCommitment != null 
+                      ? `${formatMoney(Math.max(0, totalCommitment - paidToDate))} remaining` 
+                      : "Ongoing Billing"}
+                  </span>
                 </div>
               </div>
 

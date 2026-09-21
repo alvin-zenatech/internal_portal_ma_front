@@ -45,10 +45,10 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
           ? String(request.due_date).split("T")[0]
           : String(request.request_date).split("T")[0],
         end_date: null,
-        total_installments: 24,
+        total_installments: null,
         completed_installments: 0,
         amount_per_cycle: request.amount || 0,
-        total_amount: (request.amount || 0) * 24,
+        total_amount: null,
       }
     );
   }, [request]);
@@ -89,24 +89,26 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
   const durationInfo = isCustom
     ? { text: `${installments.length} Custom Milestone Dates`, isExpired: false, isNearEnd: false, totalDays: 0 }
     : formatRemainingDuration(schedule.end_date, schedule.start_date);
-  const totalInstallments = schedule.total_installments || installments.length;
-  const completedInstallments = Math.min(schedule.completed_installments || 0, totalInstallments);
+  const totalInstallments = schedule.total_installments || (schedule.end_date ? installments.length : null);
+  const completedInstallments = schedule.completed_installments || 0;
   const cycleAmount =
     schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
       ? schedule.amount_per_cycle
       : request.amount || 0;
   const totalCommitment =
-    schedule.total_amount ||
-    installments.reduce((acc, it) => acc + (it.amount || 0), 0) ||
-    cycleAmount * totalInstallments;
+    schedule.total_amount != null
+      ? schedule.total_amount
+      : totalInstallments
+      ? cycleAmount * totalInstallments
+      : null;
   const paidToDate = installments
     .filter((it) => it.status === "PAID")
     .reduce((acc, it) => acc + (it.amount || 0), 0);
-  const remainingBalance = Math.max(0, totalCommitment - paidToDate);
+  const remainingBalance = totalCommitment != null ? Math.max(0, totalCommitment - paidToDate) : null;
   const progressPercent =
-    totalInstallments > 0
+    totalInstallments && totalInstallments > 0
       ? Math.min(100, Math.round((completedInstallments / totalInstallments) * 100))
-      : 0;
+      : (completedInstallments > 0 ? 100 : 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,7 +151,7 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
             <div className="p-2.5 rounded-lg border bg-white dark:bg-zinc-900/80 shadow-2xs">
               <div className="text-[11px] font-medium text-muted-foreground">Progress</div>
               <div className="text-sm font-semibold text-slate-900 dark:text-zinc-100 mt-0.5">
-                {completedInstallments} / {totalInstallments} Cycles
+                {totalInstallments ? `${completedInstallments} / ${totalInstallments} Cycles` : `${completedInstallments} Cycles Settled (Ongoing)`}
               </div>
               <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
                 <div
@@ -170,12 +172,14 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
             </div>
 
             <div className="p-2.5 rounded-lg border bg-white dark:bg-zinc-900/80 shadow-2xs">
-              <div className="text-[11px] font-medium text-muted-foreground">Total Commitment</div>
+              <div className="text-[11px] font-medium text-muted-foreground">
+                {totalCommitment != null ? "Total Commitment" : "Cycle Commitment"}
+              </div>
               <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-0.5">
-                {formatMoney(totalCommitment)}
+                {totalCommitment != null ? formatMoney(totalCommitment) : `${formatMoney(cycleAmount)} / cycle`}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                {formatMoney(remainingBalance)} remaining
+                {remainingBalance != null ? `${formatMoney(remainingBalance)} remaining` : "Ongoing Billing"}
               </div>
             </div>
           </div>
