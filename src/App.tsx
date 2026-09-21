@@ -15,6 +15,10 @@ const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
 const Login = lazy(() => import("./pages/Login"));
 const PendingAccess = lazy(() => import("./pages/PendingAccess"));
 
+// Purchasing / Scheduled Payments
+const RecurringPayments = lazy(() => import("./pages/Purchasing/RecurringPayments"));
+const PurchaseRequestDetail = lazy(() => import("./pages/Purchasing/PurchaseRequestDetail"));
+
 // Pipeline
 const PipelineDashboard = lazy(() => import("./pages/Pipeline/PipelineDashboard"));
 const FollowUps = lazy(() => import("./pages/Pipeline/FollowUps"));
@@ -47,17 +51,20 @@ function App() {
             <Route path="/configurations" element={<Navigate to="/configurations/users" replace />} />
 
             {/* We use a parent route wrapper or just protect individual config routes */}
-
-
             <Route path="/configurations/users" element={<ProtectedRoute navigationCode="CONFIG_USERS"><Users /></ProtectedRoute>} />
             <Route path="/configurations/roles" element={<ProtectedRoute navigationCode="CONFIG_ROLES"><Roles /></ProtectedRoute>} />
             <Route path="/configurations/user-role-assignment" element={<ProtectedRoute navigationCode="CONFIG_USER_ROLE_ASSIGNMENT"><UserRoleAssignment /></ProtectedRoute>} />
             <Route path="/configurations/role-group-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_NAVIGATION_PERMISSIONS"><RoleGroupPermissions /></ProtectedRoute>} />
             <Route path="/configurations/role-api-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_API_PERMISSIONS"><RoleApiPermissions /></ProtectedRoute>} />
 
+            {/* Scheduled / Recurring Payments & Requests */}
+            <Route path="/purchasing/recurring" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
+            <Route path="/purchasing/recurring-payments" element={<Navigate to="/purchasing/recurring" replace />} />
+            <Route path="/purchasing/requests" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
+            <Route path="/purchasing/requests/:id" element={<ProtectedRoute><PurchaseRequestDetail /></ProtectedRoute>} />
+            <Route path="/scheduled-payments" element={<Navigate to="/purchasing/recurring" replace />} />
 
             {/* Pipeline */}
-
             <Route path="/pipeline/weekly-check-in" element={<ProtectedRoute navigationCode="PIPELINE_WEEKLY_CHECK_IN"><WeeklyCheckIn /></ProtectedRoute>} />
             <Route path="/pipeline/call-tracking" element={<ProtectedRoute navigationCode="PIPELINE_CALL_TRACKING"><CallTracking /></ProtectedRoute>} />
             <Route path="/pipeline/do-not-contact" element={<ProtectedRoute navigationCode="PIPELINE_DO_NOT_CONTACT"><DoNotContact /></ProtectedRoute>} />
@@ -66,15 +73,12 @@ function App() {
             <Route path="/pipeline/companies" element={<ProtectedRoute navigationCode="PIPELINE_COMPANIES"><CompaniesListView /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/industry" element={<ProtectedRoute navigationCode="PIPELINE_INDUSTRIES"><MasterDataIndustry /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/priority" element={<ProtectedRoute navigationCode="PIPELINE_PRIORITIES"><MasterDataPriority /></ProtectedRoute>} />
-
             <Route path="/pipeline/master-data/state" element={<ProtectedRoute navigationCode="PIPELINE_STATES"><MasterDataState /></ProtectedRoute>} />
             <Route path="/pipeline/master-data/execution-analysts" element={<ProtectedRoute navigationCode="PIPELINE_INDUSTRIES"><MasterDataExecutionAnalyst /></ProtectedRoute>} />
-
 
             {/* Logs */}
             <Route path="/log" element={<Navigate to="/log/audit-log" replace />} />
             <Route path="/log/audit-log" element={<ProtectedRoute navigationCode="AUDIT_LOG"><AuditLog /></ProtectedRoute>} />
-
 
           </Route>
         </Routes>

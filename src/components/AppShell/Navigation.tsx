@@ -40,6 +40,12 @@ export const navigation = [
     navigationCode: "PIPELINE_CALL_TRACKING",
   },
   {
+    label: "Scheduled Payments",
+    path: "/purchasing/recurring",
+    icon: CalendarClock,
+    section: "MAIN",
+  },
+  {
     label: "Do Not Contact",
     path: "/pipeline/do-not-contact",
     icon: AlertTriangle,
