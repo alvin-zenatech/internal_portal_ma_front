@@ -428,8 +428,12 @@ export default function PurchaseRequestDetail() {
   );
 
   const completedCount = sched.completed_installments || 0;
-  const currentMilestoneDate = sched.schedule_dates?.[completedCount];
-  const currentCycleAmount = currentMilestoneDate?.amount != null && Number(currentMilestoneDate.amount) > 0
+  const isCustomMilestones = sched.frequency === "CUSTOM" || Boolean(sched.schedule_dates?.length);
+  const activeMilestoneIndex = sched.schedule_dates && sched.schedule_dates.length > 0
+    ? (completedCount < sched.schedule_dates.length ? completedCount : sched.schedule_dates.length - 1)
+    : 0;
+  const currentMilestoneDate = sched.schedule_dates?.[activeMilestoneIndex];
+  const currentCycleAmount = isCustomMilestones && currentMilestoneDate?.amount != null && Number(currentMilestoneDate.amount) > 0
     ? Number(currentMilestoneDate.amount)
     : (sched.amount_per_cycle != null && Number(sched.amount_per_cycle) > 0
         ? Number(sched.amount_per_cycle)
@@ -965,7 +969,9 @@ export default function PurchaseRequestDetail() {
                   variant="outline"
                   onClick={() => {
                     const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                    const currentCycleCustom = request.recurring_schedule?.schedule_dates?.[completedCycles];
+                    const sDates = request.recurring_schedule?.schedule_dates || [];
+                    const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
+                    const currentCycleCustom = sDates[activeIdx];
                     const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
                       ? Number(currentCycleCustom.amount)
                       : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
@@ -1055,7 +1061,9 @@ export default function PurchaseRequestDetail() {
                     variant="outline"
                     onClick={() => {
                       const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                      const currentCycleCustom = request.recurring_schedule?.schedule_dates?.[completedCycles];
+                      const sDates = request.recurring_schedule?.schedule_dates || [];
+                      const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
+                      const currentCycleCustom = sDates[activeIdx];
                       const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
                         ? Number(currentCycleCustom.amount)
                         : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
@@ -1116,7 +1124,9 @@ export default function PurchaseRequestDetail() {
                   </Badge>
                 </div>
                 <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  {FREQUENCY_LABELS[sched.frequency as FrequencyType] || "Monthly"} ({formatMoney(currentCycleAmount)} / cycle)
+                  {isCustomMilestones
+                    ? `${sched.schedule_dates?.length || sched.total_installments || 0} Milestone Dates (${formatMoney(currentCycleAmount)} / ${allCyclesCompleted ? "last milestone" : "cycle"})`
+                    : `${FREQUENCY_LABELS[sched.frequency as FrequencyType] || "Monthly"} (${formatMoney(currentCycleAmount)} / cycle)`}
                 </div>
               </div>
 

@@ -91,16 +91,22 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
     : formatRemainingDuration(schedule.end_date, schedule.start_date);
   const totalInstallments = schedule.total_installments || (schedule.end_date ? installments.length : null);
   const completedInstallments = schedule.completed_installments || 0;
-  const cycleAmount =
-    schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
-      ? schedule.amount_per_cycle
-      : request.amount || 0;
+  const sDates = schedule.schedule_dates || [];
+  const activeMilestoneIdx = isCustom && sDates.length > 0
+    ? (completedInstallments < sDates.length ? completedInstallments : sDates.length - 1)
+    : 0;
+  const currentMilestone = sDates[activeMilestoneIdx];
+  const cycleAmount = isCustom && currentMilestone?.amount != null && Number(currentMilestone.amount) > 0
+    ? Number(currentMilestone.amount)
+    : (schedule.amount_per_cycle != null && schedule.amount_per_cycle > 0
+        ? schedule.amount_per_cycle
+        : (request.amount || 0));
   const totalCommitment =
     schedule.total_amount != null
       ? schedule.total_amount
-      : totalInstallments
-      ? cycleAmount * totalInstallments
-      : null;
+      : (sDates.length > 0
+          ? sDates.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+          : (totalInstallments ? cycleAmount * totalInstallments : null));
   const paidToDate = installments
     .filter((it) => it.status === "PAID")
     .reduce((acc, it) => acc + (it.amount || 0), 0);
