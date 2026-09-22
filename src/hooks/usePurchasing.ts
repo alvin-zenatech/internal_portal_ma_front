@@ -57,8 +57,9 @@ export function useRequestDetail(id: string | undefined) {
     queryKey: id ? keys.request(id) : keys.all,
     queryFn: () => (id ? purchasing.getRequest(id) : Promise.reject("no id")),
     enabled: Boolean(id),
-    staleTime: 5000,
+    staleTime: 3000,
     refetchOnWindowFocus: true,
+    refetchInterval: 3000,
   });
 }
 

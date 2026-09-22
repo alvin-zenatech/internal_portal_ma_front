@@ -12,7 +12,7 @@ export interface TaskHistoryItem {
   created_at: string;
 }
 
-export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "QUOTE" | "ACCOUNTS_PAYABLE";
+export type RequestType = "ADMIN" | "SPEND" | "RECURRING" | "SCHEDULED_PAYMENT" | "QUOTE" | "ACCOUNTS_PAYABLE";
 
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 

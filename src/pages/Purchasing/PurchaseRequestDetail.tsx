@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
   ArrowLeft,
+  ArrowRight,
   Edit2,
   CheckCircle2,
   Clock,
@@ -16,9 +17,10 @@ import {
   ChevronRight,
   Plus,
   RefreshCw,
-  Upload,
   Check,
   AlertTriangle,
+  X,
+  UploadCloud,
 } from "lucide-react";
 import { apiClient } from "@/services/apiClient";
 import { useRequestDetail, useTransitionRequest, useUploadAttachments } from "@/hooks/usePurchasing";
@@ -76,6 +78,8 @@ export default function PurchaseRequestDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
   const [isRecordInvoiceOpen, setIsRecordInvoiceOpen] = useState(false);
+  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -260,8 +264,11 @@ export default function PurchaseRequestDetail() {
       if (isCustom) {
         totalCycles = customDates.length;
         totalAmt = customSum > 0 ? customSum : (baseAmt > 0 ? baseAmt * totalCycles : 0);
-        amt = totalAmt > 0 ? totalAmt : baseAmt;
-        const cycleAmt = totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : amt;
+        const completedCount = editForm.completed_installments || 0;
+        const activeCycleDate = customDates[completedCount] || customDates[0];
+        const cycleAmt = activeCycleDate?.amount != null && activeCycleDate.amount > 0
+          ? activeCycleDate.amount
+          : (baseAmt > 0 ? baseAmt : (totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : 0));
         const sanitizedDates = customDates.map((d, i) => ({
           date: d.date,
           amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
@@ -276,9 +283,10 @@ export default function PurchaseRequestDetail() {
           title: editForm.title,
           requester: editForm.requester,
           department: editForm.department,
+          request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
           priority: editForm.priority,
-          amount: amt,
-          unit_price: amt,
+          amount: cycleAmt,
+          unit_price: cycleAmt,
           quantity: 1,
           description: editForm.description,
           gl_code: request?.gl_code || editForm.gl_code || null,
@@ -311,6 +319,7 @@ export default function PurchaseRequestDetail() {
       title: editForm.title,
       requester: editForm.requester,
       department: editForm.department,
+      request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
       priority: editForm.priority,
       amount: amt,
       unit_price: amt,
@@ -351,15 +360,28 @@ export default function PurchaseRequestDetail() {
       toast.error("Please enter a valid amount");
       return;
     }
-    recordInvoiceMutation.mutate({
-      vendor: invoiceForm.vendor || request?.title || "",
-      amount: amt,
-      invoice_date: invoiceForm.invoice_date,
-      due_date: invoiceForm.due_date || null,
-      gl_code: invoiceForm.gl_code || request?.gl_code || null,
-      asset_flag: invoiceForm.asset_flag,
-      description: invoiceForm.description || null,
-    });
+    recordInvoiceMutation.mutate(
+      {
+        vendor: invoiceForm.vendor || request?.title || "",
+        amount: amt,
+        invoice_date: invoiceForm.invoice_date,
+        due_date: invoiceForm.due_date || null,
+        gl_code: invoiceForm.gl_code || request?.gl_code || null,
+        asset_flag: invoiceForm.asset_flag,
+        description: invoiceForm.description || null,
+      },
+      {
+        onSuccess: () => {
+          if (invoiceFiles.length > 0) {
+            uploadMutation.mutate(invoiceFiles, {
+              onSuccess: () => {
+                setInvoiceFiles([]);
+              },
+            });
+          }
+        },
+      }
+    );
   };
 
   if (isLoading) {
@@ -400,16 +422,42 @@ export default function PurchaseRequestDetail() {
 
   const isReviewed = request.review_status === "REVIEWED";
   const parsedStatus = parseRequestStatus(request.status);
+  const effectiveCompletedInstallments = Math.max(
+    sched.completed_installments || 0,
+    invoice ? 1 : 0
+  );
+
+  const completedCount = sched.completed_installments || 0;
+  const currentMilestoneDate = sched.schedule_dates?.[completedCount];
+  const currentCycleAmount = currentMilestoneDate?.amount != null && Number(currentMilestoneDate.amount) > 0
+    ? Number(currentMilestoneDate.amount)
+    : (sched.amount_per_cycle != null && Number(sched.amount_per_cycle) > 0
+        ? Number(sched.amount_per_cycle)
+        : (request.amount || 0));
+
   const durationInfo = formatRemainingDuration(sched.end_date, sched.start_date);
   const isOngoing = !sched.total_installments && !sched.end_date;
   const totalCommitment = sched.total_amount != null 
     ? sched.total_amount 
-    : (sched.total_installments ? sched.total_installments * (sched.amount_per_cycle || request.amount || 0) : null);
-  const paidToDate = (sched.completed_installments || 0) * (sched.amount_per_cycle || request.amount || 0);
+    : (sched.schedule_dates && sched.schedule_dates.length > 0
+        ? sched.schedule_dates.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+        : (sched.total_installments ? sched.total_installments * currentCycleAmount : null));
+  const paidToDate = (sched.schedule_dates && sched.schedule_dates.length > 0)
+    ? sched.schedule_dates.slice(0, effectiveCompletedInstallments).reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+    : effectiveCompletedInstallments * currentCycleAmount;
+
+  const currentCycle = effectiveCompletedInstallments + 1;
+  const totalCycles = sched.total_installments;
+  const allCyclesCompleted = Boolean(
+    totalCycles && effectiveCompletedInstallments >= totalCycles
+  );
+  const cycleBracket = parsedStatus === RequestStatus.Completed
+    ? (totalCycles ? ` (${totalCycles}/${totalCycles} Cycles)` : "")
+    : (totalCycles ? ` (Cycle ${Math.min(currentCycle, totalCycles)}/${totalCycles})` : ` (Cycle ${currentCycle})`);
 
   // Generate the full payment installments schedule
   const allInstallments: ProjectedInstallment[] = generatePaymentSchedule(
-    sched,
+    { ...sched, completed_installments: effectiveCompletedInstallments },
     request.amount,
     request.currency || "USD",
     request.status,
@@ -419,8 +467,8 @@ export default function PurchaseRequestDetail() {
   // Workflow steps for Recurring Requests
   const workflowSteps = [
     { key: RequestStatus.UnderReview, label: "Under Review" },
-    { key: RequestStatus.WaitingPayment, label: "Waiting Payment" },
-    { key: RequestStatus.InvoiceReceived, label: "Invoice Received" },
+    { key: RequestStatus.WaitingPayment, label: `Waiting Payment ${cycleBracket}` },
+    { key: RequestStatus.InvoiceReceived, label: `Invoice Received ${cycleBracket}` },
     { key: RequestStatus.Completed, label: "Completed" },
   ];
 
@@ -482,7 +530,7 @@ export default function PurchaseRequestDetail() {
                 variant="outline"
                 className={`text-xs px-2.5 py-1 font-semibold ${getStatusBadge(request.status)}`}
               >
-                {getStatusLabel(request.status)}
+                {getStatusLabel(request.status)}{cycleBracket}
               </Badge>
 
               {/* Review status badge with inline toggle action */}
@@ -602,8 +650,20 @@ export default function PurchaseRequestDetail() {
               <span className="font-bold text-indigo-600 dark:text-indigo-400">Action Required:</span>
               {!isReviewed ? (
                 <span>Review pending. Click <strong>'Mark as Reviewed'</strong> to enable invoice records and milestone settlements.</span>
+              ) : parsedStatus === RequestStatus.InvoiceReceived ? (
+                <span>
+                  Cycle {Math.min(currentCycle, totalCycles || currentCycle)} invoice received. Confirm settlement to return to <strong>Waiting Payment (Cycle {Math.min(currentCycle + 1, totalCycles || currentCycle + 1)})</strong>.
+                </span>
+              ) : parsedStatus === RequestStatus.WaitingPayment ? (
+                <span>
+                  Waiting for Cycle {Math.min(currentCycle, totalCycles || currentCycle)} payment {request.due_date ? `(Due: ${formatDate(request.due_date)})` : ""}. Record invoice from the schedule breakdown below when received.
+                </span>
+              ) : parsedStatus === RequestStatus.Completed ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  All recurring installment cycles have been completed.
+                </span>
               ) : (
-                <span>Request is verified. Record arriving invoices and settle upcoming cycle milestones.</span>
+                <span>Request is verified. Manage upcoming cycle milestones from the schedule breakdown below.</span>
               )}
             </div>
 
@@ -620,27 +680,25 @@ export default function PurchaseRequestDetail() {
                 </Button>
               ) : (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setInvoiceForm({
-                        vendor: request.title,
-                        amount: request.amount.toString(),
-                        invoice_date: new Date().toISOString().split("T")[0],
-                        due_date: request.due_date ? request.due_date.split("T")[0] : "",
-                        gl_code: request.gl_code || "",
-                        asset_flag: false,
-                        description: `Recurring payment for ${request.title}`,
-                      });
-                      setIsRecordInvoiceOpen(true);
-                    }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 h-8 font-semibold"
-                  >
-                    <Receipt className="h-3.5 w-3.5" />
-                    Record Invoice
-                  </Button>
-                  {parsedStatus !== RequestStatus.Completed && (
+                  {parsedStatus === RequestStatus.InvoiceReceived && (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        transitionMutation.mutate({
+                          action: "COMPLETE",
+                          comment: `Settled cycle ${currentCycle} payment and advanced recurring cycle`,
+                        })
+                      }
+                      disabled={transitionMutation.isPending}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5 h-8 font-semibold shadow-2xs"
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" />
+                      {allCyclesCompleted || (totalCycles && currentCycle >= totalCycles)
+                        ? "Confirm Settlement & Mark Completed"
+                        : `Confirm Payment & Advance to Cycle ${currentCycle + 1}`}
+                    </Button>
+                  )}
+                  {allCyclesCompleted && parsedStatus !== RequestStatus.Completed && parsedStatus !== RequestStatus.InvoiceReceived && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -694,13 +752,12 @@ export default function PurchaseRequestDetail() {
                   <th className="py-3 px-4 text-right">Cumulative</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">What Needs to Be Done</th>
-                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
                 {allInstallments.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
                       No payment dates generated. Edit the schedule to set frequency or installment dates.
                     </td>
                   </tr>
@@ -759,29 +816,6 @@ export default function PurchaseRequestDetail() {
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          {!isPaid && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setInvoiceForm({
-                                  vendor: request.title,
-                                  amount: inst.amount.toString(),
-                                  invoice_date: inst.dueDate,
-                                  due_date: inst.dueDate,
-                                  gl_code: request.gl_code || "",
-                                  asset_flag: false,
-                                  description: `Installment #${inst.installmentNumber} for ${request.title}`,
-                                });
-                                setIsRecordInvoiceOpen(true);
-                              }}
-                              className="text-[11px] h-7 px-2.5 font-semibold text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-                            >
-                              Record Invoice
-                            </Button>
-                          )}
-                        </td>
                       </tr>
                     );
                   })
@@ -816,9 +850,9 @@ export default function PurchaseRequestDetail() {
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Department</span>
+                  <span className="text-muted-foreground font-medium">Assigned To</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {request.department}
+                    {request.assigned_user || "David Caro / David Hernandez"}
                   </span>
                 </div>
               </div>
@@ -831,54 +865,24 @@ export default function PurchaseRequestDetail() {
                   </Badge>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Configuration</span>
-                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    Single Item
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Assigned To</span>
-                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {request.assigned_user || "David Caro / David Hernandez"}
-                  </span>
-                </div>
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Category</span>
-                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {request.category || "—"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Payment Method</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
                     {invoice?.payment_status ? "Direct Billing / Auto-Debit" : "—"}
                   </span>
                 </div>
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Requested</span>
-                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {formatDate(request.request_date || request.created_at)}
-                  </span>
-                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                 <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Last Updated</span>
+                  <span className="text-muted-foreground font-medium">Requested Date</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {formatDate(request.updated_at)}
+                    {formatDate(request.request_date || request.created_at)}
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Next Due Date</span>
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400 text-right">
-                    {request.due_date ? formatDate(request.due_date) : "—"}
+                  <span className="text-muted-foreground font-medium">Last Updated</span>
+                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                    {formatDate(request.updated_at)}
                   </span>
                 </div>
               </div>
@@ -893,6 +897,15 @@ export default function PurchaseRequestDetail() {
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2">
+                  <span className="text-muted-foreground font-medium">Next Due Date</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400 text-right">
+                    {request.due_date ? formatDate(request.due_date) : "—"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Installment Progress</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
                     {sched.total_installments 
@@ -900,49 +913,25 @@ export default function PurchaseRequestDetail() {
                       : `${sched.completed_installments || 0} Cycles Completed (Ongoing)`}
                   </span>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">SKU / Part #</span>
-                  <span className="font-mono text-slate-900 dark:text-zinc-100 text-right">
-                    {request.sku || "—"}
-                  </span>
-                </div>
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Quantity</span>
-                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {request.quantity || 1}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Unit Price</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {formatMoney(request.unit_price || request.amount)} USD
-                  </span>
-                </div>
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Total Amount (Pre-Tax)</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
-                    {formatMoney(request.amount)} USD
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60 bg-slate-50/50 dark:bg-zinc-900/30">
-                <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Total Amount (After-Tax est.)</span>
-                  <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-right">
-                    {formatMoney(request.amount * 1.08)} USD
-                  </span>
-                </div>
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Currency</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
                     {request.currency || "USD"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                <div className="p-3.5 flex justify-between gap-2">
+                  <span className="text-muted-foreground font-medium">Cycle Amount (Pre-Tax)</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
+                    {formatMoney(currentCycleAmount)} USD
+                  </span>
+                </div>
+                <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
+                  <span className="text-muted-foreground font-medium">Total Commitment (Pre-Tax)</span>
+                  <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-right">
+                    {formatMoney(totalCommitment ?? currentCycleAmount)} USD
                   </span>
                 </div>
               </div>
@@ -975,9 +964,17 @@ export default function PurchaseRequestDetail() {
                   size="sm"
                   variant="outline"
                   onClick={() => {
+                    const completedCycles = request.recurring_schedule?.completed_installments || 0;
+                    const currentCycleCustom = request.recurring_schedule?.schedule_dates?.[completedCycles];
+                    const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
+                      ? Number(currentCycleCustom.amount)
+                      : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
+                          ? Number(request.recurring_schedule.amount_per_cycle)
+                          : (request.unit_price || request.amount || 0));
+
                     setInvoiceForm({
                       vendor: request.title,
-                      amount: request.amount.toString(),
+                      amount: cycleAmt.toString(),
                       invoice_date: new Date().toISOString().split("T")[0],
                       due_date: request.due_date ? request.due_date.split("T")[0] : "",
                       gl_code: request.gl_code || "",
@@ -1057,9 +1054,17 @@ export default function PurchaseRequestDetail() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
+                      const completedCycles = request.recurring_schedule?.completed_installments || 0;
+                      const currentCycleCustom = request.recurring_schedule?.schedule_dates?.[completedCycles];
+                      const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
+                        ? Number(currentCycleCustom.amount)
+                        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
+                            ? Number(request.recurring_schedule.amount_per_cycle)
+                            : (request.unit_price || request.amount || 0));
+
                       setInvoiceForm({
                         vendor: request.title,
-                        amount: request.amount.toString(),
+                        amount: cycleAmt.toString(),
                         invoice_date: new Date().toISOString().split("T")[0],
                         due_date: request.due_date ? request.due_date.split("T")[0] : "",
                         gl_code: request.gl_code || "",
@@ -1111,7 +1116,7 @@ export default function PurchaseRequestDetail() {
                   </Badge>
                 </div>
                 <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  {FREQUENCY_LABELS[sched.frequency as FrequencyType] || "Monthly"} ({formatMoney(sched.amount_per_cycle || request.amount)} / cycle)
+                  {FREQUENCY_LABELS[sched.frequency as FrequencyType] || "Monthly"} ({formatMoney(currentCycleAmount)} / cycle)
                 </div>
               </div>
 
@@ -1264,34 +1269,6 @@ export default function PurchaseRequestDetail() {
                       </div>
                     ))
                   )}
-
-                  <div className="pt-2">
-                    <label className="cursor-pointer block">
-                      <input
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files.length > 0) {
-                            uploadMutation.mutate(Array.from(e.target.files));
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={uploadMutation.isPending}
-                        className="w-full text-xs gap-1.5"
-                        onClick={(e) => {
-                          (e.currentTarget.previousElementSibling as HTMLInputElement)?.click();
-                        }}
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        {uploadMutation.isPending ? "Uploading..." : "Upload Attachments"}
-                      </Button>
-                    </label>
-                  </div>
                 </TabsContent>
 
                 {/* History Tab */}
@@ -1542,16 +1519,111 @@ export default function PurchaseRequestDetail() {
                 />
               </div>
 
+              {/* PDF Attachment Dropzone */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                  <span>Attach Invoice (.PDF)</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">Accepted: .pdf</span>
+                </label>
+
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPdf(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPdf(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPdf(false);
+                    const droppedFiles = Array.from(e.dataTransfer.files).filter(
+                      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+                    );
+                    if (droppedFiles.length === 0) {
+                      toast.error("Only PDF (.pdf) files are accepted");
+                      return;
+                    }
+                    setInvoiceFiles((prev) => [...prev, ...droppedFiles]);
+                  }}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
+                    isDraggingPdf
+                      ? "border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40"
+                      : "border-slate-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900/30"
+                  }`}
+                  onClick={() => document.getElementById("invoice-pdf-upload-input")?.click()}
+                >
+                  <input
+                    id="invoice-pdf-upload-input"
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        const selectedFiles = Array.from(e.target.files).filter(
+                          (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+                        );
+                        if (selectedFiles.length === 0) {
+                          toast.error("Only PDF (.pdf) files are accepted");
+                          return;
+                        }
+                        setInvoiceFiles((prev) => [...prev, ...selectedFiles]);
+                      }
+                    }}
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+                    <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                      <UploadCloud className="h-5 w-5" />
+                    </div>
+                    <div className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                      <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Click to upload</span> or drag and drop
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">PDF invoice copies or payment receipts (max 25MB each)</p>
+                  </div>
+                </div>
+
+                {invoiceFiles.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    {invoiceFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2 rounded-lg border bg-white dark:bg-zinc-900 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2 truncate pr-2">
+                          <FileText className="h-4 w-4 text-rose-500 shrink-0" />
+                          <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">{file.name}</span>
+                          <span className="text-[11px] text-muted-foreground shrink-0">
+                            ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInvoiceFiles((prev) => prev.filter((_, i) => i !== idx));
+                          }}
+                          className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <DialogFooter className="pt-3 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsRecordInvoiceOpen(false)}>
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={recordInvoiceMutation.isPending}
+                  disabled={recordInvoiceMutation.isPending || uploadMutation.isPending}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
                 >
-                  {recordInvoiceMutation.isPending ? "Recording..." : "Save Invoice"}
+                  {recordInvoiceMutation.isPending || uploadMutation.isPending ? "Recording..." : "Save Invoice"}
                 </Button>
               </DialogFooter>
             </form>

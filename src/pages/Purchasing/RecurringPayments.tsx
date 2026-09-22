@@ -372,11 +372,12 @@ export default function RecurringPayments() {
     queryKey: ["recurring-requests"],
     queryFn: async () => {
       return await apiClient.get<PurchaseRequest[]>(
-        "/api/purchasing/requests?request_type=RECURRING"
+        "/api/purchasing/requests?request_type=RECURRING,SCHEDULED_PAYMENT"
       );
     },
     enabled: !!canAccess,
     refetchOnWindowFocus: true,
+    refetchInterval: 3000,
   });
 
   // Toggle review status mutation
@@ -713,8 +714,9 @@ export default function RecurringPayments() {
       if (isCustom) {
         totalCycles = customDates.length;
         totalAmt = customSum > 0 ? customSum : (baseAmt > 0 ? baseAmt * totalCycles : 0);
-        amt = totalAmt > 0 ? totalAmt : baseAmt;
-        const cycleAmt = totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : amt;
+        const cycleAmt = customDates[0]?.amount != null && customDates[0].amount > 0
+          ? customDates[0].amount
+          : (baseAmt > 0 ? baseAmt : (totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : 0));
         const sanitizedDates = customDates.map((d, i) => ({
           date: d.date,
           amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
@@ -729,10 +731,10 @@ export default function RecurringPayments() {
           title: newForm.title,
           requester: newForm.requester,
           department: newForm.department,
-          request_type: "RECURRING",
+          request_type: "SCHEDULED_PAYMENT",
           priority: newForm.priority,
-          amount: amt,
-          unit_price: amt,
+          amount: cycleAmt,
+          unit_price: cycleAmt,
           quantity: 1,
           description: newForm.description,
           gl_code: null,
@@ -765,7 +767,7 @@ export default function RecurringPayments() {
       title: newForm.title,
       requester: newForm.requester,
       department: newForm.department,
-      request_type: "RECURRING",
+      request_type: isSched ? "SCHEDULED_PAYMENT" : "RECURRING",
       priority: newForm.priority,
       amount: amt,
       unit_price: amt,
@@ -848,8 +850,11 @@ export default function RecurringPayments() {
       if (isCustom) {
         totalCycles = customDates.length;
         totalAmt = customSum > 0 ? customSum : (baseAmt > 0 ? baseAmt * totalCycles : 0);
-        amt = totalAmt > 0 ? totalAmt : baseAmt;
-        const cycleAmt = totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : amt;
+        const completedCount = editForm.completed_installments || 0;
+        const activeCycleDate = customDates[completedCount] || customDates[0];
+        const cycleAmt = activeCycleDate?.amount != null && activeCycleDate.amount > 0
+          ? activeCycleDate.amount
+          : (baseAmt > 0 ? baseAmt : (totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : 0));
         const sanitizedDates = customDates.map((d, i) => ({
           date: d.date,
           amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
@@ -867,8 +872,8 @@ export default function RecurringPayments() {
             requester: editForm.requester,
             department: editForm.department,
             priority: editForm.priority,
-            amount: amt,
-            unit_price: amt,
+            amount: cycleAmt,
+            unit_price: cycleAmt,
             quantity: 1,
             description: editForm.description,
             gl_code: editingRequest?.gl_code || editForm.gl_code || null,
@@ -1472,6 +1477,13 @@ export default function RecurringPayments() {
                       <TableCell>
                         <Badge variant="outline" className={getStatusBadge(req.status)}>
                           {getStatusLabel(req.status)}
+                          {req.recurring_schedule ? (
+                            parseRequestStatus(req.status) === RequestStatus.Completed
+                              ? (req.recurring_schedule.total_installments ? ` (${req.recurring_schedule.total_installments}/${req.recurring_schedule.total_installments} Cycles)` : "")
+                              : (req.recurring_schedule.total_installments
+                                ? ` (Cycle ${Math.min((req.recurring_schedule.completed_installments || 0) + 1, req.recurring_schedule.total_installments)}/${req.recurring_schedule.total_installments})`
+                                : ` (Cycle ${(req.recurring_schedule.completed_installments || 0) + 1})`)
+                          ) : ""}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -1830,6 +1842,13 @@ export default function RecurringPayments() {
                   className={getStatusBadge(selectedCalendarItem.status)}
                 >
                   {getStatusLabel(selectedCalendarItem.status)}
+                  {selectedCalendarItem.recurring_schedule ? (
+                    parseRequestStatus(selectedCalendarItem.status) === RequestStatus.Completed
+                      ? (selectedCalendarItem.recurring_schedule.total_installments ? ` (${selectedCalendarItem.recurring_schedule.total_installments}/${selectedCalendarItem.recurring_schedule.total_installments} Cycles)` : "")
+                      : (selectedCalendarItem.recurring_schedule.total_installments
+                        ? ` (Cycle ${Math.min((selectedCalendarItem.recurring_schedule.completed_installments || 0) + 1, selectedCalendarItem.recurring_schedule.total_installments)}/${selectedCalendarItem.recurring_schedule.total_installments})`
+                        : ` (Cycle ${(selectedCalendarItem.recurring_schedule.completed_installments || 0) + 1})`)
+                  ) : ""}
                 </Badge>
               </div>
               <DialogTitle className="text-lg font-bold mt-1">

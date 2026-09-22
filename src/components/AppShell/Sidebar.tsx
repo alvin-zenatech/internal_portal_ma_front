@@ -92,23 +92,23 @@ export default function Sidebar({
           ${isOpen ? "w-52 tablet:w-56 desktop:w-60 translate-x-0" : "-translate-x-full laptop:translate-x-0 laptop:w-14"}
         `}
       >
-        <div className={`flex items-center h-10 tablet:h-11 px-2 transition-all duration-300 ease-in-out ${isOpen ? "justify-between" : "laptop:justify-center"}`}>
+        <div className={`flex items-center h-16 px-4 transition-all duration-300 ease-in-out ${isOpen ? "justify-between" : "laptop:justify-center"}`}>
           <Link to="/" className={`transition-all duration-300 ease-in-out ${isOpen ? "opacity-100" : "opacity-0 w-0 h-0 overflow-hidden"}`}>
             <img
               src={zenatechLogo}
               alt="Zenatech Logo"
               className={`transition-all duration-300 ease-in-out object-contain cursor-pointer ${
-                isOpen ? "h-6.5 sm:h-7.5 w-auto -translate-x-1" : "w-0 h-0"
+                isOpen ? "h-20 w-auto -translate-x-4" : "w-0 h-0"
               }`}
             />
           </Link>
 
           <button
             onClick={onToggle}
-            className="rounded-md p-1 hover:bg-sidebar-accent flex-shrink-0 text-muted-foreground hover:text-foreground"
+            className="rounded-lg p-2 hover:bg-sidebar-accent flex-shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
             title={isOpen ? "Collapse Sidebar" : "Expand Sidebar"}
           >
-            <PanelRight size={16} />
+            <PanelRight size={20} />
           </button>
         </div>
 

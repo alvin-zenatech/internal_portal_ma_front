@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Bell, CheckCheck, LogOut, User, Mail, BellRing, Settings2, Menu } from "lucide-react";
+import { Bell, CheckCheck, LogOut, User, Mail, BellRing, Settings2, Menu, Search } from "lucide-react";
+import { CompanySearchDialog } from "@/components/CompanySearch/CompanySearchDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -61,6 +62,7 @@ function TopBarClock() {
 
 export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isCompanySearchOpen, setIsCompanySearchOpen] = useState(false);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
@@ -131,6 +133,25 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
         <TopBarClock />
 
+
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCompanySearchOpen(true)}
+                className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-full h-7.5 w-7.5 outline-none focus-visible:ring-0"
+                aria-label="Open Company Search Engine"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Company Search Engine</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <TooltipProvider delayDuration={0}>
           <Tooltip>
@@ -382,6 +403,12 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Company Search Engine Wide Dialog */}
+      <CompanySearchDialog
+        isOpen={isCompanySearchOpen}
+        onClose={() => setIsCompanySearchOpen(false)}
+      />
     </header>
   );
 }
