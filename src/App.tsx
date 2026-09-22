@@ -32,7 +32,6 @@ const WeeklyCheckIn = lazy(() => import("./pages/Pipeline/WeeklyCheckIn"));
 const CallTracking = lazy(() => import("./pages/Pipeline/CallTracking"));
 const PipelineUploads = lazy(() => import("./pages/Pipeline/PipelineUploads"));
 const DoNotContact = lazy(() => import("./pages/Pipeline/DoNotContact"));
-const CompanySearchPage = lazy(() => import("./pages/CompanySearchPage"));
 
 
 function App() {
@@ -81,8 +80,6 @@ function App() {
             <Route path="/log" element={<Navigate to="/log/audit-log" replace />} />
             <Route path="/log/audit-log" element={<ProtectedRoute navigationCode="AUDIT_LOG"><AuditLog /></ProtectedRoute>} />
 
-            {/* Company Search Direct Page Route */}
-            <Route path="/company-search" element={<ProtectedRoute><CompanySearchPage /></ProtectedRoute>} />
 
           </Route>
         </Routes>
