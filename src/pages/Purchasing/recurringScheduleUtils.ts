@@ -341,3 +341,87 @@ export function generatePaymentSchedule(
 
   return installments;
 }
+
+/**
+ * Calculates next payment amount and total payments amount for a recurring request.
+ */
+export function getRecurringAmounts(
+  schedule?: RecurringSchedule | null,
+  fallbackAmount: number = 0,
+  currency: string = "USD",
+  requestStatus?: string,
+  dueDateOrRequestDate?: string | null
+): {
+  nextPaymentAmount: number;
+  totalPaymentsAmount: number | null;
+  displayAmount: string;
+  nextFormatted: string;
+  totalFormatted: string | null;
+} {
+  const defaultAmt = Number(fallbackAmount) || 0;
+  const cycleAmt =
+    schedule?.amount_per_cycle != null && schedule.amount_per_cycle > 0
+      ? Number(schedule.amount_per_cycle)
+      : defaultAmt;
+
+  let nextAmt = cycleAmt;
+  let totalAmt: number | null = null;
+
+  if (schedule?.is_scheduled) {
+    const installments = generatePaymentSchedule(
+      schedule,
+      defaultAmt,
+      currency || "USD",
+      requestStatus,
+      dueDateOrRequestDate
+    );
+
+    if (installments && installments.length > 0) {
+      const currentInst =
+        installments.find((i) => i.status === "CURRENT") ||
+        installments.find((i) => i.status === "PROJECTED") ||
+        installments[installments.length - 1];
+      if (currentInst) {
+        nextAmt = currentInst.amount;
+      }
+
+      if (schedule.total_amount != null && schedule.total_amount > 0) {
+        totalAmt = schedule.total_amount;
+      } else {
+        totalAmt = installments.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
+      }
+    } else if (schedule.total_amount != null && schedule.total_amount > 0) {
+      totalAmt = schedule.total_amount;
+    } else if (schedule.total_installments && schedule.total_installments > 0) {
+      totalAmt = cycleAmt * schedule.total_installments;
+    }
+  } else {
+    // Open-ended / ongoing recurring request
+    if (schedule?.total_amount != null && schedule.total_amount > 0) {
+      totalAmt = schedule.total_amount;
+    } else if (schedule?.total_installments && schedule.total_installments > 0) {
+      totalAmt = cycleAmt * schedule.total_installments;
+    }
+  }
+
+  const formatVal = (v: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(v);
+  };
+
+  const nextFormatted = formatVal(nextAmt);
+  const totalFormatted = totalAmt != null ? formatVal(totalAmt) : null;
+  const displayAmount = totalFormatted ? `${nextFormatted} / ${totalFormatted}` : nextFormatted;
+
+  return {
+    nextPaymentAmount: nextAmt,
+    totalPaymentsAmount: totalAmt,
+    displayAmount,
+    nextFormatted,
+    totalFormatted,
+  };
+}

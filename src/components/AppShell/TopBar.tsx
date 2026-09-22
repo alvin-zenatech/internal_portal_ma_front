@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { Bell, CheckCheck, LogOut, User, Mail, BellRing, Settings2, Menu, Search } from "lucide-react";
 import { CompanySearchDialog } from "@/components/CompanySearch/CompanySearchDialog";
@@ -69,12 +70,48 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const [inAppAlerts, setInAppAlerts] = useState(() => localStorage.getItem("inAppAlerts") !== "false");
   const navigate = useNavigate();
   const { user, roles, logout } = useAuth();
-  const { data: notifications = [], isFetched: isNotificationsFetched } = useNotifications({ refetchInterval: 8000 });
-  const { data: unreadCountData } = useUnreadNotificationCount({ refetchInterval: 8000 });
+  const { data: notifications = [], isFetched: isNotificationsFetched } = useNotifications();
+  const { data: unreadCountData } = useUnreadNotificationCount();
   const { mutate: markAsRead } = useMarkNotificationAsRead();
   const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllNotificationsAsRead();
   const { mutate: clearRead } = useClearReadNotifications();
   const unreadCount = unreadCountData?.count ?? 0;
+
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token") || "";
+    const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+    const streamUrl = `${rawBaseUrl}/api/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(streamUrl, { withCredentials: true });
+
+      eventSource.onmessage = (event) => {
+        try {
+          JSON.parse(event.data);
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+        } catch {
+          // ignore parsing non-JSON or heartbeat
+        }
+      };
+
+      eventSource.onerror = () => {
+        // EventSource will automatically retry in background
+      };
+    } catch {
+      // ignore initialization error
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [queryClient]);
+
   const initialLoadedRef = useRef(false);
   const notifiedIdsRef = useRef<Set<number>>(new Set());
 

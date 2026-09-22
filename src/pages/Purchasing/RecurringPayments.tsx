@@ -70,6 +70,7 @@ import {
   formatRemainingDuration,
   calculateInstallmentsCount,
   generatePaymentSchedule,
+  getRecurringAmounts,
   formatDateToIso,
   type FrequencyType,
 } from "./recurringScheduleUtils";
@@ -975,6 +976,13 @@ export default function RecurringPayments() {
         const statusStr = String(r.status ?? "").toLowerCase();
         const amountStr = String(r.amount ?? "");
         const glStr = String(r.gl_code ?? "").toLowerCase();
+        const { displayAmount, nextFormatted, totalFormatted } = getRecurringAmounts(
+          r.recurring_schedule,
+          r.amount,
+          r.currency || "USD",
+          r.status,
+          r.due_date || r.request_date
+        );
 
         const matches =
           idStr.includes(rawTerm) ||
@@ -986,6 +994,9 @@ export default function RecurringPayments() {
           vendorStr.includes(rawTerm) ||
           statusStr.includes(rawTerm) ||
           amountStr.includes(rawTerm) ||
+          displayAmount.toLowerCase().includes(rawTerm) ||
+          nextFormatted.toLowerCase().includes(rawTerm) ||
+          (totalFormatted && totalFormatted.toLowerCase().includes(rawTerm)) ||
           glStr.includes(rawTerm);
 
         if (!matches) {
@@ -1412,6 +1423,13 @@ export default function RecurringPayments() {
                 filteredRequests.map((req) => {
                   const revStatus = req.review_status || "WAITING_FOR_REVIEW";
                   const isRev = revStatus === "REVIEWED";
+                  const { nextFormatted, totalFormatted } = getRecurringAmounts(
+                    req.recurring_schedule,
+                    req.amount,
+                    req.currency || "USD",
+                    req.status,
+                    req.due_date || req.request_date
+                  );
                   return (
                     <TableRow
                       key={req.id}
@@ -1472,7 +1490,21 @@ export default function RecurringPayments() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        {formatMoney(req.amount)}
+                        <div className="flex flex-col">
+                          <div className="flex items-baseline gap-1 font-bold text-slate-900 dark:text-zinc-100">
+                            <span>{nextFormatted}</span>
+                            {totalFormatted && (
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                / {totalFormatted}
+                              </span>
+                            )}
+                          </div>
+                          {totalFormatted && (
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              Next / Total
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getStatusBadge(req.status)}>
