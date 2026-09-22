@@ -923,13 +923,13 @@ export default function PurchaseRequestDetail() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                 <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Cycle Amount (Pre-Tax)</span>
+                  <span className="text-muted-foreground font-medium">Cycle Amount</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
                     {formatMoney(currentCycleAmount)} USD
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
-                  <span className="text-muted-foreground font-medium">Total Commitment (Pre-Tax)</span>
+                  <span className="text-muted-foreground font-medium">Total Commitment</span>
                   <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-right">
                     {formatMoney(totalCommitment ?? currentCycleAmount)} USD
                   </span>
