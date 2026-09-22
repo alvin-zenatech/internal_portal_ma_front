@@ -75,11 +75,14 @@ export const ScheduleDatesBuilder: React.FC<ScheduleDatesBuilderProps> = ({
       nextDateStr = formatDateToIso(d);
     }
 
+    const lastAmount = scheduleDates.length > 0 ? scheduleDates[scheduleDates.length - 1].amount : undefined;
+    const defaultItemAmt = (lastAmount != null && lastAmount > 0) ? lastAmount : (baseAmount > 0 ? baseAmount : undefined);
+
     const newDates = [
       ...scheduleDates,
       {
         date: nextDateStr,
-        amount: baseAmount > 0 ? baseAmount : undefined,
+        amount: defaultItemAmt,
         note: `Installment #${scheduleDates.length + 1}`,
       },
     ];

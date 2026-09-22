@@ -148,6 +148,7 @@ export type PurchaseRequest = {
   unit_price: number;
   amount: number;
   currency?: string | null;
+  category?: string | null;
   gl_code?: string | null;
   project_name?: string | null;
   items?: PurchaseRequestItem[];
@@ -175,6 +176,7 @@ export type PurchaseOrder = {
   unit_price?: number;
   amount: number;
   currency?: string | null;
+  category?: string | null;
   gl_code?: string | null;
   payment_method?: PaymentMethod | null;
   shipped_to_location?: string | null;
@@ -190,14 +192,16 @@ export type PurchaseOrder = {
 };
 
 export type InvoiceItemDetail = {
-  id: string;
-  invoice_id: string;
+  id?: string;
+  invoice_id?: string;
+  item: string;
   request_item_id?: number | null;
   description: string;
   sku?: string | null;
   quantity: number;
   unit_price: number;
   amount: number;
+  category?: string | null;
   gl_code: string;
   asset_flag: boolean;
   created_at?: string;
@@ -213,6 +217,7 @@ export type Invoice = {
   due_date: string | null;
   payment_status: PaymentStatus;
   paid_date: string | null;
+  category?: string | null;
   gl_code: string | null;
   bank_account?: string | null;
   asset_flag: boolean;

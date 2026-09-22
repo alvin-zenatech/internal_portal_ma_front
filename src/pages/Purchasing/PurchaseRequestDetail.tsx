@@ -39,12 +39,12 @@ import {
   formatRemainingDuration,
   calculateInstallmentsCount,
   generatePaymentSchedule,
+  formatDateToIso,
   FREQUENCY_LABELS,
   type ProjectedInstallment,
 } from "./recurringScheduleUtils";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
-import GLCodeAutocomplete from "./GLCodeAutocomplete";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,7 +87,7 @@ export default function PurchaseRequestDetail() {
     description: "",
     gl_code: "",
     priority: "MEDIUM",
-    is_scheduled: false,
+    is_scheduled: true,
     frequency: "CUSTOM" as FrequencyType,
     start_date: "",
     end_date: "",
@@ -126,6 +126,7 @@ export default function PurchaseRequestDetail() {
   const handleOpenEdit = () => {
     if (!request) return;
     const sched = request.recurring_schedule;
+    const isSched = sched?.is_scheduled !== undefined ? Boolean(sched.is_scheduled) : true;
     let schedDates: CustomScheduleDate[] = [];
     if (sched?.schedule_dates && sched.schedule_dates.length > 0) {
       schedDates = sched.schedule_dates;
@@ -135,6 +136,15 @@ export default function PurchaseRequestDetail() {
         amount: sched?.amount_per_cycle || request.amount,
         note: `Installment #${i + 1}`,
       }));
+    } else if (isSched) {
+      const baseDate = sched?.start_date ? sched.start_date.split("T")[0] : (request.due_date ? request.due_date.split("T")[0] : new Date().toISOString().split("T")[0]);
+      const nextMonth = new Date(baseDate + "T00:00:00");
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const nextMonthIso = formatDateToIso(nextMonth);
+      schedDates = [
+        { date: baseDate, amount: request.amount || undefined, note: "Installment #1" },
+        { date: nextMonthIso, amount: request.amount || undefined, note: "Installment #2" },
+      ];
     }
 
     setEditForm({
@@ -146,10 +156,10 @@ export default function PurchaseRequestDetail() {
       description: request.description || "",
       gl_code: request.gl_code || "",
       priority: request.priority || "MEDIUM",
-      is_scheduled: Boolean(sched?.is_scheduled),
+      is_scheduled: isSched,
       frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
-      start_date: sched?.start_date ? sched.start_date.split("T")[0] : (request.due_date ? request.due_date.split("T")[0] : ""),
-      end_date: sched?.end_date ? sched.end_date.split("T")[0] : "",
+      start_date: sched?.start_date ? sched.start_date.split("T")[0] : (schedDates[0]?.date || (request.due_date ? request.due_date.split("T")[0] : "")),
+      end_date: sched?.end_date ? sched.end_date.split("T")[0] : (schedDates[schedDates.length - 1]?.date || ""),
       completed_installments: sched?.completed_installments || 0,
       schedule_dates: schedDates,
     });
@@ -216,12 +226,6 @@ export default function PurchaseRequestDetail() {
       toast.error("Please enter a title");
       return;
     }
-    const amt = parseFloat(editForm.amount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
     const isCustom = editForm.frequency === "CUSTOM";
     const customDates = isCustom ? editForm.schedule_dates : [];
     const isSched = Boolean(
@@ -229,13 +233,70 @@ export default function PurchaseRequestDetail() {
       (isCustom ? customDates.length > 0 : editForm.start_date && editForm.end_date)
     );
 
+    const customSum = isCustom ? customDates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) : 0;
+    let baseAmt = parseFloat(editForm.amount) || 0;
+
+    if (isSched && isCustom) {
+      if (customDates.length === 0) {
+        toast.error("Please add at least one installment date");
+        return;
+      }
+      if (customSum <= 0 && baseAmt <= 0) {
+        toast.error("Please enter an amount for the installment dates (greater than $0.00)");
+        return;
+      }
+    } else {
+      if (baseAmt <= 0) {
+        toast.error("Please enter a valid amount greater than $0.00");
+        return;
+      }
+    }
+
     let totalCycles: number | null = null;
     let totalAmt: number | null = null;
+    let amt = baseAmt;
 
     if (isSched) {
       if (isCustom) {
         totalCycles = customDates.length;
-        totalAmt = customDates.reduce((acc, itm) => acc + (itm.amount || amt), 0);
+        totalAmt = customSum > 0 ? customSum : (baseAmt > 0 ? baseAmt * totalCycles : 0);
+        amt = totalAmt > 0 ? totalAmt : baseAmt;
+        const cycleAmt = totalCycles > 0 ? Math.round((totalAmt / totalCycles) * 100) / 100 : amt;
+        const sanitizedDates = customDates.map((d, i) => ({
+          date: d.date,
+          amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
+          note: d.note || `Installment #${i + 1}`,
+        }));
+
+        const effectiveStartDate = sanitizedDates.length > 0 ? sanitizedDates[0].date : editForm.start_date;
+        const effectiveEndDate = sanitizedDates.length > 0 ? sanitizedDates[sanitizedDates.length - 1].date : editForm.end_date;
+        const effectiveDueDate = effectiveStartDate || editForm.due_date;
+
+        updateMutation.mutate({
+          title: editForm.title,
+          requester: editForm.requester,
+          department: editForm.department,
+          priority: editForm.priority,
+          amount: amt,
+          unit_price: amt,
+          quantity: 1,
+          description: editForm.description,
+          gl_code: request?.gl_code || editForm.gl_code || null,
+          due_date: effectiveDueDate || null,
+          recurring_schedule: {
+            is_scheduled: true,
+            frequency: editForm.frequency,
+            start_date: effectiveStartDate,
+            end_date: effectiveEndDate,
+            total_installments: totalCycles,
+            completed_installments: editForm.completed_installments || 0,
+            amount_per_cycle: cycleAmt,
+            total_amount: totalAmt,
+            custom_dates: sanitizedDates.map((d) => d.date),
+            schedule_dates: sanitizedDates,
+          },
+        });
+        return;
       } else {
         totalCycles = calculateInstallmentsCount(editForm.start_date, editForm.end_date, editForm.frequency);
         totalAmt = totalCycles ? Math.round(amt * totalCycles * 100) / 100 : null;
@@ -244,6 +305,7 @@ export default function PurchaseRequestDetail() {
 
     const effectiveStartDate = isCustom && customDates.length > 0 ? customDates[0].date : editForm.start_date;
     const effectiveEndDate = isCustom && customDates.length > 0 ? customDates[customDates.length - 1].date : editForm.end_date;
+    const effectiveDueDate = (isSched && effectiveStartDate) ? effectiveStartDate : editForm.due_date;
 
     updateMutation.mutate({
       title: editForm.title,
@@ -254,8 +316,8 @@ export default function PurchaseRequestDetail() {
       unit_price: amt,
       quantity: 1,
       description: editForm.description,
-      gl_code: editForm.gl_code || null,
-      due_date: editForm.due_date || (isSched ? effectiveStartDate : null),
+      gl_code: request?.gl_code || editForm.gl_code || null,
+      due_date: effectiveDueDate || null,
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
@@ -264,7 +326,7 @@ export default function PurchaseRequestDetail() {
             end_date: effectiveEndDate,
             total_installments: totalCycles,
             completed_installments: editForm.completed_installments || 0,
-            amount_per_cycle: amt,
+            amount_per_cycle: totalCycles && totalCycles > 0 ? Math.round((totalAmt! / totalCycles) * 100) / 100 : amt,
             total_amount: totalAmt,
             custom_dates: isCustom ? customDates.map((d) => d.date) : null,
             schedule_dates: isCustom ? customDates : null,
@@ -784,9 +846,9 @@ export default function PurchaseRequestDetail() {
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2">
-                  <span className="text-muted-foreground font-medium">Category / GL Code</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {request.gl_code || "—"}
+                  <span className="text-muted-foreground font-medium">Category</span>
+                  <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                    {request.category || "—"}
                   </span>
                 </div>
               </div>
@@ -973,9 +1035,9 @@ export default function PurchaseRequestDetail() {
                       </Badge>
                     </div>
                     <div className="p-3.5 flex justify-between gap-2">
-                      <span className="text-muted-foreground font-medium">Category / GL Code</span>
-                      <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {invoice.gl_code || "—"}
+                      <span className="text-muted-foreground font-medium">Category</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {invoice.category || request.category || "—"}
                       </span>
                     </div>
                   </div>
@@ -1303,29 +1365,53 @@ export default function PurchaseRequestDetail() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        Amount (USD) <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                          Amount (USD) <span className="text-red-500">*</span>
+                        </label>
+                        {editForm.is_scheduled && (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            (Managed by Schedule)
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">$</span>
                         <Input
                           type="number"
                           step="0.01"
-                          value={editForm.amount}
+                          value={
+                            editForm.is_scheduled && editForm.frequency === "CUSTOM" && editForm.schedule_dates.length > 0
+                              ? (editForm.schedule_dates.reduce((acc, itm) => acc + (itm.amount != null ? itm.amount : 0), 0) || "").toString()
+                              : editForm.amount
+                          }
                           onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                          className="h-10 text-sm font-mono pl-7"
-                          required
+                          disabled={editForm.is_scheduled}
+                          className="h-10 text-sm font-mono pl-7 disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                          required={!editForm.is_scheduled}
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Next Due Date</label>
+                        {editForm.is_scheduled && (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            (Managed by Schedule)
+                          </span>
+                        )}
+                      </div>
                       <Input
                         type="date"
-                        value={editForm.due_date}
+                        value={
+                          editForm.is_scheduled && editForm.frequency === "CUSTOM" && editForm.schedule_dates.length > 0
+                            ? (editForm.schedule_dates[0]?.date || editForm.due_date)
+                            : editForm.due_date
+                        }
                         onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
-                        className="h-10 text-sm"
+                        disabled={editForm.is_scheduled}
+                        className="h-10 text-sm disabled:opacity-75 disabled:bg-slate-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -1352,13 +1438,7 @@ export default function PurchaseRequestDetail() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">GL Code / Account</label>
-                    <GLCodeAutocomplete
-                      value={editForm.gl_code}
-                      onChange={(val) => setEditForm({ ...editForm, gl_code: val })}
-                    />
-                  </div>
+
 
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
