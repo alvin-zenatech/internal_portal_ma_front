@@ -446,6 +446,7 @@ export default function RecurringPayments() {
     due_date: initialSchedule.start_date,
     description: "",
     gl_code: "",
+    bank_account: "",
     priority: "MEDIUM",
     is_scheduled: true,
     frequency: "CUSTOM" as FrequencyType,
@@ -464,6 +465,7 @@ export default function RecurringPayments() {
     due_date: "",
     description: "",
     gl_code: "",
+    bank_account: "",
     priority: "MEDIUM",
     is_scheduled: true,
     frequency: "CUSTOM" as FrequencyType,
@@ -494,6 +496,7 @@ export default function RecurringPayments() {
       due_date: todayIso,
       description: "",
       gl_code: "",
+      bank_account: "",
       priority: "MEDIUM",
       is_scheduled: true,
       frequency: "CUSTOM",
@@ -550,6 +553,7 @@ export default function RecurringPayments() {
         due_date: todayIso,
         description: "",
         gl_code: "",
+        bank_account: "",
         priority: "MEDIUM",
         is_scheduled: true,
         frequency: "CUSTOM",
@@ -636,6 +640,7 @@ export default function RecurringPayments() {
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
       gl_code: req.gl_code || "",
+      bank_account: (req as any)?.bank_account || "",
       priority: req.priority || "MEDIUM",
       is_scheduled: isSched,
       frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
@@ -738,7 +743,8 @@ export default function RecurringPayments() {
           unit_price: cycleAmt,
           quantity: 1,
           description: newForm.description,
-          gl_code: null,
+          gl_code: newForm.gl_code || null,
+          bank_account: newForm.bank_account || null,
           due_date: effectiveDueDate || null,
           recurring_schedule: {
             is_scheduled: true,
@@ -774,7 +780,8 @@ export default function RecurringPayments() {
       unit_price: amt,
       quantity: 1,
       description: newForm.description,
-      gl_code: null,
+      gl_code: newForm.gl_code || null,
+      bank_account: newForm.bank_account || null,
       due_date: effectiveDueDate || null,
       recurring_schedule: isSched
         ? {
@@ -877,7 +884,8 @@ export default function RecurringPayments() {
             unit_price: cycleAmt,
             quantity: 1,
             description: editForm.description,
-            gl_code: editingRequest?.gl_code || editForm.gl_code || null,
+            gl_code: editForm.gl_code || editingRequest?.gl_code || null,
+            bank_account: editForm.bank_account || (editingRequest as any)?.bank_account || null,
             due_date: effectiveDueDate || null,
             recurring_schedule: {
               is_scheduled: true,
@@ -915,7 +923,8 @@ export default function RecurringPayments() {
         unit_price: amt,
         quantity: 1,
         description: editForm.description,
-        gl_code: editingRequest?.gl_code || editForm.gl_code || null,
+        gl_code: editForm.gl_code || editingRequest?.gl_code || null,
+        bank_account: editForm.bank_account || (editingRequest as any)?.bank_account || null,
         due_date: effectiveDueDate || null,
         recurring_schedule: isSched
           ? {
@@ -1448,6 +1457,7 @@ export default function RecurringPayments() {
                             {req.description}
                           </div>
                         )}
+
                       </TableCell>
                       <TableCell className="text-sm font-medium">{req.requester}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -2132,6 +2142,8 @@ export default function RecurringPayments() {
                   </div>
                 </div>
 
+
+
                 <div className="space-y-1.5 flex-1 flex flex-col">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                   <textarea
@@ -2316,6 +2328,8 @@ export default function RecurringPayments() {
                       />
                     </div>
                   </div>
+
+
 
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>

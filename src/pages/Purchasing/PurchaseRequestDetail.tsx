@@ -23,7 +23,10 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { apiClient } from "@/services/apiClient";
-import { useRequestDetail, useTransitionRequest, useUploadAttachments } from "@/hooks/usePurchasing";
+import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes } from "@/hooks/usePurchasing";
+import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
+import { CategoryAutocomplete } from "./CategoryAutocomplete";
+import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
 import {
   RequestStatus,
   type RequestDetail,
@@ -68,6 +71,7 @@ export default function PurchaseRequestDetail() {
   const queryClient = useQueryClient();
 
   const { data: requestDetail, isLoading, error, refetch } = useRequestDetail(id);
+  const { data: glCodes = [] } = useGLCodes();
 
   const request = requestDetail?.request;
   const invoice = requestDetail?.invoice;
@@ -90,6 +94,7 @@ export default function PurchaseRequestDetail() {
     due_date: "",
     description: "",
     gl_code: "",
+    bank_account: "",
     priority: "MEDIUM",
     is_scheduled: true,
     frequency: "CUSTOM" as FrequencyType,
@@ -105,7 +110,10 @@ export default function PurchaseRequestDetail() {
     amount: "",
     invoice_date: new Date().toISOString().split("T")[0],
     due_date: "",
+    bank_account: "",
     gl_code: "",
+    department: "M&A",
+    from_location: "USA",
     asset_flag: false,
     description: "",
   });
@@ -159,6 +167,7 @@ export default function PurchaseRequestDetail() {
       due_date: request.due_date ? request.due_date.split("T")[0] : "",
       description: request.description || "",
       gl_code: request.gl_code || "",
+      bank_account: (request as any)?.bank_account || invoice?.bank_account || "",
       priority: request.priority || "MEDIUM",
       is_scheduled: isSched,
       frequency: (sched?.frequency as FrequencyType) || "CUSTOM",
@@ -325,7 +334,8 @@ export default function PurchaseRequestDetail() {
       unit_price: amt,
       quantity: 1,
       description: editForm.description,
-      gl_code: request?.gl_code || editForm.gl_code || null,
+      gl_code: editForm.gl_code || request?.gl_code || null,
+      bank_account: editForm.bank_account || (request as any)?.bank_account || null,
       due_date: effectiveDueDate || null,
       recurring_schedule: isSched
         ? {
@@ -360,13 +370,24 @@ export default function PurchaseRequestDetail() {
       toast.error("Please enter a valid amount");
       return;
     }
+    if (!invoiceForm.bank_account?.trim()) {
+      toast.error("Bank Account is required");
+      return;
+    }
+    if (!invoiceForm.gl_code?.trim()) {
+      toast.error("Category (GL Code) is required");
+      return;
+    }
     recordInvoiceMutation.mutate(
       {
         vendor: invoiceForm.vendor || request?.title || "",
         amount: amt,
         invoice_date: invoiceForm.invoice_date,
         due_date: invoiceForm.due_date || null,
-        gl_code: invoiceForm.gl_code || request?.gl_code || null,
+        bank_account: invoiceForm.bank_account.trim(),
+        gl_code: invoiceForm.gl_code.trim(),
+        department: invoiceForm.department || request?.department || "M&A",
+        from_location: invoiceForm.from_location || "USA",
         asset_flag: invoiceForm.asset_flag,
         description: invoiceForm.description || null,
       },
@@ -876,6 +897,7 @@ export default function PurchaseRequestDetail() {
                 </div>
               </div>
 
+
               <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Requested Date</span>
@@ -964,36 +986,41 @@ export default function PurchaseRequestDetail() {
                     </Badge>
                   )}
                 </CardTitle>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                    const sDates = request.recurring_schedule?.schedule_dates || [];
-                    const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
-                    const currentCycleCustom = sDates[activeIdx];
-                    const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
-                      ? Number(currentCycleCustom.amount)
-                      : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
-                          ? Number(request.recurring_schedule.amount_per_cycle)
-                          : (request.unit_price || request.amount || 0));
+                {!invoice && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const completedCycles = request.recurring_schedule?.completed_installments || 0;
+                      const sDates = request.recurring_schedule?.schedule_dates || [];
+                      const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
+                      const currentCycleCustom = sDates[activeIdx];
+                      const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
+                        ? Number(currentCycleCustom.amount)
+                        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
+                            ? Number(request.recurring_schedule.amount_per_cycle)
+                            : (request.unit_price || request.amount || 0));
 
-                    setInvoiceForm({
-                      vendor: request.title,
-                      amount: cycleAmt.toString(),
-                      invoice_date: new Date().toISOString().split("T")[0],
-                      due_date: request.due_date ? request.due_date.split("T")[0] : "",
-                      gl_code: request.gl_code || "",
-                      asset_flag: false,
-                      description: `Recurring payment for ${request.title}`,
-                    });
-                    setIsRecordInvoiceOpen(true);
-                  }}
-                  className="text-xs h-7 gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {invoice ? "Add Another Invoice" : "Record Invoice"}
-                </Button>
+                      setInvoiceForm({
+                        vendor: request.title,
+                        amount: cycleAmt.toString(),
+                        invoice_date: new Date().toISOString().split("T")[0],
+                        due_date: request.due_date ? request.due_date.split("T")[0] : "",
+                        bank_account: (request as any)?.bank_account || "",
+                        gl_code: request.gl_code || "",
+                        department: request.department || "M&A",
+                        from_location: (request as any)?.from_location || "USA",
+                        asset_flag: false,
+                        description: `Recurring payment for ${request.title}`,
+                      });
+                      setIsRecordInvoiceOpen(true);
+                    }}
+                    className="text-xs h-7 gap-1"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Record Invoice
+                  </Button>
+                )}
               </div>
             </CardHeader>
 
@@ -1031,25 +1058,33 @@ export default function PurchaseRequestDetail() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
-                    <div className="p-3.5 flex justify-between gap-2">
+                    <div className="p-3.5 flex justify-between items-center gap-2">
                       <span className="text-muted-foreground font-medium">Payment Status</span>
                       <Badge variant="outline" className="text-[11px] bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold py-0">
                         {invoice.paid_date ? `Settled · ${formatDate(invoice.paid_date)}` : "Settled · " + formatDate(invoice.invoice_date)}
                       </Badge>
                     </div>
-                    <div className="p-3.5 flex justify-between gap-2">
-                      <span className="text-muted-foreground font-medium">Category</span>
-                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {invoice.category || request.category || "—"}
-                      </span>
+                    <div className="p-3.5 flex justify-between items-center gap-2">
+                      <span className="text-muted-foreground font-medium">Bank Account</span>
+                      <div className="text-right">
+                        {renderBankAccountBadge(invoice.bank_account || (request as any)?.bank_account, glCodes)}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 flex justify-between gap-2">
-                    <span className="text-muted-foreground font-medium">Asset Flag</span>
-                    <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                      {invoice.asset_flag ? "Yes" : "No"}
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800/60">
+                    <div className="p-3.5 flex justify-between items-center gap-2">
+                      <span className="text-muted-foreground font-medium">Category</span>
+                      <div className="text-right">
+                        {renderCategoryBadge(invoice.gl_code || invoice.category || request.gl_code || request.category, glCodes)}
+                      </div>
+                    </div>
+                    <div className="p-3.5 flex justify-between items-center gap-2">
+                      <span className="text-muted-foreground font-medium">Asset Flag</span>
+                      <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
+                        {invoice.asset_flag ? "Yes" : "No"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1075,7 +1110,10 @@ export default function PurchaseRequestDetail() {
                         amount: cycleAmt.toString(),
                         invoice_date: new Date().toISOString().split("T")[0],
                         due_date: request.due_date ? request.due_date.split("T")[0] : "",
+                        bank_account: (request as any)?.bank_account || "",
                         gl_code: request.gl_code || "",
+                        department: request.department || "M&A",
+                        from_location: (request as any)?.from_location || "USA",
                         asset_flag: false,
                         description: `Recurring payment for ${request.title}`,
                       });
@@ -1427,6 +1465,7 @@ export default function PurchaseRequestDetail() {
 
 
 
+
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                     <textarea
@@ -1471,7 +1510,7 @@ export default function PurchaseRequestDetail() {
       {/* ── Record Invoice Dialog ── */}
       {isRecordInvoiceOpen && (
         <Dialog open={isRecordInvoiceOpen} onOpenChange={setIsRecordInvoiceOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="sm:max-w-xl w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-lg">
                 <Receipt className="w-5 h-5 text-indigo-600" />
@@ -1495,7 +1534,7 @@ export default function PurchaseRequestDetail() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                     Amount (USD) <span className="text-red-500">*</span>
@@ -1518,6 +1557,28 @@ export default function PurchaseRequestDetail() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Bank Account <span className="text-red-500">*</span>
+                </label>
+                <BankAccountAutocomplete
+                  value={invoiceForm.bank_account}
+                  onChange={(val) => setInvoiceForm({ ...invoiceForm, bank_account: val })}
+                  placeholder="Select Bank Account *"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <CategoryAutocomplete
+                  value={invoiceForm.gl_code}
+                  onChange={(val) => setInvoiceForm({ ...invoiceForm, gl_code: val })}
+                  placeholder="Select Category *"
+                />
               </div>
 
               <div className="space-y-1.5">
