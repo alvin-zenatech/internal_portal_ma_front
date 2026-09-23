@@ -20,8 +20,10 @@ import {
   AlertTriangle,
   X,
   UploadCloud,
+  Download,
 } from "lucide-react";
 import { apiClient } from "@/services/apiClient";
+import { downloadAttachment } from "@/services/purchasingService";
 import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes } from "@/hooks/usePurchasing";
 import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
 import { CategoryAutocomplete } from "./CategoryAutocomplete";
@@ -1280,8 +1282,43 @@ export default function PurchaseRequestDetail() {
 
                 {/* Attachments Tab */}
                 <TabsContent value="attachments" className="mt-0 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Files ({attachments.length})
+                    </span>
+                    <div>
+                      <input
+                        id="tab-attachment-upload-input"
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            const files = Array.from(e.target.files);
+                            uploadMutation.mutate(files);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 border-slate-200 dark:border-zinc-800"
+                        onClick={() => document.getElementById("tab-attachment-upload-input")?.click()}
+                        disabled={uploadMutation.isPending}
+                      >
+                        {uploadMutation.isPending ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <UploadCloud className="h-3.5 w-3.5 text-indigo-600" />
+                        )}
+                        Upload File
+                      </Button>
+                    </div>
+                  </div>
+
                   {attachments.length === 0 ? (
-                    <div className="p-6 text-center text-muted-foreground space-y-1.5">
+                    <div className="p-6 text-center text-muted-foreground space-y-1.5 border border-dashed rounded-lg border-slate-200 dark:border-zinc-800">
                       <Paperclip className="h-7 w-7 mx-auto text-slate-300 dark:text-zinc-700" />
                       <p className="font-semibold text-slate-700 dark:text-zinc-300">No files attached</p>
                       <p className="text-[11px]">Upload invoice receipts, contract agreements, or POs.</p>
@@ -1290,17 +1327,35 @@ export default function PurchaseRequestDetail() {
                     attachments.map((att) => (
                       <div
                         key={att.id}
-                        className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 bg-white dark:bg-zinc-950"
+                        className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 bg-white dark:bg-zinc-950 hover:bg-slate-50/50 dark:hover:bg-zinc-900/50 transition-colors"
                       >
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-2 truncate min-w-0">
                           <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
-                          <span className="font-medium truncate text-slate-800 dark:text-zinc-200">
-                            {att.filename}
-                          </span>
+                          <div className="truncate">
+                            <span className="font-medium truncate text-slate-800 dark:text-zinc-200 block">
+                              {att.filename}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {Math.round(att.size / 1024)} KB
+                              {att.uploaded_by ? ` • by ${att.uploaded_by}` : ""}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[11px] text-muted-foreground shrink-0">
-                          {Math.round(att.size / 1024)} KB
-                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shrink-0 gap-1"
+                          onClick={() => {
+                            if (id) {
+                              downloadAttachment(id, att.id, att.filename).catch((err) => {
+                                toast.error(err?.message || "Failed to download attachment");
+                              });
+                            }
+                          }}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span className="text-[11px]">Download</span>
+                        </Button>
                       </div>
                     ))
                   )}
