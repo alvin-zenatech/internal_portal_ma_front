@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -14,7 +14,6 @@ import {
   Paperclip,
   History,
   ShieldCheck,
-  ChevronRight,
   Plus,
   RefreshCw,
   Check,
@@ -48,6 +47,7 @@ import {
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
 import { Button } from "@/components/ui/button";
+import HelpIcon from "@/components/ui/HelpIcon";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -115,7 +115,7 @@ export default function PurchaseRequestDetail() {
       document.dispatchEvent(
         new CustomEvent("set-breadcrumb-trail", {
           detail: {
-            path: `/purchasing/requests/${request.id}`,
+            path: window.location.pathname,
             items: [
               { title: "Purchasing", path: "/purchasing/recurring" },
               { title: "Recurring Payments", path: "/purchasing/recurring" },
@@ -479,35 +479,20 @@ export default function PurchaseRequestDetail() {
   const currentStepIndex = workflowSteps.findIndex((s) => s.key === parsedStatus);
 
   return (
-    <div className="space-y-6 pb-16 max-w-[1600px] mx-auto px-4 sm:px-6">
-      {/* ── Breadcrumb & Top Navigation Bar ── */}
-      <div className="flex items-center justify-between gap-4 pt-2">
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-          <span className="font-semibold text-slate-700 dark:text-zinc-300">Process:</span>
-          <span>Purchasing</span>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-          <Link
-            to="/purchasing/recurring"
-            className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-          >
-            Recurring Payments
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-          <span className="font-bold text-slate-900 dark:text-zinc-100">
-            {request.title} ({request.id})
-          </span>
-        </div>
+    <div className="w-full space-y-6 pb-12">
+      {/* ── Top Navigation Action Bar ── */}
+      <div className="flex items-center justify-between gap-4 pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate("/purchasing/recurring")}
+          className="text-xs gap-1.5"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Recurring
+        </Button>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/purchasing/recurring")}
-            className="text-xs gap-1.5"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Recurring
-          </Button>
           <Button
             size="sm"
             onClick={handleOpenEdit}
@@ -1040,13 +1025,16 @@ export default function PurchaseRequestDetail() {
                     <div className="p-3.5 flex justify-between gap-2">
                       <span className="text-muted-foreground font-medium">Category</span>
                       <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                        {invoice.category || request.category || "—"}
+                        {(invoice as any)?.category || invoice.gl_code || request.gl_code || "—"}
                       </span>
                     </div>
                   </div>
 
-                  <div className="p-3.5 flex justify-between gap-2">
-                    <span className="text-muted-foreground font-medium">Asset Flag</span>
+                  <div className="p-3.5 flex justify-between gap-2 items-center">
+                    <span className="text-muted-foreground font-medium flex items-center gap-1">
+                      <span>Asset Flag</span>
+                      <HelpIcon text="Asset Flag designates whether this invoice represents a Capitalized Fixed Asset (CapEx) — such as equipment, hardware, lease/financing agreements, or software licenses — rather than an immediate operational expense (OpEx). When checked, the cost is capitalized on the balance sheet and depreciated/amortized over time instead of expensed in full in the current period. It automatically defaults to active for Scheduled Payments, Recurring obligations, and Accounts Payable." />
+                    </span>
                     <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
                       {invoice.asset_flag ? "Yes" : "No"}
                     </span>
