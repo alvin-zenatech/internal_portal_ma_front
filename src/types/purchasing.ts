@@ -121,6 +121,7 @@ export interface RecurringSchedule {
   total_amount?: number | null;
   custom_dates?: string[] | null;
   schedule_dates?: CustomScheduleDate[] | null;
+  payment_method?: string | null;
 }
 
 export type PurchaseRequest = {
@@ -132,6 +133,7 @@ export type PurchaseRequest = {
   request_type: RequestType;
   priority: Priority;
   status: RequestStatus;
+  payment_method?: PaymentMethod | string | null;
   item_mode?: ItemMode;
   sku?: string | null;
   hold_reason?: string | null;
