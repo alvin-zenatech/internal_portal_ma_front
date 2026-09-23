@@ -58,6 +58,7 @@ function App() {
             <Route path="/configurations/role-api-permissions" element={<ProtectedRoute navigationCode="CONFIG_ROLE_API_PERMISSIONS"><RoleApiPermissions /></ProtectedRoute>} />
 
             {/* Scheduled / Recurring Payments & Requests */}
+            <Route path="/purchasing" element={<Navigate to="/purchasing/recurring" replace />} />
             <Route path="/purchasing/recurring" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
             <Route path="/purchasing/recurring-payments" element={<Navigate to="/purchasing/recurring" replace />} />
             <Route path="/purchasing/requests" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />

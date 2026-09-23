@@ -64,6 +64,7 @@ import {
   ShieldAlert,
   Edit2,
   XCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -75,6 +76,11 @@ import {
   type FrequencyType,
 } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import {
+  DebtSchedulePreviewModal,
+  type DebtSchedulePreviewData,
+  type DebtSchedulePreviewRecord,
+} from "@/components/Purchasing/DebtSchedulePreviewModal";
 
 interface CalendarCell {
   day: number;
@@ -283,6 +289,73 @@ export default function RecurringPayments() {
     isPaid?: boolean;
   } | null>(null);
 
+  // File import & preview state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [previewData, setPreviewData] = useState<DebtSchedulePreviewData | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [isSavingImport, setIsSavingImport] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsImporting(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await apiClient.post<DebtSchedulePreviewData>(
+        "/api/purchasing/preview-debt-schedule",
+        formData
+      );
+      if (res && res.records && res.records.length > 0) {
+        setPreviewData(res);
+        setPreviewFile(file);
+        setIsPreviewOpen(true);
+      } else {
+        toast.error("No valid debt schedule records found in the selected file.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to parse debt schedule preview");
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleSaveImport = async (clearExisting: boolean, recordsToSave?: DebtSchedulePreviewRecord[]) => {
+    if (!previewData) return;
+    try {
+      setIsSavingImport(true);
+      const formData = new FormData();
+      if (previewFile) {
+        formData.append("file", previewFile);
+      }
+      formData.append("clear_existing", clearExisting ? "true" : "false");
+      const recordsToSend = recordsToSave || previewData.records;
+      if (recordsToSend) {
+        formData.append("records_json", JSON.stringify(recordsToSend));
+      }
+
+      const res = await apiClient.post<any>("/api/purchasing/import-debt-schedule", formData);
+      toast.success(
+        `Successfully saved and imported ${res.imported_count || recordsToSend?.length || previewData.total_records} debt schedules!`
+      );
+      setIsPreviewOpen(false);
+      setPreviewData(null);
+      setPreviewFile(null);
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save debt schedules");
+    } finally {
+      setIsSavingImport(false);
+    }
+  };
+
 
 
   // Recurring notification settings query
@@ -361,8 +434,7 @@ export default function RecurringPayments() {
         detail: {
           path: window.location.pathname,
           items: [
-            { title: "Purchasing", path: "/purchasing/requests" },
-            { title: "Recurring Payments", path: isMaScheduled ? "/purchasing/recurring" : undefined },
+            { title: "Scheduled Payments", path: isMaScheduled ? "/purchasing/recurring" : undefined },
             ...(isMaScheduled ? [{ title: "M&A Scheduled Payments" }] : []),
           ],
         },
@@ -453,6 +525,7 @@ export default function RecurringPayments() {
     frequency: "CUSTOM" as FrequencyType,
     start_date: initialSchedule.start_date,
     end_date: initialSchedule.end_date,
+    payment_method: "Wire",
     schedule_dates: initialSchedule.schedule_dates,
   });
 
@@ -501,6 +574,7 @@ export default function RecurringPayments() {
       frequency: "CUSTOM",
       start_date: sched.start_date,
       end_date: sched.end_date,
+      payment_method: "Wire",
       schedule_dates: sched.schedule_dates,
     });
     setIsCreateOpen(true);
@@ -532,6 +606,7 @@ export default function RecurringPayments() {
         frequency: "CUSTOM",
         start_date: sched.start_date,
         end_date: sched.end_date,
+        payment_method: "Wire",
         schedule_dates: sched.schedule_dates,
       });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
@@ -711,6 +786,7 @@ export default function RecurringPayments() {
           department: newForm.department,
           request_type: "SCHEDULED_PAYMENT",
           priority: newForm.priority,
+          payment_method: "Wire",
           amount: cycleAmt,
           unit_price: cycleAmt,
           quantity: 1,
@@ -720,6 +796,7 @@ export default function RecurringPayments() {
           recurring_schedule: {
             is_scheduled: true,
             frequency: newForm.frequency,
+            payment_method: "Wire",
             start_date: effectiveStartDate,
             end_date: effectiveEndDate,
             total_installments: totalCycles,
@@ -747,6 +824,7 @@ export default function RecurringPayments() {
       department: newForm.department,
       request_type: isSched ? "SCHEDULED_PAYMENT" : "RECURRING",
       priority: newForm.priority,
+      payment_method: "Wire",
       amount: amt,
       unit_price: amt,
       quantity: 1,
@@ -757,6 +835,7 @@ export default function RecurringPayments() {
         ? {
             is_scheduled: true,
             frequency: newForm.frequency,
+            payment_method: "Wire",
             start_date: effectiveStartDate,
             end_date: effectiveEndDate,
             total_installments: totalCycles,
@@ -769,6 +848,7 @@ export default function RecurringPayments() {
         : {
             is_scheduled: false,
             frequency: newForm.frequency || "MONTHLY",
+            payment_method: "Wire",
             start_date: newForm.due_date || newForm.start_date || new Date().toISOString().split("T")[0],
             end_date: null,
             total_installments: null,
@@ -1146,7 +1226,25 @@ export default function RecurringPayments() {
           </div>
 
           <div className="flex items-center gap-2">
-            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept=".xlsx, .xlsm"
+              className="hidden"
+            />
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="h-9 gap-1.5 border-emerald-600/40 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:border-emerald-600/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40 font-medium"
+              title="Import Debt Schedules from Excel (.xlsx/.xlsm)"
+            >
+              <FileSpreadsheet size={15} />
+              <span>{isImporting ? "Importing..." : "Import Debt Schedule"}</span>
+            </Button>
 
             <Button
               variant="outline"
@@ -1972,6 +2070,12 @@ export default function RecurringPayments() {
                 <span>{selectedCalendarItem.department}</span>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Payment Method:</span>
+                <Badge variant="outline" className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+                  {selectedCalendarItem.payment_method || (selectedCalendarItem.recurring_schedule as any)?.payment_method || "Wire"}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Review Status:</span>
                 <Badge
                   variant="outline"
@@ -2518,6 +2622,22 @@ export default function RecurringPayments() {
           setScheduleModalRequest(null);
           handleOpenEdit(req);
         }}
+      />
+
+      {/* Debt Schedule Import Preview Modal */}
+      <DebtSchedulePreviewModal
+        open={isPreviewOpen}
+        onOpenChange={(open) => {
+          setIsPreviewOpen(open);
+          if (!open) {
+            setPreviewData(null);
+            setPreviewFile(null);
+          }
+        }}
+        previewData={previewData}
+        fileName={previewFile?.name}
+        onSave={handleSaveImport}
+        isSaving={isSavingImport}
       />
     </div>
   );

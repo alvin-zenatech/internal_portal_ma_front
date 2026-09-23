@@ -14,17 +14,15 @@ import {
   Paperclip,
   History,
   ShieldCheck,
-  Plus,
   RefreshCw,
   Check,
   AlertTriangle,
-  X,
   UploadCloud,
+  Download,
 } from "lucide-react";
 import { apiClient } from "@/services/apiClient";
+import { downloadAttachment } from "@/services/purchasingService";
 import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes } from "@/hooks/usePurchasing";
-import { BankAccountAutocomplete } from "./BankAccountAutocomplete";
-import { CategoryAutocomplete } from "./CategoryAutocomplete";
 import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
 import {
   RequestStatus,
@@ -81,9 +79,6 @@ export default function PurchaseRequestDetail() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
-  const [isRecordInvoiceOpen, setIsRecordInvoiceOpen] = useState(false);
-  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
-  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -104,20 +99,6 @@ export default function PurchaseRequestDetail() {
     schedule_dates: [] as CustomScheduleDate[],
   });
 
-  // Invoice form state
-  const [invoiceForm, setInvoiceForm] = useState({
-    vendor: "",
-    amount: "",
-    invoice_date: new Date().toISOString().split("T")[0],
-    due_date: "",
-    bank_account: "",
-    gl_code: "",
-    department: "M&A",
-    from_location: "USA",
-    asset_flag: false,
-    description: "",
-  });
-
   useEffect(() => {
     if (request) {
       document.dispatchEvent(
@@ -125,8 +106,7 @@ export default function PurchaseRequestDetail() {
           detail: {
             path: window.location.pathname,
             items: [
-              { title: "Purchasing", path: "/purchasing/recurring" },
-              { title: "Recurring Payments", path: "/purchasing/recurring" },
+              { title: "Scheduled Payments", path: "/purchasing/recurring" },
               { title: `${request.title} (#${request.id})` },
             ],
           },
@@ -211,22 +191,6 @@ export default function PurchaseRequestDetail() {
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to update review status");
-    },
-  });
-
-  const recordInvoiceMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      if (!id) throw new Error("No ID");
-      return await apiClient.post<RequestDetail>(`/api/purchasing/requests/${id}/invoices`, payload);
-    },
-    onSuccess: () => {
-      toast.success("Invoice recorded successfully");
-      setIsRecordInvoiceOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "request", id] });
-      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to record invoice");
     },
   });
 
@@ -361,48 +325,6 @@ export default function PurchaseRequestDetail() {
             total_amount: null,
           },
     });
-  };
-
-  const handleRecordInvoiceSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amt = parseFloat(invoiceForm.amount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-    if (!invoiceForm.bank_account?.trim()) {
-      toast.error("Bank Account is required");
-      return;
-    }
-    if (!invoiceForm.gl_code?.trim()) {
-      toast.error("Category (GL Code) is required");
-      return;
-    }
-    recordInvoiceMutation.mutate(
-      {
-        vendor: invoiceForm.vendor || request?.title || "",
-        amount: amt,
-        invoice_date: invoiceForm.invoice_date,
-        due_date: invoiceForm.due_date || null,
-        bank_account: invoiceForm.bank_account.trim(),
-        gl_code: invoiceForm.gl_code.trim(),
-        department: invoiceForm.department || request?.department || "M&A",
-        from_location: invoiceForm.from_location || "USA",
-        asset_flag: invoiceForm.asset_flag,
-        description: invoiceForm.description || null,
-      },
-      {
-        onSuccess: () => {
-          if (invoiceFiles.length > 0) {
-            uploadMutation.mutate(invoiceFiles, {
-              onSuccess: () => {
-                setInvoiceFiles([]);
-              },
-            });
-          }
-        },
-      }
-    );
   };
 
   if (isLoading) {
@@ -812,17 +734,18 @@ export default function PurchaseRequestDetail() {
                         </td>
                         <td className="py-3 px-4 text-slate-700 dark:text-zinc-300">
                           {isPaid ? (
-                            <span className="text-emerald-700 dark:text-emerald-400 text-[11px]">
-                              ✓ Payment settled & recorded
+                            <span className="text-emerald-700 dark:text-emerald-400 text-[11px] flex items-center gap-1 font-medium">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                              Payment settled & recorded
                             </span>
                           ) : isCurrent ? (
-                            <span className="text-amber-700 dark:text-amber-300 font-semibold text-[11px] flex items-center gap-1">
+                            <span className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3 text-amber-600" />
-                              Record invoice & confirm settlement
+                              Due Now
                             </span>
                           ) : (
                             <span className="text-muted-foreground text-[11px]">
-                              Scheduled for future billing cycle
+                              Upcoming cycle
                             </span>
                           )}
                         </td>
@@ -877,7 +800,7 @@ export default function PurchaseRequestDetail() {
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Payment Method</span>
                   <span className="font-semibold text-slate-900 dark:text-zinc-100 text-right">
-                    {invoice?.payment_status ? "Direct Billing / Auto-Debit" : "—"}
+                    {request.payment_method || (request.recurring_schedule as any)?.payment_method || (invoice?.payment_status ? "Direct Billing / Auto-Debit" : "Wire")}
                   </span>
                 </div>
               </div>
@@ -971,41 +894,6 @@ export default function PurchaseRequestDetail() {
                     </Badge>
                   )}
                 </CardTitle>
-                {!invoice && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                      const sDates = request.recurring_schedule?.schedule_dates || [];
-                      const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
-                      const currentCycleCustom = sDates[activeIdx];
-                      const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
-                        ? Number(currentCycleCustom.amount)
-                        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
-                            ? Number(request.recurring_schedule.amount_per_cycle)
-                            : (request.unit_price || request.amount || 0));
-
-                      setInvoiceForm({
-                        vendor: request.title,
-                        amount: cycleAmt.toString(),
-                        invoice_date: new Date().toISOString().split("T")[0],
-                        due_date: request.due_date ? request.due_date.split("T")[0] : "",
-                        bank_account: (request as any)?.bank_account || "",
-                        gl_code: request.gl_code || "",
-                        department: request.department || "M&A",
-                        from_location: (request as any)?.from_location || "USA",
-                        asset_flag: false,
-                        description: `Recurring payment for ${request.title}`,
-                      });
-                      setIsRecordInvoiceOpen(true);
-                    }}
-                    className="text-xs h-7 gap-1"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Record Invoice
-                  </Button>
-                )}
               </div>
             </CardHeader>
 
@@ -1076,41 +964,10 @@ export default function PurchaseRequestDetail() {
                   </div>
                 </div>
               ) : (
-                <div className="p-6 text-center text-muted-foreground space-y-2">
+                <div className="p-6 text-center text-muted-foreground space-y-1.5">
                   <Receipt className="h-8 w-8 mx-auto text-slate-300 dark:text-zinc-700" />
-                  <p className="text-xs">No invoice recorded for this recurring schedule item yet.</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                      const sDates = request.recurring_schedule?.schedule_dates || [];
-                      const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
-                      const currentCycleCustom = sDates[activeIdx];
-                      const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
-                        ? Number(currentCycleCustom.amount)
-                        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
-                            ? Number(request.recurring_schedule.amount_per_cycle)
-                            : (request.unit_price || request.amount || 0));
-
-                      setInvoiceForm({
-                        vendor: request.title,
-                        amount: cycleAmt.toString(),
-                        invoice_date: new Date().toISOString().split("T")[0],
-                        due_date: request.due_date ? request.due_date.split("T")[0] : "",
-                        bank_account: (request as any)?.bank_account || "",
-                        gl_code: request.gl_code || "",
-                        department: request.department || "M&A",
-                        from_location: (request as any)?.from_location || "USA",
-                        asset_flag: false,
-                        description: `Recurring payment for ${request.title}`,
-                      });
-                      setIsRecordInvoiceOpen(true);
-                    }}
-                    className="text-xs mt-2"
-                  >
-                    Record First Invoice
-                  </Button>
+                  <p className="text-xs font-medium text-slate-700 dark:text-zinc-300">No invoice recorded for this schedule item yet.</p>
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-500">Invoices and settlements are recorded and processed in Administration.</p>
                 </div>
               )}
             </CardContent>
@@ -1281,8 +1138,43 @@ export default function PurchaseRequestDetail() {
 
                 {/* Attachments Tab */}
                 <TabsContent value="attachments" className="mt-0 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                      Files ({attachments.length})
+                    </span>
+                    <div>
+                      <input
+                        id="tab-attachment-upload-input"
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            const files = Array.from(e.target.files);
+                            uploadMutation.mutate(files);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 border-slate-200 dark:border-zinc-800"
+                        onClick={() => document.getElementById("tab-attachment-upload-input")?.click()}
+                        disabled={uploadMutation.isPending}
+                      >
+                        {uploadMutation.isPending ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <UploadCloud className="h-3.5 w-3.5 text-indigo-600" />
+                        )}
+                        Upload File
+                      </Button>
+                    </div>
+                  </div>
+
                   {attachments.length === 0 ? (
-                    <div className="p-6 text-center text-muted-foreground space-y-1.5">
+                    <div className="p-6 text-center text-muted-foreground space-y-1.5 border border-dashed rounded-lg border-slate-200 dark:border-zinc-800">
                       <Paperclip className="h-7 w-7 mx-auto text-slate-300 dark:text-zinc-700" />
                       <p className="font-semibold text-slate-700 dark:text-zinc-300">No files attached</p>
                       <p className="text-[11px]">Upload invoice receipts, contract agreements, or POs.</p>
@@ -1291,17 +1183,35 @@ export default function PurchaseRequestDetail() {
                     attachments.map((att) => (
                       <div
                         key={att.id}
-                        className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 bg-white dark:bg-zinc-950"
+                        className="p-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 bg-white dark:bg-zinc-950 hover:bg-slate-50/50 dark:hover:bg-zinc-900/50 transition-colors"
                       >
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-2 truncate min-w-0">
                           <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
-                          <span className="font-medium truncate text-slate-800 dark:text-zinc-200">
-                            {att.filename}
-                          </span>
+                          <div className="truncate">
+                            <span className="font-medium truncate text-slate-800 dark:text-zinc-200 block">
+                              {att.filename}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {Math.round(att.size / 1024)} KB
+                              {att.uploaded_by ? ` • by ${att.uploaded_by}` : ""}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[11px] text-muted-foreground shrink-0">
-                          {Math.round(att.size / 1024)} KB
-                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shrink-0 gap-1"
+                          onClick={() => {
+                            if (id) {
+                              downloadAttachment(id, att.id, att.filename).catch((err) => {
+                                toast.error(err?.message || "Failed to download attachment");
+                              });
+                            }
+                          }}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span className="text-[11px]">Download</span>
+                        </Button>
                       </div>
                     ))
                   )}
@@ -1495,203 +1405,8 @@ export default function PurchaseRequestDetail() {
         </Dialog>
       )}
 
-      {/* ── Record Invoice Dialog ── */}
-      {isRecordInvoiceOpen && (
-        <Dialog open={isRecordInvoiceOpen} onOpenChange={setIsRecordInvoiceOpen}>
-          <DialogContent className="sm:max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-lg">
-                <Receipt className="w-5 h-5 text-indigo-600" />
-                Record Invoice for #{request.id}
-              </DialogTitle>
-              <DialogDescription>
-                Record arriving invoice details and amount for billing processing.
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleRecordInvoiceSubmit} className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Vendor Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={invoiceForm.vendor}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, vendor: e.target.value })}
-                  placeholder="e.g. Netflix, AWS"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                    Amount (USD) <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={invoiceForm.amount}
-                    onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Bill Date</label>
-                  <Input
-                    type="date"
-                    value={invoiceForm.invoice_date}
-                    onChange={(e) => setInvoiceForm({ ...invoiceForm, invoice_date: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Bank Account <span className="text-red-500">*</span>
-                </label>
-                <BankAccountAutocomplete
-                  value={invoiceForm.bank_account}
-                  onChange={(val) => setInvoiceForm({ ...invoiceForm, bank_account: val })}
-                  placeholder="Select Bank Account *"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                  Category <span className="text-red-500">*</span>
-                </label>
-                <CategoryAutocomplete
-                  value={invoiceForm.gl_code}
-                  onChange={(val) => setInvoiceForm({ ...invoiceForm, gl_code: val })}
-                  placeholder="Select Category *"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Notes / Description</label>
-                <Input
-                  value={invoiceForm.description}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, description: e.target.value })}
-                  placeholder="Optional billing note..."
-                />
-              </div>
-
-              {/* PDF Attachment Dropzone */}
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300 flex items-center justify-between">
-                  <span>Attach Invoice (.PDF)</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">Accepted: .pdf</span>
-                </label>
-
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDraggingPdf(true);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    setIsDraggingPdf(false);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDraggingPdf(false);
-                    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-                      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-                    );
-                    if (droppedFiles.length === 0) {
-                      toast.error("Only PDF (.pdf) files are accepted");
-                      return;
-                    }
-                    setInvoiceFiles((prev) => [...prev, ...droppedFiles]);
-                  }}
-                  className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
-                    isDraggingPdf
-                      ? "border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40"
-                      : "border-slate-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900/30"
-                  }`}
-                  onClick={() => document.getElementById("invoice-pdf-upload-input")?.click()}
-                >
-                  <input
-                    id="invoice-pdf-upload-input"
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        const selectedFiles = Array.from(e.target.files).filter(
-                          (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-                        );
-                        if (selectedFiles.length === 0) {
-                          toast.error("Only PDF (.pdf) files are accepted");
-                          return;
-                        }
-                        setInvoiceFiles((prev) => [...prev, ...selectedFiles]);
-                      }
-                    }}
-                  />
-                  <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none">
-                    <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                      <UploadCloud className="h-5 w-5" />
-                    </div>
-                    <div className="text-xs font-medium text-slate-700 dark:text-zinc-300">
-                      <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Click to upload</span> or drag and drop
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">PDF invoice copies or payment receipts (max 25MB each)</p>
-                  </div>
-                </div>
-
-                {invoiceFiles.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    {invoiceFiles.map((file, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-2 rounded-lg border bg-white dark:bg-zinc-900 text-xs shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2 truncate pr-2">
-                          <FileText className="h-4 w-4 text-rose-500 shrink-0" />
-                          <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">{file.name}</span>
-                          <span className="text-[11px] text-muted-foreground shrink-0">
-                            ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInvoiceFiles((prev) => prev.filter((_, i) => i !== idx));
-                          }}
-                          className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <DialogFooter className="pt-3 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsRecordInvoiceOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={recordInvoiceMutation.isPending || uploadMutation.isPending}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                >
-                  {recordInvoiceMutation.isPending || uploadMutation.isPending ? "Recording..." : "Save Invoice"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
-
       {/* ── Schedule Breakdown Ledger Modal ── */}
-      <ScheduleBreakdownModal
+  <ScheduleBreakdownModal
         request={request}
         open={isScheduleLedgerOpen}
         onOpenChange={setIsScheduleLedgerOpen}
