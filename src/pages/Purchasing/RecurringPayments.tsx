@@ -433,8 +433,7 @@ export default function RecurringPayments() {
         detail: {
           path: "/purchasing/recurring",
           items: [
-            { title: "Purchasing", path: "/purchasing/requests" },
-            { title: "Recurring Payments" },
+            { title: "Scheduled Payments" },
           ],
         },
       })

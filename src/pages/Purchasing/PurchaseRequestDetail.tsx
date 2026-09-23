@@ -106,8 +106,7 @@ export default function PurchaseRequestDetail() {
           detail: {
             path: window.location.pathname,
             items: [
-              { title: "Purchasing", path: "/purchasing/recurring" },
-              { title: "Recurring Payments", path: "/purchasing/recurring" },
+              { title: "Scheduled Payments", path: "/purchasing/recurring" },
               { title: `${request.title} (#${request.id})` },
             ],
           },
