@@ -10,7 +10,22 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-export const navigation = [
+export interface NavigationSubItem {
+  label: string;
+  path: string;
+  navigationCode?: string;
+}
+
+export interface NavigationItem {
+  label: string;
+  path?: string;
+  icon: any;
+  section?: string;
+  navigationCode?: string;
+  subItems?: NavigationSubItem[];
+}
+
+export const navigation: NavigationItem[] = [
   {
     label: "Dashboard",
     path: "/",
@@ -44,6 +59,13 @@ export const navigation = [
     path: "/purchasing/recurring",
     icon: CalendarClock,
     section: "MAIN",
+    subItems: [
+      { label: "M&A Scheduled Payments", path: "/purchasing/recurring?filter=MA_SCHEDULED" },
+      { label: "All Subscriptions", path: "/purchasing/recurring" },
+      { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON" },
+      { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW" },
+      { label: "Reviewed", path: "/purchasing/recurring?filter=REVIEWED" },
+    ],
   },
   {
     label: "Do Not Contact",
@@ -91,4 +113,4 @@ export const navigation = [
     section: "ADMINISTRATION",
     navigationCode: "AUDIT_LOG",
   },
-]
+];
