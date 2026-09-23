@@ -65,6 +65,7 @@ import {
   Edit2,
   XCircle,
   FileSpreadsheet,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -76,6 +77,8 @@ import {
   type FrequencyType,
 } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import { MasterTransactionsTable } from "./MasterTransactionsTable";
+
 import {
   DebtSchedulePreviewModal,
   type DebtSchedulePreviewData,
@@ -254,7 +257,7 @@ export default function RecurringPayments() {
     hasPermission("RECURRING_PAYMENTS_UPDATE");
   const canAccess = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
 
-  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [viewMode, setViewMode] = useState<"table" | "calendar" | "master">("table");
   const [searchTerm, setSearchTerm] = useState("");
   const [reviewFilter, setReviewFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -1208,7 +1211,7 @@ export default function RecurringPayments() {
               onClick={() => setViewMode("table")}
             >
               <TableIcon size={14} />
-              Table View
+              Subscriptions
             </Button>
             <Button
               variant={viewMode === "calendar" ? "default" : "ghost"}
@@ -1222,6 +1225,19 @@ export default function RecurringPayments() {
             >
               <CalendarIcon size={14} />
               Calendar View
+            </Button>
+            <Button
+              variant={viewMode === "master" ? "default" : "ghost"}
+              size="sm"
+              className={`h-8 gap-1.5 text-xs font-semibold transition-all ${
+                viewMode === "master"
+                  ? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/95"
+                  : "text-muted-foreground hover:text-foreground hover:bg-slate-200/60 dark:hover:bg-zinc-700/60"
+              }`}
+              onClick={() => setViewMode("master")}
+            >
+              <Layers size={14} />
+              Master View
             </Button>
           </div>
 
@@ -1512,8 +1528,25 @@ export default function RecurringPayments() {
         </div>
       </div>
 
-      {/* Main View: Table or Calendar */}
-      {viewMode === "table" ? (
+            {/* Main View: Master, Table, or Calendar */}
+      {viewMode === "master" ? (
+        <MasterTransactionsTable
+          requests={filteredRequests}
+          isLoading={isLoading}
+          isAP={isAP}
+          isSuperAdmin={isSuperAdmin}
+          onOpenBreakdownModal={(req) => setScheduleModalRequest(req)}
+          onToggleReviewStatus={(req) => {
+            const revStatus = req.review_status || "WAITING_FOR_REVIEW";
+            const isRev = revStatus === "REVIEWED";
+            reviewMutation.mutate({
+              id: req.id,
+              review_status: isRev ? "WAITING_FOR_REVIEW" : "REVIEWED",
+            });
+          }}
+          reviewMutationPending={reviewMutation.isPending}
+        />
+      ) : viewMode === "table" ? (
         <Card className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
           <div className="flex-1 min-h-0 overflow-auto relative">
             <Table containerClassName="overflow-visible">
