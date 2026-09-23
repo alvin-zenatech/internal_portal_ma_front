@@ -82,6 +82,7 @@ export default function PurchaseRequestDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
   const [isRecordInvoiceOpen, setIsRecordInvoiceOpen] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<ProjectedInstallment | null>(null);
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
 
@@ -220,8 +221,13 @@ export default function PurchaseRequestDetail() {
       return await apiClient.post<RequestDetail>(`/api/purchasing/requests/${id}/invoices`, payload);
     },
     onSuccess: () => {
-      toast.success("Invoice recorded successfully");
+      toast.success(
+        selectedInstallment
+          ? `Payment recorded successfully for Installment #${selectedInstallment.installmentNumber}`
+          : "Invoice recorded successfully"
+      );
       setIsRecordInvoiceOpen(false);
+      setSelectedInstallment(null);
       queryClient.invalidateQueries({ queryKey: ["purchasing", "request", id] });
       queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
     },
@@ -488,6 +494,28 @@ export default function PurchaseRequestDetail() {
     request.status,
     request.due_date || request.request_date
   );
+
+  const handleOpenRecordPayment = (inst?: ProjectedInstallment) => {
+    setSelectedInstallment(inst || null);
+    const instAmt = inst?.amount != null && inst.amount > 0 ? inst.amount : (request?.amount || 0);
+    const instDate = inst?.dueDate || (request?.due_date ? String(request.due_date).split("T")[0] : new Date().toISOString().split("T")[0]);
+    const instNum = inst?.installmentNumber || currentCycle;
+
+    setInvoiceForm({
+      vendor: request?.title || "",
+      amount: instAmt.toString(),
+      invoice_date: instDate,
+      due_date: instDate,
+      bank_account: (request as any)?.bank_account || invoice?.bank_account || "",
+      gl_code: request?.gl_code || invoice?.gl_code || "",
+      department: request?.department || "M&A",
+      from_location: (request as any)?.from_location || "USA",
+      asset_flag: Boolean(request?.request_type === "SCHEDULED_PAYMENT" || request?.request_type === "RECURRING" || invoice?.asset_flag),
+      description: `Payment for Installment #${instNum} (${formatDate(instDate)}) - ${request?.title || ""}`,
+    });
+    setInvoiceFiles([]);
+    setIsRecordInvoiceOpen(true);
+  };
 
   // Workflow steps for Recurring Requests
   const workflowSteps = [
@@ -827,18 +855,36 @@ export default function PurchaseRequestDetail() {
                         </td>
                         <td className="py-3 px-4 text-slate-700 dark:text-zinc-300">
                           {isPaid ? (
-                            <span className="text-emerald-700 dark:text-emerald-400 text-[11px]">
-                              ✓ Payment settled & recorded
-                            </span>
-                          ) : isCurrent ? (
-                            <span className="text-amber-700 dark:text-amber-300 font-semibold text-[11px] flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3 text-amber-600" />
-                              Record invoice & confirm settlement
+                            <span className="text-emerald-700 dark:text-emerald-400 text-[11px] flex items-center gap-1 font-medium">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                              Payment settled & recorded
                             </span>
                           ) : (
-                            <span className="text-muted-foreground text-[11px]">
-                              Scheduled for future billing cycle
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant={isCurrent ? "default" : "outline"}
+                                className={
+                                  isCurrent
+                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-2.5 gap-1.5 font-semibold shadow-2xs"
+                                    : "text-xs h-7 px-2.5 gap-1.5 text-slate-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-slate-300 dark:border-zinc-700"
+                                }
+                                onClick={() => handleOpenRecordPayment(inst)}
+                              >
+                                <Receipt className="h-3.5 w-3.5" />
+                                Record Payment
+                              </Button>
+                              {isCurrent ? (
+                                <span className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3 text-amber-600" />
+                                  Due Now
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-[11px]">
+                                  Upcoming cycle
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -990,31 +1036,7 @@ export default function PurchaseRequestDetail() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                      const sDates = request.recurring_schedule?.schedule_dates || [];
-                      const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
-                      const currentCycleCustom = sDates[activeIdx];
-                      const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
-                        ? Number(currentCycleCustom.amount)
-                        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
-                            ? Number(request.recurring_schedule.amount_per_cycle)
-                            : (request.unit_price || request.amount || 0));
-
-                      setInvoiceForm({
-                        vendor: request.title,
-                        amount: cycleAmt.toString(),
-                        invoice_date: new Date().toISOString().split("T")[0],
-                        due_date: request.due_date ? request.due_date.split("T")[0] : "",
-                        bank_account: (request as any)?.bank_account || "",
-                        gl_code: request.gl_code || "",
-                        department: request.department || "M&A",
-                        from_location: (request as any)?.from_location || "USA",
-                        asset_flag: false,
-                        description: `Recurring payment for ${request.title}`,
-                      });
-                      setIsRecordInvoiceOpen(true);
-                    }}
+                    onClick={() => handleOpenRecordPayment(allInstallments[0])}
                     className="text-xs h-7 gap-1"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -1094,33 +1116,10 @@ export default function PurchaseRequestDetail() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      const completedCycles = request.recurring_schedule?.completed_installments || 0;
-                      const sDates = request.recurring_schedule?.schedule_dates || [];
-                      const activeIdx = sDates.length > 0 ? (completedCycles < sDates.length ? completedCycles : sDates.length - 1) : 0;
-                      const currentCycleCustom = sDates[activeIdx];
-                      const cycleAmt = currentCycleCustom?.amount != null && Number(currentCycleCustom.amount) > 0
-                        ? Number(currentCycleCustom.amount)
-                        : (request.recurring_schedule?.amount_per_cycle != null && Number(request.recurring_schedule.amount_per_cycle) > 0
-                            ? Number(request.recurring_schedule.amount_per_cycle)
-                            : (request.unit_price || request.amount || 0));
-
-                      setInvoiceForm({
-                        vendor: request.title,
-                        amount: cycleAmt.toString(),
-                        invoice_date: new Date().toISOString().split("T")[0],
-                        due_date: request.due_date ? request.due_date.split("T")[0] : "",
-                        bank_account: (request as any)?.bank_account || "",
-                        gl_code: request.gl_code || "",
-                        department: request.department || "M&A",
-                        from_location: (request as any)?.from_location || "USA",
-                        asset_flag: false,
-                        description: `Recurring payment for ${request.title}`,
-                      });
-                      setIsRecordInvoiceOpen(true);
-                    }}
+                    onClick={() => handleOpenRecordPayment(allInstallments[0])}
                     className="text-xs mt-2"
                   >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
                     Record First Invoice
                   </Button>
                 </div>
@@ -1514,10 +1513,15 @@ export default function PurchaseRequestDetail() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-lg">
                 <Receipt className="w-5 h-5 text-indigo-600" />
-                Record Invoice for #{request.id}
+                <span>Record Payment for #{request.id}</span>
+                {selectedInstallment && (
+                  <Badge variant="outline" className="text-xs font-mono bg-indigo-50 text-indigo-700 border-indigo-200">
+                    Cycle #{selectedInstallment.installmentNumber}
+                  </Badge>
+                )}
               </DialogTitle>
               <DialogDescription>
-                Record arriving invoice details and amount for billing processing.
+                Record payment details, bank account, and category for billing processing.
               </DialogDescription>
             </DialogHeader>
 
@@ -1694,7 +1698,7 @@ export default function PurchaseRequestDetail() {
                   disabled={recordInvoiceMutation.isPending || uploadMutation.isPending}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
                 >
-                  {recordInvoiceMutation.isPending || uploadMutation.isPending ? "Recording..." : "Save Invoice"}
+                  {recordInvoiceMutation.isPending || uploadMutation.isPending ? "Recording..." : "Save Payment"}
                 </Button>
               </DialogFooter>
             </form>
