@@ -1,7 +1,7 @@
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
@@ -66,6 +66,7 @@ import {
   XCircle,
   FileSpreadsheet,
   Layers,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -1109,6 +1110,27 @@ export default function RecurringPayments() {
     });
   }, [requests, searchTerm, cardFilter, reviewFilter, statusFilter]);
 
+  // Endless scroll pagination for standard table view
+  const [tableDisplayCount, setTableDisplayCount] = useState(50);
+  const tableObserver = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    setTableDisplayCount(50);
+  }, [searchTerm, cardFilter, reviewFilter, statusFilter]);
+
+  const lastTableRowRef = useCallback((node: HTMLTableRowElement | null) => {
+    if (isLoading) return;
+    if (tableObserver.current) tableObserver.current.disconnect();
+    tableObserver.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setTableDisplayCount(prev => prev + 50);
+      }
+    });
+    if (node) tableObserver.current.observe(node);
+  }, [isLoading]);
+
+  const visibleRequests = filteredRequests.slice(0, tableDisplayCount);
+
   // Summary statistics
   const stats = useMemo(() => {
     const activeSubs = requests.filter((r) => parseRequestStatus(r.status) !== RequestStatus.Rejected);
@@ -1570,181 +1592,201 @@ export default function RecurringPayments() {
                     Loading recurring payments...
                   </TableCell>
                 </TableRow>
-              ) : filteredRequests.length === 0 ? (
+              ) : visibleRequests.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     No recurring payments found matching the current filters.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredRequests.map((req) => {
-                  const revStatus = req.review_status || "WAITING_FOR_REVIEW";
-                  const isRev = revStatus === "REVIEWED";
-                  const { nextFormatted, totalFormatted } = getRecurringAmounts(
-                    req.recurring_schedule,
-                    req.amount,
-                    req.currency || "USD",
-                    req.status,
-                    req.due_date || req.request_date
-                  );
-                  return (
-                    <TableRow
-                      key={req.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/60 cursor-pointer transition-colors group"
-                      onClick={() => navigate(`/purchasing/requests/${req.id}`)}
-                    >
-                      <TableCell className="font-mono text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        #{req.id}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-sm transition-colors">
-                          {req.title}
-                        </div>
-                        {req.description && (
-                          <div className="text-xs text-muted-foreground truncate max-w-xs">
-                            {req.description}
+                <>
+                  {visibleRequests.map((req, index) => {
+                    const isLast = index === visibleRequests.length - 1;
+                    const revStatus = req.review_status || "WAITING_FOR_REVIEW";
+                    const isRev = revStatus === "REVIEWED";
+                    const { nextFormatted, totalFormatted } = getRecurringAmounts(
+                      req.recurring_schedule,
+                      req.amount,
+                      req.currency || "USD",
+                      req.status,
+                      req.due_date || req.request_date
+                    );
+                    return (
+                      <TableRow
+                        key={req.id}
+                        ref={isLast ? lastTableRowRef : null}
+                        className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/60 cursor-pointer transition-colors group"
+                        onClick={() => navigate(`/purchasing/requests/${req.id}`)}
+                      >
+                        <TableCell className="font-mono text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                          #{req.id}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-sm transition-colors">
+                            {req.title}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium">{req.requester}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {req.department}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span>{req.due_date ? formatDate(req.due_date) : formatDate(req.request_date)}</span>
-                          {(() => {
-                            const due = getDueStatus(req.due_date || req.request_date, req.status);
-                            if (!due) return null;
-                            return (
-                              <Badge variant={due.variant} className={`text-[10px] py-0 px-1.5 leading-tight ${due.className}`}>
-                                {due.label}
-                              </Badge>
-                            );
-                          })()}
-                          {req.recurring_schedule?.is_scheduled && (
-                            <div className="flex flex-col gap-1 mt-1">
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] py-0.5 px-1.5 bg-indigo-50/90 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 flex items-center gap-1 font-semibold"
-                              >
-                                <Clock className="h-2.5 w-2.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                                {formatRemainingDuration(req.recurring_schedule.end_date).text}
-                              </Badge>
-                              <button
-                                type="button"
+                          {req.description && (
+                            <div className="text-xs text-muted-foreground truncate max-w-xs">
+                              {req.description}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">{req.requester}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {req.department}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span>{req.due_date ? formatDate(req.due_date) : formatDate(req.request_date)}</span>
+                            {(() => {
+                              const due = getDueStatus(req.due_date || req.request_date, req.status);
+                              if (!due) return null;
+                              return (
+                                <Badge variant={due.variant} className={`text-[10px] py-0 px-1.5 leading-tight ${due.className}`}>
+                                  {due.label}
+                                </Badge>
+                              );
+                            })()}
+                            {req.recurring_schedule?.is_scheduled && (
+                              <div className="flex flex-col gap-1 mt-1">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] py-0.5 px-1.5 bg-indigo-50/90 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 flex items-center gap-1 font-semibold"
+                                >
+                                  <Clock className="h-2.5 w-2.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                  {formatRemainingDuration(req.recurring_schedule.end_date).text}
+                                </Badge>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setScheduleModalRequest(req);
+                                  }}
+                                  className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold underline text-left flex items-center gap-1 cursor-pointer"
+                                >
+                                  <TableIcon className="h-2.5 w-2.5 shrink-0" />
+                                  Schedule ({req.recurring_schedule.total_installments ? `${req.recurring_schedule.completed_installments || 0}/${req.recurring_schedule.total_installments}` : `${req.recurring_schedule.completed_installments || 0} Settled`})
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                          <div className="flex flex-col">
+                            <div className="flex items-baseline gap-1 font-bold text-slate-900 dark:text-zinc-100">
+                              <span>{nextFormatted}</span>
+                              {totalFormatted && (
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  / {totalFormatted}
+                                </span>
+                              )}
+                            </div>
+                            {totalFormatted && (
+                              <span className="text-[10px] text-muted-foreground font-normal">
+                                Next / Total
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getStatusBadge(req.status)}>
+                            {getStatusLabel(req.status)}
+                            {req.recurring_schedule ? (
+                              parseRequestStatus(req.status) === RequestStatus.Completed
+                                ? (req.recurring_schedule.total_installments ? ` (${req.recurring_schedule.total_installments}/${req.recurring_schedule.total_installments} Cycles)` : "")
+                                : (req.recurring_schedule.total_installments
+                                  ? ` (Cycle ${Math.min((req.recurring_schedule.completed_installments || 0) + 1, req.recurring_schedule.total_installments)}/${req.recurring_schedule.total_installments})`
+                                  : ` (Cycle ${(req.recurring_schedule.completed_installments || 0) + 1})`)
+                            ) : ""}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {isAP || isSuperAdmin ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                reviewMutation.mutate({
+                                  id: req.id,
+                                  review_status: isRev ? "WAITING_FOR_REVIEW" : "REVIEWED",
+                                });
+                              }}
+                              disabled={reviewMutation.isPending}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${
+                                isRev
+                                  ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
+                                  : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                              }`}
+                              title="Click to toggle Review Status"
+                            >
+                              {isRev ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                              {isRev ? "Reviewed" : "Waiting for Review"}
+                            </button>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className={
+                                isRev
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                  : "bg-amber-50 text-amber-700 border-amber-300"
+                              }
+                            >
+                              {isRev ? "Reviewed" : "Waiting for Review"}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            {req.recurring_schedule?.is_scheduled && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                                title="View Full Payment Schedule / Ledger"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setScheduleModalRequest(req);
                                 }}
-                                className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold underline text-left flex items-center gap-1 cursor-pointer"
                               >
-                                <TableIcon className="h-2.5 w-2.5 shrink-0" />
-                                Schedule ({req.recurring_schedule.total_installments ? `${req.recurring_schedule.completed_installments || 0}/${req.recurring_schedule.total_installments}` : `${req.recurring_schedule.completed_installments || 0} Settled`})
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        <div className="flex flex-col">
-                          <div className="flex items-baseline gap-1 font-bold text-slate-900 dark:text-zinc-100">
-                            <span>{nextFormatted}</span>
-                            {totalFormatted && (
-                              <span className="text-xs font-semibold text-muted-foreground">
-                                / {totalFormatted}
-                              </span>
+                                <CalendarClock size={14} />
+                              </Button>
                             )}
-                          </div>
-                          {totalFormatted && (
-                            <span className="text-[10px] text-muted-foreground font-normal">
-                              Next / Total
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={getStatusBadge(req.status)}>
-                          {getStatusLabel(req.status)}
-                          {req.recurring_schedule ? (
-                            parseRequestStatus(req.status) === RequestStatus.Completed
-                              ? (req.recurring_schedule.total_installments ? ` (${req.recurring_schedule.total_installments}/${req.recurring_schedule.total_installments} Cycles)` : "")
-                              : (req.recurring_schedule.total_installments
-                                ? ` (Cycle ${Math.min((req.recurring_schedule.completed_installments || 0) + 1, req.recurring_schedule.total_installments)}/${req.recurring_schedule.total_installments})`
-                                : ` (Cycle ${(req.recurring_schedule.completed_installments || 0) + 1})`)
-                          ) : ""}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {isAP || isSuperAdmin ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              reviewMutation.mutate({
-                                id: req.id,
-                                review_status: isRev ? "WAITING_FOR_REVIEW" : "REVIEWED",
-                              });
-                            }}
-                            disabled={reviewMutation.isPending}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${
-                              isRev
-                                ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
-                                : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
-                            }`}
-                            title="Click to toggle Review Status"
-                          >
-                            {isRev ? <CheckCircle2 size={13} /> : <Clock size={13} />}
-                            {isRev ? "Reviewed" : "Waiting for Review"}
-                          </button>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className={
-                              isRev
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                                : "bg-amber-50 text-amber-700 border-amber-300"
-                            }
-                          >
-                            {isRev ? "Reviewed" : "Waiting for Review"}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          {req.recurring_schedule?.is_scheduled && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
-                              title="View Full Payment Schedule / Ledger"
+                              className="h-8 w-8 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                              title="Edit Recurring Request"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setScheduleModalRequest(req);
+                                handleOpenEdit(req);
                               }}
                             >
-                              <CalendarClock size={14} />
+                              <Edit2 size={14} />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
-                            title="Edit Recurring Request"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEdit(req);
-                            }}
-                          >
-                            <Edit2 size={14} />
-                          </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {visibleRequests.length < filteredRequests.length && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-12 text-center text-muted-foreground text-xs">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                          <span>Loading more... ({visibleRequests.length} of {filteredRequests.length})</span>
                         </div>
                       </TableCell>
                     </TableRow>
-                  );
-                })
+                  )}
+                </>
               )}
             </TableBody>
           </Table>
+          </div>
+          <div className="bg-slate-50 dark:bg-zinc-900/90 border-t border-slate-200 dark:border-zinc-800 px-4 py-2 text-xs text-muted-foreground font-medium shrink-0 flex items-center justify-between">
+            <span>
+              Showing <strong className="text-slate-900 dark:text-zinc-100">{visibleRequests.length}</strong> of{" "}
+              <strong>{filteredRequests.length}</strong> subscriptions
+            </span>
           </div>
         </Card>
       ) : (

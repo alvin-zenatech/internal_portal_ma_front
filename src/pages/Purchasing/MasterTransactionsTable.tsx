@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import type { PurchaseRequest } from "@/types/purchasing";
 import {
   formatDate,
@@ -45,6 +45,7 @@ import {
   ExternalLink,
   TrendingUp,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -98,7 +99,7 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
 
   // Local state for Master View filters and sorting
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateRangeFilter, setDateRangeFilter] = useState<string>("ALL");
+  const [dateRangeFilter, setDateRangeFilter] = useState<string>("FROM_TODAY");
   const [installmentStatusFilter, setInstallmentStatusFilter] = useState<string>("ALL");
   const [reviewFilter, setReviewFilter] = useState<string>("ALL");
   const [sortField, setSortField] = useState<"dueDate" | "amount" | "installmentNumber" | "requestTitle" | "requester">("dueDate");
@@ -244,7 +245,9 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
           const tDate = new Date(t.dueDate.includes("T") ? t.dueDate : t.dueDate + "T00:00:00");
           tDate.setHours(0, 0, 0, 0);
 
-          if (dateRangeFilter === "PAID") {
+          if (dateRangeFilter === "FROM_TODAY") {
+            if (tDate < today) return false;
+          } else if (dateRangeFilter === "PAID") {
             if (t.installmentStatus !== "PAID") return false;
           } else if (dateRangeFilter === "THIS_MONTH") {
             const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -283,6 +286,26 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
         return sortOrder === "asc" ? cmp : -cmp;
       });
   }, [allTransactions, searchTerm, installmentStatusFilter, reviewFilter, dateRangeFilter, sortField, sortOrder]);
+
+  const [displayCount, setDisplayCount] = useState(50);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    setDisplayCount(50);
+  }, [searchTerm, dateRangeFilter, installmentStatusFilter, reviewFilter, sortField, sortOrder]);
+
+  const lastElementRef = useCallback((node: HTMLTableRowElement | null) => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setDisplayCount(prev => prev + 50);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading]);
+
+  const visibleTransactions = filteredTransactions.slice(0, displayCount);
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -514,16 +537,17 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
 
           {/* Quick Date Range Filter */}
           <Select value={dateRangeFilter} onValueChange={setDateRangeFilter}>
-            <SelectTrigger className="w-full sm:w-[155px] h-8.5 text-xs font-medium">
+            <SelectTrigger className="w-full sm:w-[165px] h-8.5 text-xs font-medium">
               <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Dates</SelectItem>
+              <SelectItem value="FROM_TODAY">From Today Onwards</SelectItem>
               <SelectItem value="THIS_MONTH">Due This Month</SelectItem>
               <SelectItem value="NEXT_30">Next 30 Days</SelectItem>
               <SelectItem value="NEXT_90">Next 90 Days</SelectItem>
-              <SelectItem value="THIS_YEAR">This Year (2026)</SelectItem>
+              <SelectItem value="THIS_YEAR">{`This Year (${new Date().getFullYear()})`}</SelectItem>
               <SelectItem value="PAID">Paid / Historical</SelectItem>
+              <SelectItem value="ALL">All Dates</SelectItem>
             </SelectContent>
           </Select>
 
@@ -657,7 +681,7 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : filteredTransactions.length === 0 ? (
+              ) : visibleTransactions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-36 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-1.5">
@@ -670,178 +694,192 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTransactions.map((t) => {
-                  const isRev = t.reviewStatus === "REVIEWED";
-                  return (
-                    <TableRow
-                      key={t.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/60 cursor-pointer transition-colors group text-xs"
-                      onClick={() => navigate(`/purchasing/requests/${t.requestId}`)}
-                    >
-                      {/* 1. Due Date + Urgency */}
-                      <TableCell className="font-medium whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5 items-start">
-                          <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                            {t.dueDate ? formatDate(t.dueDate) : "Undated"}
-                          </span>
-                          {getUrgencyBadge(t.dueDate, t.installmentStatus)}
-                        </div>
-                      </TableCell>
-
-                      {/* 2. Contract Title + ID + Vendor */}
-                      <TableCell className="max-w-[280px]">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
-                              #{t.requestId}
+                <>
+                  {visibleTransactions.map((t, index) => {
+                    const isLast = index === visibleTransactions.length - 1;
+                    const isRev = t.reviewStatus === "REVIEWED";
+                    return (
+                      <TableRow
+                        key={t.id}
+                        ref={isLast ? lastElementRef : null}
+                        className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/60 cursor-pointer transition-colors group text-xs"
+                        onClick={() => navigate(`/purchasing/requests/${t.requestId}`)}
+                      >
+                        {/* 1. Due Date + Urgency */}
+                        <TableCell className="font-medium whitespace-nowrap">
+                          <div className="flex flex-col gap-0.5 items-start">
+                            <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                              {t.dueDate ? formatDate(t.dueDate) : "Undated"}
                             </span>
-                            <span className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-xs transition-colors truncate">
-                              {t.requestTitle}
+                            {getUrgencyBadge(t.dueDate, t.installmentStatus)}
+                          </div>
+                        </TableCell>
+
+                        {/* 2. Contract Title + ID + Vendor */}
+                        <TableCell className="max-w-[280px]">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
+                                #{t.requestId}
+                              </span>
+                              <span className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-xs transition-colors truncate">
+                                {t.requestTitle}
+                              </span>
+                            </div>
+                            {t.customLabel ? (
+                              <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium truncate">
+                                • {t.customLabel}
+                              </span>
+                            ) : t.vendor ? (
+                              <span className="text-[11px] text-muted-foreground truncate">
+                                {t.vendor}
+                              </span>
+                            ) : t.requestDescription ? (
+                              <span className="text-[11px] text-muted-foreground truncate">
+                                {t.requestDescription}
+                              </span>
+                            ) : null}
+                          </div>
+                        </TableCell>
+
+                        {/* 3. Installment / Cycle */}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col gap-0.5 items-start">
+                            <Badge
+                              variant="outline"
+                              className="text-[11px] font-medium py-0 px-1.5 bg-indigo-50/70 text-indigo-800 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+                            >
+                              {t.totalInstallments
+                                ? `Inst #${t.installmentNumber} of ${t.totalInstallments}`
+                                : `Cycle #${t.installmentNumber}`}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {FREQUENCY_LABELS[t.frequency as FrequencyType] || t.frequency}
                             </span>
                           </div>
-                          {t.customLabel ? (
-                            <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium truncate">
-                              • {t.customLabel}
-                            </span>
-                          ) : t.vendor ? (
-                            <span className="text-[11px] text-muted-foreground truncate">
-                              {t.vendor}
-                            </span>
-                          ) : t.requestDescription ? (
-                            <span className="text-[11px] text-muted-foreground truncate">
-                              {t.requestDescription}
-                            </span>
-                          ) : null}
-                        </div>
-                      </TableCell>
+                        </TableCell>
 
-                      {/* 3. Installment / Cycle */}
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5 items-start">
-                          <Badge
-                            variant="outline"
-                            className="text-[11px] font-medium py-0 px-1.5 bg-indigo-50/70 text-indigo-800 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
-                          >
-                            {t.totalInstallments
-                              ? `Inst #${t.installmentNumber} of ${t.totalInstallments}`
-                              : `Cycle #${t.installmentNumber}`}
-                          </Badge>
-                          <span className="text-[10px] text-muted-foreground">
-                            {FREQUENCY_LABELS[t.frequency as FrequencyType] || t.frequency}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      {/* 4. Requester & Department */}
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium text-slate-800 dark:text-zinc-200">
-                            {t.requester}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {t.department || "—"}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      {/* 5. Amount & Cumulative Progress */}
-                      <TableCell className="text-right whitespace-nowrap">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="font-bold text-slate-900 dark:text-zinc-100 text-[13px]">
-                            {formatMoney(t.amount)}
-                          </span>
-                          {t.cumulativeAmount > 0 && (
-                            <span className="text-[10px] text-muted-foreground font-normal">
-                              Cumul: {formatMoney(t.cumulativeAmount)}
+                        {/* 4. Requester & Department */}
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium text-slate-800 dark:text-zinc-200">
+                              {t.requester}
                             </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {t.department || "—"}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* 5. Amount & Cumulative Progress */}
+                        <TableCell className="text-right whitespace-nowrap">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="font-bold text-slate-900 dark:text-zinc-100 text-[13px]">
+                              {formatMoney(t.amount)}
+                            </span>
+                            {t.cumulativeAmount > 0 && (
+                              <span className="text-[10px] text-muted-foreground font-normal">
+                                Cumul: {formatMoney(t.cumulativeAmount)}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* 6. Schedule Status */}
+                        <TableCell className="whitespace-nowrap">
+                          {t.installmentStatus === "PAID" ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1 w-fit"
+                            >
+                              <CheckCircle2 size={11} />
+                              Paid
+                            </Badge>
+                          ) : t.installmentStatus === "CURRENT" ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[11px] font-semibold bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1 w-fit"
+                            >
+                              <Clock size={11} />
+                              Due Next
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-[11px] font-medium bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800/60 dark:text-zinc-300 w-fit"
+                            >
+                              Projected
+                            </Badge>
                           )}
-                        </div>
-                      </TableCell>
+                        </TableCell>
 
-                      {/* 6. Schedule Status */}
-                      <TableCell className="whitespace-nowrap">
-                        {t.installmentStatus === "PAID" ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1 w-fit"
-                          >
-                            <CheckCircle2 size={11} />
-                            Paid
-                          </Badge>
-                        ) : t.installmentStatus === "CURRENT" ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[11px] font-semibold bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1 w-fit"
-                          >
-                            <Clock size={11} />
-                            Due Next
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-[11px] font-medium bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800/60 dark:text-zinc-300 w-fit"
-                          >
-                            Projected
-                          </Badge>
-                        )}
-                      </TableCell>
+                        {/* 7. AP Review Status */}
+                        <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          {isAP || isSuperAdmin ? (
+                            <button
+                              onClick={() => onToggleReviewStatus?.(t.rawRequest)}
+                              disabled={reviewMutationPending}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${
+                                isRev
+                                  ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
+                                  : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                              }`}
+                              title="Click to toggle Review Status for this contract"
+                            >
+                              {isRev ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+                              {isRev ? "Reviewed" : "Waiting Review"}
+                            </button>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className={
+                                isRev
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                  : "bg-amber-50 text-amber-700 border-amber-300"
+                              }
+                            >
+                              {isRev ? "Reviewed" : "Waiting Review"}
+                            </Badge>
+                          )}
+                        </TableCell>
 
-                      {/* 7. AP Review Status */}
-                      <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        {isAP || isSuperAdmin ? (
-                          <button
-                            onClick={() => onToggleReviewStatus?.(t.rawRequest)}
-                            disabled={reviewMutationPending}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${
-                              isRev
-                                ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
-                                : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
-                            }`}
-                            title="Click to toggle Review Status for this contract"
-                          >
-                            {isRev ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                            {isRev ? "Reviewed" : "Waiting Review"}
-                          </button>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className={
-                              isRev
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                                : "bg-amber-50 text-amber-700 border-amber-300"
-                            }
-                          >
-                            {isRev ? "Reviewed" : "Waiting Review"}
-                          </Badge>
-                        )}
-                      </TableCell>
-
-                      {/* 8. Quick Actions */}
-                      <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
-                            title="View Full Payment Schedule / Ledger"
-                            onClick={() => onOpenBreakdownModal(t.rawRequest)}
-                          >
-                            <CalendarClock size={13} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
-                            title="Open Request Detail"
-                            onClick={() => navigate(`/purchasing/requests/${t.requestId}`)}
-                          >
-                            <ExternalLink size={13} />
-                          </Button>
+                        {/* 8. Quick Actions */}
+                        <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                              title="View Full Payment Schedule / Ledger"
+                              onClick={() => onOpenBreakdownModal(t.rawRequest)}
+                            >
+                              <CalendarClock size={13} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                              title="Open Request Detail"
+                              onClick={() => navigate(`/purchasing/requests/${t.requestId}`)}
+                            >
+                              <ExternalLink size={13} />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {visibleTransactions.length < filteredTransactions.length && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-12 text-center text-muted-foreground text-xs">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                          <span>Loading more... ({visibleTransactions.length} of {filteredTransactions.length})</span>
                         </div>
                       </TableCell>
                     </TableRow>
-                  );
-                })
+                  )}
+                </>
               )}
             </TableBody>
           </Table>
@@ -851,8 +889,9 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
         <div className="bg-slate-50 dark:bg-zinc-900/90 border-t border-slate-200 dark:border-zinc-800 px-4 py-2.5 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span>
-              Showing <strong className="text-slate-900 dark:text-zinc-100">{filteredTransactions.length}</strong> of{" "}
-              <strong>{allTransactions.length}</strong> scheduled transactions
+              Showing <strong className="text-slate-900 dark:text-zinc-100">{visibleTransactions.length}</strong> of{" "}
+              <strong>{filteredTransactions.length}</strong> matching transactions
+              {filteredTransactions.length !== allTransactions.length && ` (Total: ${allTransactions.length})`}
             </span>
           </div>
           <div className="flex items-center gap-2">
