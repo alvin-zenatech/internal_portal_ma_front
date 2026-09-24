@@ -1,3 +1,4 @@
+import { ConnectionStatusLight } from "./ConnectionStatusLight";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
@@ -166,6 +167,7 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       </div>
       
       <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
+        <ConnectionStatusLight />
         <TopBarClock />
 
         <TooltipProvider delayDuration={0}>

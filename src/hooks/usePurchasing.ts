@@ -36,9 +36,9 @@ export function usePurchasingSummary() {
   return useQuery({
     queryKey: keys.summary(),
     queryFn: purchasing.getSummary,
-    staleTime: 5000,
+    staleTime: 30000,
     refetchOnWindowFocus: true,
-    refetchInterval: 15000,
+    refetchInterval: false,
   });
 }
 
@@ -46,9 +46,9 @@ export function usePurchaseRequests(filters: RequestListFilters = {}) {
   return useQuery({
     queryKey: keys.requests(filters),
     queryFn: () => purchasing.listRequests(filters),
-    staleTime: 5000,
+    staleTime: 30000,
     refetchOnWindowFocus: true,
-    refetchInterval: 15000,
+    refetchInterval: false,
   });
 }
 
@@ -57,9 +57,9 @@ export function useRequestDetail(id: string | undefined) {
     queryKey: id ? keys.request(id) : keys.all,
     queryFn: () => (id ? purchasing.getRequest(id) : Promise.reject("no id")),
     enabled: Boolean(id),
-    staleTime: 3000,
+    staleTime: 30000,
     refetchOnWindowFocus: true,
-    refetchInterval: 3000,
+    refetchInterval: false,
   });
 }
 

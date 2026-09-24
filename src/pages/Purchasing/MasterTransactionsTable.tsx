@@ -1,3 +1,4 @@
+import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import type { PurchaseRequest } from "@/types/purchasing";
 import {
@@ -435,6 +436,11 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
+      <PageConnectionBanner
+        serviceName="Purchasing & Multi-Entity Ledger Sync"
+        mode="Live Sync"
+        description="Master cross-company transactions & installment schedules"
+      />
       {/* 1. Master View KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
         {/* Total Scheduled Volume */}

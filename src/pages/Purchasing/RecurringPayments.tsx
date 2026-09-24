@@ -1,3 +1,4 @@
+import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -456,7 +457,8 @@ export default function RecurringPayments() {
     },
     enabled: !!canAccess,
     refetchOnWindowFocus: true,
-    refetchInterval: 3000,
+    refetchInterval: false,
+    staleTime: 30000,
   });
 
   // Toggle review status mutation
@@ -1206,7 +1208,8 @@ export default function RecurringPayments() {
   return (
     <div className="w-full flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <PageConnectionBanner serviceName="Admin Portal Integration" mode="Connected (Live)" description="Real-time purchasing, scheduled payments, and approval sync" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Recurring Payments</h1>
