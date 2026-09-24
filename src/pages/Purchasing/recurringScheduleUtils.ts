@@ -201,6 +201,11 @@ export interface ProjectedInstallment {
   currency: string;
   status: "PAID" | "CURRENT" | "PROJECTED";
   cumulativeAmount: number;
+  payment?: number;
+  interest?: number | null;
+  principal_paid?: number | null;
+  balance?: number | null;
+  note?: string | null;
 }
 
 /**
@@ -225,11 +230,19 @@ export function generatePaymentSchedule(
     let cumulative = 0;
     return schedule.schedule_dates.map((item, idx) => {
       const dStr = typeof item === "string" ? item : item.date;
-      const instAmt =
-        typeof item === "object" && item.amount != null && Number(item.amount) > 0
-          ? Number(item.amount)
-          : amountPerCycle;
-      cumulative += instAmt;
+      const paymentNum =
+        typeof item === "object" && item.payment != null && Number(item.payment) > 0
+          ? Number(item.payment)
+          : (typeof item === "object" && item.amount != null && Number(item.amount) > 0
+              ? Number(item.amount)
+              : amountPerCycle);
+
+      const interestNum = typeof item === "object" && item.interest != null ? Number(item.interest) : null;
+      const principalNum = typeof item === "object" && item.principal_paid != null ? Number(item.principal_paid) : null;
+      const balanceNum = typeof item === "object" && item.balance != null ? Number(item.balance) : null;
+      const noteStr = typeof item === "object" ? item.note : null;
+
+      cumulative += paymentNum;
 
       let status: "PAID" | "CURRENT" | "PROJECTED" = "PROJECTED";
       if (idx + 1 <= completed) {
@@ -247,10 +260,15 @@ export function generatePaymentSchedule(
       return {
         installmentNumber: idx + 1,
         dueDate: dStr ? dStr.split("T")[0] : "",
-        amount: instAmt,
+        amount: paymentNum,
         currency,
         status,
         cumulativeAmount: Math.round(cumulative * 100) / 100,
+        payment: paymentNum,
+        interest: interestNum,
+        principal_paid: principalNum,
+        balance: balanceNum,
+        note: noteStr,
       };
     });
   }

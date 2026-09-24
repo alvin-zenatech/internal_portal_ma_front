@@ -196,17 +196,19 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-slate-100 dark:bg-zinc-800/90 text-slate-700 dark:text-zinc-300 border-b z-10">
               <tr>
-                <th className="py-2.5 px-3 text-left font-semibold w-16">#</th>
-                <th className="py-2.5 px-3 text-left font-semibold">Scheduled Due Date</th>
-                <th className="py-2.5 px-3 text-right font-semibold">Installment Amount</th>
-                <th className="py-2.5 px-3 text-right font-semibold">Cumulative Total</th>
+                <th className="py-2.5 px-3 text-left font-semibold w-14">#</th>
+                <th className="py-2.5 px-3 text-left font-semibold">Date of Payment</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Payment</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Interest</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Principal Paid</th>
+                <th className="py-2.5 px-3 text-right font-semibold">Balance</th>
                 <th className="py-2.5 px-3 text-center font-semibold w-28">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
               {installments.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-8 text-center text-muted-foreground">
                     No installment schedule generated.
                   </td>
                 </tr>
@@ -233,8 +235,14 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
                       <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900 dark:text-zinc-100">
                         {formatMoney(inst.amount)}
                       </td>
+                      <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-zinc-300">
+                        {inst.interest != null ? formatMoney(inst.interest) : "—"}
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-zinc-300">
+                        {inst.principal_paid != null ? formatMoney(inst.principal_paid) : "—"}
+                      </td>
                       <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-zinc-400">
-                        {formatMoney(inst.cumulativeAmount)}
+                        {formatMoney(inst.balance != null ? inst.balance : inst.cumulativeAmount)}
                       </td>
                       <td className="py-2 px-3 text-center">
                         {inst.status === "PAID" ? (

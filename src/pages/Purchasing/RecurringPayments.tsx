@@ -68,6 +68,7 @@ import {
   FileSpreadsheet,
   Layers,
   Loader2,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -301,6 +302,35 @@ export default function RecurringPayments() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [isSavingImport, setIsSavingImport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportDebtSchedule = async () => {
+    try {
+      setIsExporting(true);
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch("/api/purchasing/export-debt-schedules", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        throw new Error(`Export failed with status ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Debt_Schedules_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Debt schedules workbook exported successfully");
+    } catch (err: any) {
+      console.error("Export debt schedules error:", err);
+      toast.error(err?.message || "Failed to export debt schedules");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -433,19 +463,35 @@ export default function RecurringPayments() {
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
   useEffect(() => {
-    const isMaScheduled = cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED";
+    let subTitle: string | undefined;
+    if (viewMode === "calendar") {
+      subTitle = "Calendar View";
+    } else if (cardFilter === "MA_SCHEDULED" || cardFilter === "SCHEDULED") {
+      subTitle = "M&A Scheduled Payments";
+    } else if (cardFilter === "DUE_SOON") {
+      subTitle = "Due in 7 Days";
+    } else if (cardFilter === "WAITING_REVIEW") {
+      subTitle = "Waiting for Review";
+    } else if (cardFilter === "REVIEWED") {
+      subTitle = "Reviewed";
+    } else if (cardFilter === "COMPLETED") {
+      subTitle = "Completed";
+    } else if (cardFilter === "REJECTED") {
+      subTitle = "Rejected";
+    }
+
     document.dispatchEvent(
       new CustomEvent("set-breadcrumb-trail", {
         detail: {
           path: window.location.pathname,
           items: [
-            { title: "Scheduled Payments", path: isMaScheduled ? "/purchasing/recurring" : undefined },
-            ...(isMaScheduled ? [{ title: "M&A Scheduled Payments" }] : []),
+            { title: "Scheduled Payments", path: subTitle ? "/purchasing/recurring" : undefined },
+            ...(subTitle ? [{ title: subTitle }] : []),
           ],
         },
       })
     );
-  }, [cardFilter]);
+  }, [cardFilter, viewMode]);
 
   // Fetch all RECURRING requests with live polling
   const { data: requests = [], isLoading } = useQuery<PurchaseRequest[]>({
@@ -457,8 +503,8 @@ export default function RecurringPayments() {
     },
     enabled: !!canAccess,
     refetchOnWindowFocus: true,
-    refetchInterval: false,
-    staleTime: 30000,
+    refetchInterval: 10000,
+    staleTime: 5000,
   });
 
   // Toggle review status mutation
@@ -1093,6 +1139,9 @@ export default function RecurringPayments() {
       } else if (cardFilter === "REVIEWED") {
         if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
+      } else if (cardFilter === "COMPLETED") {
+        const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
+        if (!isComp) return false;
       } else if (cardFilter === "REJECTED") {
         if (!isRejected) return false;
       } else if (cardFilter === "ALL") {
@@ -1104,7 +1153,8 @@ export default function RecurringPayments() {
       }
       if (statusFilter !== "ALL") {
         const targetStatus = parseRequestStatus(statusFilter);
-        if (parsedStatus !== targetStatus && r.status !== statusFilter) {
+        const isComp = statusFilter === "COMPLETED" && (parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID");
+        if (!isComp && parsedStatus !== targetStatus && r.status !== statusFilter) {
           return false;
         }
       }
@@ -1145,9 +1195,12 @@ export default function RecurringPayments() {
     const reviewed = activeSubs.filter(
       (r) => r.review_status === "REVIEWED"
     ).length;
+    const completed = requests.filter(
+      (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
+    ).length;
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, maScheduled, dueSoon, waitingReview, reviewed, rejected, totalAmount };
+    return { total, maScheduled, dueSoon, waitingReview, reviewed, completed, rejected, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -1290,6 +1343,18 @@ export default function RecurringPayments() {
             <Button
               variant="outline"
               size="sm"
+              onClick={handleExportDebtSchedule}
+              disabled={isExporting}
+              className="h-9 gap-1.5 border-slate-300 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+              title="Export Debt Schedules Workbook (.xlsx)"
+            >
+              <Download size={15} />
+              <span>{isExporting ? "Exporting..." : "Export Debt Schedule"}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsSettingsOpen(true)}
               className="h-9 gap-1.5 border-slate-300 dark:border-zinc-700 font-medium"
               title="Notification Settings"
@@ -1349,6 +1414,13 @@ export default function RecurringPayments() {
             color: "sky",
           },
           {
+            key: "COMPLETED",
+            label: "Completed",
+            count: stats.completed,
+            icon: CheckCircle2,
+            color: "green",
+          },
+          {
             key: "REJECTED",
             label: "Rejected",
             count: stats.rejected,
@@ -1366,7 +1438,7 @@ export default function RecurringPayments() {
       />
 
       {/* Compact Interactive KPI Filter Cards */}
-      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {/* 1. All Subscriptions */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
@@ -1440,7 +1512,7 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 3. Waiting for Review */}
+        {/* 4. Waiting for Review */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "WAITING_REVIEW" ? "ALL" : "WAITING_REVIEW")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-amber-300 ${
@@ -1463,7 +1535,7 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 4. Reviewed (AP Signed-Off) */}
+        {/* 5. Reviewed (AP Signed-Off) */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "REVIEWED" ? "ALL" : "REVIEWED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-sky-300 ${
@@ -1486,7 +1558,30 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 5. Rejected */}
+        {/* 6. Completed */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "COMPLETED" ? "ALL" : "COMPLETED")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-emerald-300 ${
+            cardFilter === "COMPLETED" ? "ring-2 ring-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                Completed
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight mt-0.5">
+                {stats.completed}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Fully paid / done</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 shrink-0">
+              <CheckCircle2 size={16} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 7. Rejected */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "REJECTED" ? "ALL" : "REJECTED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-rose-300 ${

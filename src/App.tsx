@@ -59,10 +59,10 @@ function App() {
 
             {/* Scheduled / Recurring Payments & Requests */}
             <Route path="/purchasing" element={<Navigate to="/purchasing/recurring" replace />} />
-            <Route path="/purchasing/recurring" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
+            <Route path="/purchasing/recurring" element={<ProtectedRoute navigationCode="SCHEDULED_PAYMENTS"><RecurringPayments /></ProtectedRoute>} />
             <Route path="/purchasing/recurring-payments" element={<Navigate to="/purchasing/recurring" replace />} />
-            <Route path="/purchasing/requests" element={<ProtectedRoute><RecurringPayments /></ProtectedRoute>} />
-            <Route path="/purchasing/requests/:id" element={<ProtectedRoute><PurchaseRequestDetail /></ProtectedRoute>} />
+            <Route path="/purchasing/requests" element={<ProtectedRoute navigationCode="SCHEDULED_PAYMENTS"><RecurringPayments /></ProtectedRoute>} />
+            <Route path="/purchasing/requests/:id" element={<ProtectedRoute navigationCode="SCHEDULED_PAYMENTS"><PurchaseRequestDetail /></ProtectedRoute>} />
             <Route path="/scheduled-payments" element={<Navigate to="/purchasing/recurring" replace />} />
 
             {/* Pipeline */}

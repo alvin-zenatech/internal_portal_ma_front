@@ -560,3 +560,7 @@ export async function updateProjectGroup(oldName: string, payload: import("@/typ
 export async function deleteProjectGroup(name: string): Promise<{ success: boolean }> {
   return apiClient.delete<{ success: boolean }>(`/api/purchasing/projects/${encodeURIComponent(name)}`);
 }
+
+export async function deletePurchaseRequest(id: string | number): Promise<void> {
+  return apiClient.delete<void>(`${BASE}/requests/${id}`);
+}

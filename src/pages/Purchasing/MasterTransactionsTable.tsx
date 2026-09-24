@@ -38,7 +38,6 @@ import {
   CheckCircle2,
   Clock,
   Search,
-  Download,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -49,7 +48,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 export interface MasterTransactionItem {
   id: string;
@@ -317,66 +315,6 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
     }
   };
 
-  const handleExportCSV = () => {
-    if (filteredTransactions.length === 0) {
-      toast.error("No transactions to export");
-      return;
-    }
-
-    const headers = [
-      "Due Date",
-      "Installment #",
-      "Total Installments",
-      "Request ID",
-      "Subscription Title",
-      "Vendor",
-      "Requester",
-      "Department",
-      "Project",
-      "Amount",
-      "Currency",
-      "Cumulative Amount",
-      "Installment Status",
-      "Review Status",
-      "Workflow Status",
-      "Milestone Note",
-    ];
-
-    const rows = filteredTransactions.map((t) => [
-      t.dueDate || "",
-      t.installmentNumber,
-      t.totalInstallments || "N/A",
-      `#${t.requestId}`,
-      `"${(t.requestTitle || "").replace(/"/g, '""')}"`,
-      `"${(t.vendor || "").replace(/"/g, '""')}"`,
-      `"${(t.requester || "").replace(/"/g, '""')}"`,
-      `"${(t.department || "").replace(/"/g, '""')}"`,
-      `"${(t.project || "").replace(/"/g, '""')}"`,
-      t.amount.toFixed(2),
-      t.currency,
-      t.cumulativeAmount.toFixed(2),
-      t.installmentStatus,
-      t.reviewStatus,
-      t.workflowStatus,
-      `"${(t.customLabel || "").replace(/"/g, '""')}"`,
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `master_scheduled_transactions_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Exported ${filteredTransactions.length} transactions to CSV`);
-  };
-
   const filteredTotalValue = useMemo(() => {
     return filteredTransactions.reduce((acc, t) => acc + t.amount, 0);
   }, [filteredTransactions]);
@@ -581,20 +519,6 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
               <SelectItem value="WAITING_FOR_REVIEW">Waiting Review</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        {/* Export & Reset Actions */}
-        <div className="flex items-center gap-2 justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            className="h-8.5 gap-1.5 text-xs font-medium border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 shrink-0"
-            title="Export master transactions list to CSV"
-          >
-            <Download size={13} />
-            Export CSV
-          </Button>
         </div>
       </div>
 
