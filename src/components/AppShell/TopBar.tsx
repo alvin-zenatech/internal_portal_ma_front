@@ -1,6 +1,5 @@
 import { ConnectionStatusLight } from "./ConnectionStatusLight";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { Bell, CheckCheck, LogOut, User, Mail, BellRing, Settings2, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -76,40 +75,9 @@ export default function TopBar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const { mutate: clearRead } = useClearReadNotifications();
   const unreadCount = unreadCountData?.count ?? 0;
 
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const token = sessionStorage.getItem("token") || localStorage.getItem("token") || "";
-    const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-    const streamUrl = `${rawBaseUrl}/api/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-
-    let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource(streamUrl, { withCredentials: true });
-
-      eventSource.onmessage = (event) => {
-        try {
-          JSON.parse(event.data);
-          queryClient.invalidateQueries({ queryKey: ["notifications"] });
-          queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
-        } catch {
-          // ignore parsing non-JSON or heartbeat
-        }
-      };
-
-      eventSource.onerror = () => {
-        // EventSource will automatically retry in background
-      };
-    } catch {
-      // ignore initialization error
-    }
-
-    return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-    };
-  }, [queryClient]);
+  // Real-time notification delivery and cache invalidation are handled by
+  // useNotificationStream(), reached via useNotifications() above. This
+  // component previously opened a second, duplicate SSE connection here.
 
   const initialLoadedRef = useRef(false);
   const notifiedIdsRef = useRef<Set<number>>(new Set());
