@@ -1,7 +1,6 @@
 import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
-import { ClassAutocomplete } from "./ClassAutocomplete";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";

@@ -164,6 +164,8 @@ export type PurchaseRequest = {
   requires_second_level?: boolean | null;
   due_date?: string | null;
   recurring_schedule?: RecurringSchedule | null;
+  source_portal?: string | null;
+  is_ma?: boolean | null;
   created_at: string;
   updated_at: string;
 };
