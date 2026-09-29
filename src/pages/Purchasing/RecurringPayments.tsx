@@ -1,6 +1,8 @@
 import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
+import { ClassAutocomplete } from "./ClassAutocomplete";
+import LocationAutocomplete from "./LocationAutocomplete";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -568,6 +570,8 @@ export default function RecurringPayments() {
     title: "",
     requester: "",
     department: "",
+    class: "",
+    location: "",
     amount: "",
     due_date: initialSchedule.start_date,
     description: "",
@@ -587,6 +591,8 @@ export default function RecurringPayments() {
     title: "",
     requester: "",
     department: "",
+    class: "",
+    location: "",
     amount: "",
     due_date: "",
     description: "",
@@ -617,6 +623,8 @@ export default function RecurringPayments() {
       title: "",
       requester: displayName,
       department: defaultDept,
+      class: "",
+      location: "",
       amount: "",
       due_date: todayIso,
       description: "",
@@ -649,6 +657,8 @@ export default function RecurringPayments() {
         title: "",
         requester: "",
         department: "",
+        class: "",
+        location: "",
         amount: "",
         due_date: todayIso,
         description: "",
@@ -731,11 +741,15 @@ export default function RecurringPayments() {
         { date: nextMonthIso, amount: req.amount || undefined, note: "Installment #2" },
       ];
     }
+    const reqLoc = (req as any).location || (req as any).from_location || req.quote_data?.location || req.quote_data?.shipped_to_location || "";
+    const reqClass = (req as any).class || req.quote_data?.class || "";
     setEditForm({
       id: req.id,
       title: req.title || "",
       requester: req.requester || "",
       department: dept,
+      class: reqClass,
+      location: reqLoc,
       amount: req.amount ? req.amount.toString() : "",
       due_date: req.due_date ? req.due_date.split("T")[0] : "",
       description: req.description || "",
@@ -825,6 +839,9 @@ export default function RecurringPayments() {
         const sanitizedDates = customDates.map((d, i) => ({
           date: d.date,
           amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
+          interest: d.interest != null ? d.interest : null,
+          principal_paid: d.principal_paid != null ? d.principal_paid : null,
+          balance: d.balance != null ? d.balance : null,
           note: d.note || `Installment #${i + 1}`,
         }));
 
@@ -835,7 +852,7 @@ export default function RecurringPayments() {
         createMutation.mutate({
           title: newForm.title,
           requester: newForm.requester,
-          department: newForm.department,
+          department: newForm.class || newForm.department,
           request_type: "SCHEDULED_PAYMENT",
           priority: newForm.priority,
           payment_method: "Wire",
@@ -845,6 +862,11 @@ export default function RecurringPayments() {
           description: newForm.description,
           gl_code: null,
           due_date: effectiveDueDate || null,
+          quote_data: {
+            location: newForm.location || "",
+            class: newForm.class || "",
+            department: newForm.department || "",
+          },
           recurring_schedule: {
             is_scheduled: true,
             frequency: newForm.frequency,
@@ -873,7 +895,7 @@ export default function RecurringPayments() {
     createMutation.mutate({
       title: newForm.title,
       requester: newForm.requester,
-      department: newForm.department,
+      department: newForm.class || newForm.department,
       request_type: isSched ? "SCHEDULED_PAYMENT" : "RECURRING",
       priority: newForm.priority,
       payment_method: "Wire",
@@ -883,6 +905,11 @@ export default function RecurringPayments() {
       description: newForm.description,
       gl_code: null,
       due_date: effectiveDueDate || null,
+      quote_data: {
+        location: newForm.location || "",
+        class: newForm.class || "",
+        department: newForm.department || "",
+      },
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
@@ -968,6 +995,9 @@ export default function RecurringPayments() {
         const sanitizedDates = customDates.map((d, i) => ({
           date: d.date,
           amount: d.amount != null && d.amount > 0 ? d.amount : cycleAmt,
+          interest: d.interest != null ? d.interest : null,
+          principal_paid: d.principal_paid != null ? d.principal_paid : null,
+          balance: d.balance != null ? d.balance : null,
           note: d.note || `Installment #${i + 1}`,
         }));
 
@@ -980,7 +1010,7 @@ export default function RecurringPayments() {
           payload: {
             title: editForm.title,
             requester: editForm.requester,
-            department: editForm.department,
+            department: editForm.class || editForm.department,
             priority: editForm.priority,
             amount: cycleAmt,
             unit_price: cycleAmt,
@@ -988,6 +1018,11 @@ export default function RecurringPayments() {
             description: editForm.description,
             gl_code: editingRequest?.gl_code || editForm.gl_code || null,
             due_date: effectiveDueDate || null,
+            quote_data: {
+              location: editForm.location || "",
+              class: editForm.class || "",
+              department: editForm.department || "",
+            },
             recurring_schedule: {
               is_scheduled: true,
               frequency: editForm.frequency,
@@ -1018,7 +1053,7 @@ export default function RecurringPayments() {
       payload: {
         title: editForm.title,
         requester: editForm.requester,
-        department: editForm.department,
+        department: editForm.class || editForm.department,
         priority: editForm.priority,
         amount: amt,
         unit_price: amt,
@@ -1026,6 +1061,11 @@ export default function RecurringPayments() {
         description: editForm.description,
         gl_code: editingRequest?.gl_code || editForm.gl_code || null,
         due_date: effectiveDueDate || null,
+        quote_data: {
+          location: editForm.location || "",
+          class: editForm.class || "",
+          department: editForm.department || "",
+        },
         recurring_schedule: isSched
           ? {
               is_scheduled: true,
@@ -1670,29 +1710,26 @@ export default function RecurringPayments() {
         <Card className="border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xs bg-white dark:bg-zinc-900 overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[350px]">
           <div className="flex-1 min-h-0 overflow-auto relative">
             <Table containerClassName="overflow-visible">
-            <TableHeader >
-              <TableRow className="bg-slate-50/50 dark:bg-zinc-900/50">
-                <TableHead className="w-[80px]">ID</TableHead>
-                <TableHead>Title / Description</TableHead>
-                <TableHead>Requester</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Next Due Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Workflow Status</TableHead>
-                <TableHead>AP Review Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+            <TableHeader>
+              <TableRow className="bg-slate-50/75 dark:bg-zinc-900/75 border-b border-slate-200 dark:border-zinc-800">
+                <TableHead className="min-w-[280px]">Request &amp; Plan</TableHead>
+                <TableHead className="min-w-[170px]">Requester / Dept</TableHead>
+                <TableHead className="min-w-[180px]">Schedule &amp; Due Date</TableHead>
+                <TableHead className="min-w-[150px]">Amount</TableHead>
+                <TableHead className="min-w-[170px]">Status &amp; Review</TableHead>
+                <TableHead className="text-right w-[90px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     Loading recurring payments...
                   </TableCell>
                 </TableRow>
               ) : visibleRequests.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     No recurring payments found matching the current filters.
                   </TableCell>
                 </TableRow>
@@ -1716,26 +1753,57 @@ export default function RecurringPayments() {
                         className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/60 cursor-pointer transition-colors group"
                         onClick={() => navigate(`/purchasing/requests/${req.id}`)}
                       >
-                        <TableCell className="font-mono text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                          #{req.id}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-sm transition-colors">
-                            {req.title}
+                        {/* 1. Request & Plan */}
+                        <TableCell className="py-3 max-w-[320px]">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <span className="font-mono text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded shrink-0">
+                              #{req.id}
+                            </span>
+                            <span className="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 text-sm transition-colors line-clamp-1">
+                              {req.title}
+                            </span>
+                            {req.is_ma || (req.source_portal && ["m&a", "ma", "m7a"].includes(String(req.source_portal).toLowerCase())) ? (
+                              <Badge className="text-[10px] px-1.5 py-0 h-4 bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-700 font-bold shrink-0">
+                                M&amp;A
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 font-medium shrink-0">
+                                Recurring
+                              </Badge>
+                            )}
                           </div>
                           {req.description && (
-                            <div className="text-xs text-muted-foreground truncate max-w-xs">
+                            <div className="text-xs text-muted-foreground truncate max-w-[260px]" title={req.description}>
                               {req.description}
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm font-medium">{req.requester}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {req.department}
+
+                        {/* 2. Requester / Dept */}
+                        <TableCell className="py-3">
+                          <div className="text-sm font-medium text-slate-900 dark:text-zinc-100">
+                            {req.requester}
+                          </div>
+                          {(() => {
+                            const reqDept = req.department || (req as any).department_name || "";
+                            return (
+                              <div className="text-xs text-muted-foreground truncate max-w-[180px]" title={reqDept || undefined}>
+                                {reqDept ? (
+                                  <span className="font-medium text-slate-700 dark:text-zinc-300">{reqDept}</span>
+                                ) : (
+                                  <span className="text-slate-400 dark:text-zinc-500">—</span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
-                        <TableCell className="text-sm font-medium">
-                          <div className="flex flex-col gap-1 items-start">
-                            <span>{req.due_date ? formatDate(req.due_date) : formatDate(req.request_date)}</span>
+
+                        {/* 3. Schedule & Due Date */}
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                              {req.due_date ? formatDate(req.due_date) : formatDate(req.request_date)}
+                            </span>
                             {(() => {
                               const due = getDueStatus(req.due_date || req.request_date, req.status);
                               if (!due) return null;
@@ -1745,94 +1813,96 @@ export default function RecurringPayments() {
                                 </Badge>
                               );
                             })()}
-                            {req.recurring_schedule?.is_scheduled && (
-                              <div className="flex flex-col gap-1 mt-1">
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] py-0.5 px-1.5 bg-indigo-50/90 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 flex items-center gap-1 font-semibold"
-                                >
-                                  <Clock className="h-2.5 w-2.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                                  {formatRemainingDuration(req.recurring_schedule.end_date).text}
-                                </Badge>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setScheduleModalRequest(req);
-                                  }}
-                                  className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold underline text-left flex items-center gap-1 cursor-pointer"
-                                >
-                                  <TableIcon className="h-2.5 w-2.5 shrink-0" />
-                                  Schedule ({req.recurring_schedule.total_installments ? `${req.recurring_schedule.completed_installments || 0}/${req.recurring_schedule.total_installments}` : `${req.recurring_schedule.completed_installments || 0} Settled`})
-                                </button>
-                              </div>
-                            )}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                          <div className="flex flex-col">
-                            <div className="flex items-baseline gap-1 font-bold text-slate-900 dark:text-zinc-100">
-                              <span>{nextFormatted}</span>
-                              {totalFormatted && (
-                                <span className="text-xs font-semibold text-muted-foreground">
-                                  / {totalFormatted}
-                                </span>
-                              )}
+                          {req.recurring_schedule?.is_scheduled && (
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] py-0 px-1.5 bg-indigo-50/90 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 flex items-center gap-1 font-semibold"
+                              >
+                                <Clock className="h-2.5 w-2.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                {formatRemainingDuration(req.recurring_schedule.end_date).text}
+                              </Badge>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setScheduleModalRequest(req);
+                                }}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <TableIcon className="h-2.5 w-2.5 shrink-0" />
+                                Schedule ({req.recurring_schedule.total_installments ? `${req.recurring_schedule.completed_installments || 0}/${req.recurring_schedule.total_installments}` : `${req.recurring_schedule.completed_installments || 0} Settled`})
+                              </button>
                             </div>
+                          )}
+                        </TableCell>
+
+                        {/* 4. Amount */}
+                        <TableCell className="py-3">
+                          <div className="flex items-baseline gap-1 font-bold text-slate-900 dark:text-zinc-100 text-sm">
+                            <span>{nextFormatted}</span>
                             {totalFormatted && (
-                              <span className="text-[10px] text-muted-foreground font-normal">
-                                Next / Total
+                              <span className="text-xs font-normal text-muted-foreground">
+                                / {totalFormatted}
                               </span>
                             )}
                           </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {totalFormatted ? "Next Cycle / Total" : "Cycle Amount"}
+                          </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getStatusBadge(req.status)}>
-                            {getStatusLabel(req.status)}
-                            {req.recurring_schedule ? (
-                              parseRequestStatus(req.status) === RequestStatus.Completed
-                                ? (req.recurring_schedule.total_installments ? ` (${req.recurring_schedule.total_installments}/${req.recurring_schedule.total_installments} Cycles)` : "")
-                                : (req.recurring_schedule.total_installments
-                                  ? ` (Cycle ${Math.min((req.recurring_schedule.completed_installments || 0) + 1, req.recurring_schedule.total_installments)}/${req.recurring_schedule.total_installments})`
-                                  : ` (Cycle ${(req.recurring_schedule.completed_installments || 0) + 1})`)
-                            ) : ""}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {isAP || isSuperAdmin ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                reviewMutation.mutate({
-                                  id: req.id,
-                                  review_status: isRev ? "WAITING_FOR_REVIEW" : "REVIEWED",
-                                });
-                              }}
-                              disabled={reviewMutation.isPending}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${
-                                isRev
-                                  ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
-                                  : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
-                              }`}
-                              title="Click to toggle Review Status"
-                            >
-                              {isRev ? <CheckCircle2 size={13} /> : <Clock size={13} />}
-                              {isRev ? "Reviewed" : "Waiting for Review"}
-                            </button>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className={
-                                isRev
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                                  : "bg-amber-50 text-amber-700 border-amber-300"
-                              }
-                            >
-                              {isRev ? "Reviewed" : "Waiting for Review"}
+
+                        {/* 5. Status & Review */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <Badge variant="outline" className={getStatusBadge(req.status)}>
+                              {getStatusLabel(req.status)}
+                              {req.recurring_schedule ? (
+                                parseRequestStatus(req.status) === RequestStatus.Completed
+                                  ? (req.recurring_schedule.total_installments ? ` (${req.recurring_schedule.total_installments}/${req.recurring_schedule.total_installments})` : "")
+                                  : (req.recurring_schedule.total_installments
+                                    ? ` (Cycle ${Math.min((req.recurring_schedule.completed_installments || 0) + 1, req.recurring_schedule.total_installments)}/${req.recurring_schedule.total_installments})`
+                                    : ` (Cycle ${(req.recurring_schedule.completed_installments || 0) + 1})`)
+                              ) : ""}
                             </Badge>
-                          )}
+                            {isAP || isSuperAdmin ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  reviewMutation.mutate({
+                                    id: req.id,
+                                    review_status: isRev ? "WAITING_FOR_REVIEW" : "REVIEWED",
+                                  });
+                                }}
+                                disabled={reviewMutation.isPending}
+                                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs hover:opacity-80 ${
+                                  isRev
+                                    ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800"
+                                    : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                                }`}
+                                title="Click to toggle Review Status"
+                              >
+                                {isRev ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                                {isRev ? "Reviewed" : "Waiting for Review"}
+                              </button>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={`text-[11px] py-0 px-2 ${
+                                  isRev
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                    : "bg-amber-50 text-amber-700 border-amber-300"
+                                }`}
+                              >
+                                {isRev ? "Reviewed" : "Waiting for Review"}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+
+                        {/* 6. Actions */}
+                        <TableCell className="text-right py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
                             {req.recurring_schedule?.is_scheduled && (
                               <Button
@@ -1867,7 +1937,7 @@ export default function RecurringPayments() {
                   })}
                   {visibleRequests.length < filteredRequests.length && (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-12 text-center text-muted-foreground text-xs">
+                      <TableCell colSpan={6} className="h-12 text-center text-muted-foreground text-xs">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                           <span>Loading more... ({visibleRequests.length} of {filteredRequests.length})</span>
@@ -2435,6 +2505,15 @@ export default function RecurringPayments() {
                   </div>
                 </div>
 
+                <div className="w-full">
+                  <LocationAutocomplete
+                    value={newForm.location}
+                    onChange={(val) => setNewForm((prev) => ({ ...prev, location: val }))}
+                    placeholder="Search or enter location..."
+                    label="Location"
+                  />
+                </div>
+
                 <div className="space-y-1.5 flex-1 flex flex-col">
                   <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Description / Terms</label>
                   <textarea
@@ -2618,6 +2697,15 @@ export default function RecurringPayments() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="w-full">
+                    <LocationAutocomplete
+                      value={editForm.location}
+                      onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
+                      placeholder="Search or enter location..."
+                      label="Location"
+                    />
                   </div>
 
                   <div className="space-y-1.5 flex-1 flex flex-col">

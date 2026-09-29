@@ -56,6 +56,7 @@ import {
 } from "./recurringScheduleUtils";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import LocationAutocomplete from "./LocationAutocomplete";
 import { Button } from "@/components/ui/button";
 import HelpIcon from "@/components/ui/HelpIcon";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +103,8 @@ export default function PurchaseRequestDetail() {
     title: "",
     requester: "",
     department: "",
+    class: "",
+    location: "",
     amount: "",
     due_date: "",
     description: "",
@@ -164,10 +167,15 @@ export default function PurchaseRequestDetail() {
       ];
     }
 
+    const reqLoc = (request as any).location || (request as any).from_location || request.quote_data?.location || request.quote_data?.shipped_to_location || "";
+    const reqClass = (request as any).class || request.quote_data?.class || "";
+
     setEditForm({
       title: request.title || "",
       requester: request.requester || "",
       department: request.department || "",
+      class: reqClass,
+      location: reqLoc,
       amount: request.amount ? request.amount.toString() : "",
       due_date: request.due_date ? request.due_date.split("T")[0] : "",
       description: request.description || "",
@@ -280,7 +288,7 @@ export default function PurchaseRequestDetail() {
         updateMutation.mutate({
           title: editForm.title,
           requester: editForm.requester,
-          department: editForm.department,
+          department: editForm.class || editForm.department,
           request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
           priority: editForm.priority,
           amount: cycleAmt,
@@ -289,6 +297,12 @@ export default function PurchaseRequestDetail() {
           description: editForm.description,
           gl_code: request?.gl_code || editForm.gl_code || null,
           due_date: effectiveDueDate || null,
+          quote_data: {
+            ...(request?.quote_data || {}),
+            location: editForm.location || "",
+            class: editForm.class || "",
+            department: editForm.department || "",
+          },
           recurring_schedule: {
             is_scheduled: true,
             frequency: editForm.frequency,
@@ -316,7 +330,7 @@ export default function PurchaseRequestDetail() {
     updateMutation.mutate({
       title: editForm.title,
       requester: editForm.requester,
-      department: editForm.department,
+      department: editForm.class || editForm.department,
       request_type: (isSched || request?.request_type === "SCHEDULED_PAYMENT") ? "SCHEDULED_PAYMENT" : (request?.request_type || "RECURRING"),
       priority: editForm.priority,
       amount: amt,
@@ -326,6 +340,12 @@ export default function PurchaseRequestDetail() {
       gl_code: editForm.gl_code || request?.gl_code || null,
       bank_account: editForm.bank_account || (request as any)?.bank_account || null,
       due_date: effectiveDueDate || null,
+      quote_data: {
+        ...(request?.quote_data || {}),
+        location: editForm.location || "",
+        class: editForm.class || "",
+        department: editForm.department || "",
+      },
       recurring_schedule: isSched
         ? {
             is_scheduled: true,
@@ -522,6 +542,16 @@ export default function PurchaseRequestDetail() {
             <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 flex-wrap">
               <span>· Recurring</span>
               <span>· Requested by <strong className="text-slate-800 dark:text-zinc-200">{request.requester}</strong> ({request.department})</span>
+              {((request as any).class || request.quote_data?.class) && (
+                <span className="inline-flex items-center gap-1">
+                  · Class: <strong className="text-slate-800 dark:text-zinc-200">{(request as any).class || request.quote_data?.class}</strong>
+                </span>
+              )}
+              {((request as any).location || request.quote_data?.location) && (
+                <span className="inline-flex items-center gap-1">
+                  · Location: <strong className="text-slate-800 dark:text-zinc-200">{(request as any).location || request.quote_data?.location}</strong>
+                </span>
+              )}
               <span>· {formatDate(request.request_date || request.created_at)}</span>
             </p>
           </div>
@@ -1873,6 +1903,15 @@ export default function PurchaseRequestDetail() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <LocationAutocomplete
+                      value={editForm.location}
+                      onChange={(val) => setEditForm((prev) => ({ ...prev, location: val }))}
+                      placeholder="Search or enter location..."
+                      label="Location"
+                    />
                   </div>
 
 

@@ -50,6 +50,7 @@ import {
   Plus,
   AlertTriangle,
 } from "lucide-react";
+import { LocationAutocomplete } from "@/pages/Purchasing/LocationAutocomplete";
 
 export interface DebtSchedulePreviewRecord {
   payee: string;
@@ -58,6 +59,9 @@ export interface DebtSchedulePreviewRecord {
   currency: string;
   amount: number;
   due_date: string | null;
+  class?: string;
+  location?: string;
+  department?: string;
   recurring_schedule: {
     is_scheduled: boolean;
     frequency: string;
@@ -143,6 +147,9 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<DebtSchedulePreviewRecord | null>(null);
 
+  // Default / Batch location state
+  const [batchLocation, setBatchLocation] = useState<string>("");
+
   // Initialize editable copy and benchmark original records whenever previewData opens
   useEffect(() => {
     if (previewData?.records) {
@@ -171,6 +178,13 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
       setRecords(JSON.parse(JSON.stringify(originalRecords)));
       setEditingIndex(null);
       setEditFormData(null);
+    }
+  };
+
+  const handleApplyBatchLocation = (loc: string) => {
+    setBatchLocation(loc);
+    if (loc) {
+      setRecords((prev) => prev.map((r) => ({ ...r, location: loc })));
     }
   };
 
@@ -379,6 +393,24 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
             </div>
           </div>
 
+          {/* Batch Location Control */}
+          <div className="bg-slate-50/70 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-zinc-800 px-6 py-2.5 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-zinc-400">
+              <Building2 className="w-3.5 h-3.5 text-sky-600" />
+              <span className="font-semibold text-slate-800 dark:text-zinc-200">Default Location (All Records):</span>
+            </div>
+            <div className="flex items-center gap-3 flex-1 max-w-sm">
+              <div className="flex-1">
+                <LocationAutocomplete
+                  value={batchLocation}
+                  onChange={handleApplyBatchLocation}
+                  placeholder="Set location for all notes..."
+                  className="space-y-0"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Currency Summary Chips & Search Filters */}
           <div className="px-6 py-3 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-wrap items-center justify-between gap-3">
             {/* Currency Filter Chips */}
@@ -509,6 +541,13 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
                             <div className="font-semibold text-slate-900 dark:text-zinc-100 text-xs leading-snug">
                               {rec.title}
                             </div>
+                            {rec.location && (
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100 text-slate-800 border-slate-300 dark:bg-zinc-800 dark:text-zinc-200 font-medium">
+                                  Location: {rec.location}
+                                </Badge>
+                              </div>
+                            )}
                             {rec.description && (
                               <div className="text-[11px] text-muted-foreground line-clamp-1 max-w-md mt-0.5" title={rec.description}>
                                 {rec.description}
@@ -968,6 +1007,15 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
                     className="h-9 text-xs font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <LocationAutocomplete
+                  value={editFormData.location || ""}
+                  onChange={(val) => setEditFormData({ ...editFormData, location: val })}
+                  placeholder="Search or enter location..."
+                  label="Location"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
