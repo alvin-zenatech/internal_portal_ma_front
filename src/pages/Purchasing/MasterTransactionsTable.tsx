@@ -705,11 +705,11 @@ export const MasterTransactionsTable: React.FC<MasterTransactionsTableProps> = (
                         <TableCell className="text-right whitespace-nowrap">
                           <div className="flex flex-col items-end gap-0.5">
                             <span className="font-bold text-slate-900 dark:text-zinc-100 text-[13px]">
-                              {formatMoney(t.amount)}
+                              {formatMoney(t.amount, t.currency)}
                             </span>
                             {t.cumulativeAmount > 0 && (
                               <span className="text-[10px] text-muted-foreground font-normal">
-                                Cumul: {formatMoney(t.cumulativeAmount)}
+                                Cumul: {formatMoney(t.cumulativeAmount, t.currency)}
                               </span>
                             )}
                           </div>

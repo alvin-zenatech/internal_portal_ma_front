@@ -422,13 +422,17 @@ export function getRecurringAmounts(
     }
   }
 
+  const curr = (currency || "USD").toUpperCase().trim();
   const formatVal = (v: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(v);
+    try {
+      const numStr = new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(v);
+      return `${numStr} ${curr}`;
+    } catch {
+      return `${v.toFixed(2)} ${curr}`;
+    }
   };
 
   const nextFormatted = formatVal(nextAmt);

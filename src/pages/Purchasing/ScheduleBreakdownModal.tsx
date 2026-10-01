@@ -17,14 +17,18 @@ import {
   type FrequencyType,
   type ProjectedInstallment,
 } from "./recurringScheduleUtils";
-import { CalendarClock, CheckCircle2, Clock, Calendar, ArrowUpRight } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock, Calendar, ArrowUpRight, Landmark, PauseCircle, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { parseRequestStatus } from "@/lib/requestStatus";
+import { RequestStatus } from "@/types/purchasing";
 
 interface ScheduleBreakdownModalProps {
   request: PurchaseRequest | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEditRequest?: (request: PurchaseRequest) => void;
+  onEditWireInfo?: (request: PurchaseRequest) => void;
+  onToggleHold?: (request: PurchaseRequest) => void;
 }
 
 export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
@@ -32,6 +36,8 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
   open,
   onOpenChange,
   onEditRequest,
+  onEditWireInfo,
+  onToggleHold,
 }) => {
   const navigate = useNavigate();
 
@@ -281,6 +287,43 @@ export const ScheduleBreakdownModal: React.FC<ScheduleBreakdownModalProps> = ({
             Schedule: {formatDate(schedule.start_date || "")} - {formatDate(schedule.end_date || "")}
           </div>
           <div className="flex items-center gap-2">
+            {onToggleHold && request && (
+              parseRequestStatus(request.status) === RequestStatus.OnHold || request.status === "ON_HOLD" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onToggleHold(request)}
+                  className="gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 shadow-2xs"
+                >
+                  <PlayCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Resume Workflow
+                </Button>
+              ) : parseRequestStatus(request.status) !== RequestStatus.Completed && parseRequestStatus(request.status) !== RequestStatus.Rejected ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onToggleHold(request)}
+                  className="gap-1.5 text-xs text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 shadow-2xs"
+                >
+                  <PauseCircle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                  Put on Hold
+                </Button>
+              ) : null
+            )}
+            {onEditWireInfo && request && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEditWireInfo(request);
+                }}
+                className="gap-1.5 text-xs text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shadow-2xs"
+              >
+                <Landmark className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                Edit Wire Info
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

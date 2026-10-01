@@ -22,6 +22,10 @@ import {
   Landmark,
   Eye,
   EyeOff,
+  Pencil,
+  Plus,
+  PauseCircle,
+  PlayCircle,
   ChevronDown,
   ChevronUp,
   ChevronRight,
@@ -31,13 +35,14 @@ import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiClient } from "@/services/apiClient";
 import { downloadAttachment } from "@/services/purchasingService";
-import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes } from "@/hooks/usePurchasing";
+import { useRequestDetail, useTransitionRequest, useUploadAttachments, useGLCodes, useUpdateWireTransfer } from "@/hooks/usePurchasing";
 import { renderBankAccountBadge, renderCategoryBadge } from "@/utils/glAccountUtils";
 import {
   RequestStatus,
   type RequestDetail,
   type CustomScheduleDate,
   type FrequencyType,
+  type WireTransferInput,
 } from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
@@ -56,6 +61,7 @@ import {
 } from "./recurringScheduleUtils";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import { WireTransferDialog } from "./WireTransferDialog";
 import LocationAutocomplete from "./LocationAutocomplete";
 import { Button } from "@/components/ui/button";
 import HelpIcon from "@/components/ui/HelpIcon";
@@ -91,11 +97,16 @@ export default function PurchaseRequestDetail() {
   const history = requestDetail?.history || [];
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditWireOpen, setIsEditWireOpen] = useState(false);
   const [isScheduleLedgerOpen, setIsScheduleLedgerOpen] = useState(false);
+  const [isHoldDialogOpen, setIsHoldDialogOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState("");
   const [revealSensitiveWire, setRevealSensitiveWire] = useState(false);
   const [expandedInstallments, setExpandedInstallments] = useState<Record<number, boolean>>({});
   const [expandedInvoices, setExpandedInvoices] = useState<Record<string | number, boolean>>({});
   const [invoiceSortOrder, setInvoiceSortOrder] = useState<"desc" | "asc">("desc");
+
+  const updateWireTransfer = useUpdateWireTransfer(id || "");
 
 
   // Edit form state
@@ -556,7 +567,7 @@ export default function PurchaseRequestDetail() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -566,6 +577,42 @@ export default function PurchaseRequestDetail() {
               <CalendarClock className="h-4 w-4 text-indigo-600" />
               View Ledger
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenEdit}
+              className="text-xs gap-1.5"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Edit Schedule
+            </Button>
+            {parsedStatus === RequestStatus.OnHold ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  transitionMutation.mutate({
+                    action: "RESUME_WORKFLOW",
+                    comment: "Resumed workflow from On Hold",
+                  })
+                }
+                disabled={transitionMutation.isPending}
+                className="bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 text-xs gap-1.5 font-semibold shadow-2xs"
+              >
+                <PlayCircle className="h-3.5 w-3.5 text-rose-600" />
+                Resume Workflow
+              </Button>
+            ) : parsedStatus !== RequestStatus.Completed && parsedStatus !== RequestStatus.Rejected ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsHoldDialogOpen(true)}
+                className="text-rose-700 border-rose-300 hover:bg-rose-50 dark:border-rose-900/60 dark:text-rose-300 text-xs gap-1.5 font-medium shadow-2xs"
+              >
+                <PauseCircle className="h-3.5 w-3.5 text-rose-600" />
+                Put on Hold
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -635,7 +682,11 @@ export default function PurchaseRequestDetail() {
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 flex items-center justify-between flex-wrap gap-3">
             <div className="text-xs text-slate-700 dark:text-zinc-300 flex items-center gap-2">
               <span className="font-bold text-indigo-600 dark:text-indigo-400">Action Required:</span>
-              {!isReviewed ? (
+              {parsedStatus === RequestStatus.OnHold ? (
+                <span className="text-rose-600 dark:text-rose-400 font-medium">
+                  Payment schedule is currently <strong>ON HOLD</strong>. Milestone advancements and automatic processing are paused.
+                </span>
+              ) : !isReviewed ? (
                 <span>Review pending. Click <strong>'Mark as Reviewed'</strong> to enable invoice records and milestone settlements.</span>
               ) : parsedStatus === RequestStatus.InvoiceReceived ? (
                 <span>
@@ -655,7 +706,22 @@ export default function PurchaseRequestDetail() {
             </div>
 
             <div className="flex items-center gap-2">
-              {!isReviewed ? (
+              {parsedStatus === RequestStatus.OnHold ? (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    transitionMutation.mutate({
+                      action: "RESUME_WORKFLOW",
+                      comment: "Resumed workflow from On Hold",
+                    })
+                  }
+                  disabled={transitionMutation.isPending}
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5 h-8 font-semibold shadow-2xs"
+                >
+                  <PlayCircle className="h-3.5 w-3.5" />
+                  Resume Workflow
+                </Button>
+              ) : !isReviewed ? (
                 <Button
                   size="sm"
                   onClick={() => reviewMutation.mutate("REVIEWED")}
@@ -964,13 +1030,13 @@ export default function PurchaseRequestDetail() {
                 <div className="p-3.5 flex justify-between gap-2">
                   <span className="text-muted-foreground font-medium">Cycle Amount</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-zinc-100 text-right">
-                    {formatMoney(currentCycleAmount)} USD
+                    {formatMoney(currentCycleAmount, request.currency || "USD")}
                   </span>
                 </div>
                 <div className="p-3.5 flex justify-between gap-2 bg-slate-50/50 dark:bg-zinc-900/30">
                   <span className="text-muted-foreground font-medium">Total Commitment</span>
                   <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300 text-right">
-                    {formatMoney(totalCommitment ?? currentCycleAmount)} USD
+                    {formatMoney(totalCommitment ?? currentCycleAmount, request.currency || "USD")}
                   </span>
                 </div>
               </div>
@@ -986,36 +1052,45 @@ export default function PurchaseRequestDetail() {
             </CardContent>
           </Card>
 
-          {/* ── Wire Transfer Details Card (Read-only sensitive view in M&A application) ── */}
+          {/* ── Wire Transfer Details Card ── */}
           {(requestDetail?.wire_transfer || (request as any)?.wire_transfer) ? (
             <Card className="shadow-xs border-slate-200 dark:border-zinc-800">
               <CardHeader className="bg-indigo-50/40 dark:bg-indigo-950/20 border-b border-slate-100 dark:border-zinc-800 px-6 py-3.5 flex flex-row items-center justify-between">
                 <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-semibold text-base">
                   <Landmark className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Wire Transfer Details</span>
-                  <Badge variant="outline" className="text-[10px] bg-indigo-50/80 text-indigo-700 border-indigo-200 gap-1 ml-1 font-semibold">
-                    <ShieldCheck className="h-3 w-3 text-indigo-600" /> Read-Only
-                  </Badge>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRevealSensitiveWire(!revealSensitiveWire)}
-                  className="h-7 text-xs px-2.5 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 gap-1.5"
-                >
-                  {revealSensitiveWire ? (
-                    <>
-                      <EyeOff className="h-3.5 w-3.5 text-slate-500" />
-                      <span>Mask Sensitive Info</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-3.5 w-3.5 text-indigo-600" />
-                      <span>Reveal Sensitive Info</span>
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditWireOpen(true)}
+                    className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 dark:border-indigo-800 dark:text-indigo-300 gap-1.5 shadow-xs"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>Edit Wire Info</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRevealSensitiveWire(!revealSensitiveWire)}
+                    className="h-7 text-xs px-2.5 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 gap-1.5"
+                  >
+                    {revealSensitiveWire ? (
+                      <>
+                        <EyeOff className="h-3.5 w-3.5 text-slate-500" />
+                        <span>Mask Sensitive Info</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                        <span>Reveal Sensitive Info</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-5 space-y-4">
                 {(() => {
@@ -1060,7 +1135,7 @@ export default function PurchaseRequestDetail() {
                       </div>
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium text-xs block">Amount</span>
-                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{formatMoney(wt.amount || 0)} {wt.currency || "USD"}</span>
+                        <span className="font-semibold text-slate-900 dark:text-zinc-100 text-xs block break-words">{formatMoney(wt.amount || 0, wt.currency || "USD")}</span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-muted-foreground font-medium text-xs block">Conversion Rate</span>
@@ -1260,6 +1335,16 @@ export default function PurchaseRequestDetail() {
                     <span className="text-[11px] text-muted-foreground block">No wire transfer banking instructions recorded yet for this schedule.</span>
                   </div>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditWireOpen(true)}
+                  className="h-7 text-xs px-2.5 bg-white dark:bg-zinc-900 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 gap-1.5 shadow-xs"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Record Wire Info</span>
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -1967,7 +2052,103 @@ export default function PurchaseRequestDetail() {
           setIsScheduleLedgerOpen(false);
           handleOpenEdit();
         }}
+        onEditWireInfo={() => {
+          setIsScheduleLedgerOpen(false);
+          setIsEditWireOpen(true);
+        }}
       />
+
+      {/* ── Wire Transfer Dialog (Edit / Record Wire Details) ── */}
+      {request && (
+        <WireTransferDialog
+          open={isEditWireOpen}
+          onOpenChange={setIsEditWireOpen}
+          request={request}
+          purchaseOrder={requestDetail?.purchase_order}
+          initialData={requestDetail?.wire_transfer || (request as any)?.wire_transfer}
+          isEditMode={Boolean(requestDetail?.wire_transfer || (request as any)?.wire_transfer)}
+          isSubmitting={updateWireTransfer.isPending}
+          onConfirm={async (data: WireTransferInput) => {
+            try {
+              await updateWireTransfer.mutateAsync(data);
+              setIsEditWireOpen(false);
+              toast.success("Wire transfer details saved successfully");
+              queryClient.invalidateQueries({ queryKey: ["purchasing", "request", id] });
+              queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+              refetch();
+            } catch (err: any) {
+              toast.error(err?.message || "Failed to update wire transfer");
+            }
+          }}
+        />
+      )}
+      {/* ── Put On Hold Dialog ── */}
+      <Dialog open={isHoldDialogOpen} onOpenChange={setIsHoldDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <PauseCircle className="h-5 w-5" />
+              <DialogTitle className="text-lg font-bold">Put Scheduled Payment On Hold</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Temporarily pause processing and cycle milestone advancement for this scheduled payment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                Reason for Hold <span className="text-muted-foreground font-normal">(Optional)</span>
+              </label>
+              <textarea
+                className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                placeholder="e.g. Milestone verification pending, contract dispute, vendor inquiry..."
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsHoldDialogOpen(false);
+                setHoldReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={transitionMutation.isPending}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
+              onClick={() => {
+                transitionMutation.mutate(
+                  {
+                    action: "PUT_ON_HOLD",
+                    comment: holdReason.trim() || "Put on hold",
+                    hold: { reason: holdReason.trim() || "No reason provided" },
+                  },
+                  {
+                    onSuccess: () => {
+                      setIsHoldDialogOpen(false);
+                      setHoldReason("");
+                      toast.success("Payment schedule placed on hold");
+                    },
+                    onError: (err: any) => {
+                      toast.error(err?.message || "Failed to put on hold");
+                    },
+                  }
+                );
+              }}
+            >
+              {transitionMutation.isPending ? "Putting on Hold..." : "Confirm Hold"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

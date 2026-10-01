@@ -7,8 +7,14 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
-import { RequestStatus, type PurchaseRequest,
-  type RecurringNotificationSettings, type RequestDetail, type CustomScheduleDate } from "@/types/purchasing";
+import {
+  RequestStatus,
+  type PurchaseRequest,
+  type RecurringNotificationSettings,
+  type RequestDetail,
+  type CustomScheduleDate,
+  type WireTransferInput,
+} from "@/types/purchasing";
 import { parseRequestStatus } from "@/lib/requestStatus";
 import {
   formatDate,
@@ -70,8 +76,12 @@ import {
   Layers,
   Loader2,
   Download,
+  Landmark,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { updateWireTransfer as updateWireTransferApi } from "@/services/purchasingService";
 import {
   formatRemainingDuration,
   calculateInstallmentsCount,
@@ -81,6 +91,7 @@ import {
   type FrequencyType,
 } from "./recurringScheduleUtils";
 import { ScheduleBreakdownModal } from "./ScheduleBreakdownModal";
+import { WireTransferDialog } from "./WireTransferDialog";
 import { MasterTransactionsTable } from "./MasterTransactionsTable";
 
 import {
@@ -231,7 +242,7 @@ export default function RecurringPayments() {
   const navigate = useNavigate();
   const { id: routeRequestId } = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
-  const { roles: userRoles, hasRole, hasPermission, user } = useAuth();
+  const { roles: userRoles, hasRole, hasPermission, canAccessNavigationItem, user } = useAuth();
   const { data: usersList = [] } = useUsersList();
   const { data: rolesList = [] } = useRolesList();
 
@@ -258,7 +269,15 @@ export default function RecurringPayments() {
   const hasRecurringPermission =
     hasPermission("RECURRING_PAYMENTS_READ") ||
     hasPermission("RECURRING_PAYMENTS_VIEW") ||
-    hasPermission("RECURRING_PAYMENTS_UPDATE");
+    hasPermission("RECURRING_PAYMENTS_UPDATE") ||
+    hasPermission("SCHEDULED_PAYMENTS_READ") ||
+    hasPermission("SCHEDULED_PAYMENTS_VIEW") ||
+    hasPermission("SCHEDULED_PAYMENTS_UPDATE") ||
+    hasPermission("SCHEDULED_PAYMENTS_CREATE") ||
+    hasPermission("SCHEDULED_PAYMENTS_MANAGE") ||
+    hasPermission("SCHEDULED_PAYMENTS") ||
+    (canAccessNavigationItem ? canAccessNavigationItem("SCHEDULED_PAYMENTS") : false) ||
+    (canAccessNavigationItem ? canAccessNavigationItem("RECURRING_PAYMENTS") : false);
   const canAccess = isSuperAdmin || isAP || isTreasury || hasRecurringPermission;
 
   const [viewMode, setViewMode] = useState<"table" | "calendar" | "master">("table");
@@ -287,14 +306,36 @@ export default function RecurringPayments() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [scheduleModalRequest, setScheduleModalRequest] = useState<PurchaseRequest | null>(null);
+  const [wireModalRequest, setWireModalRequest] = useState<PurchaseRequest | null>(null);
+  const [holdModalRequest, setHoldModalRequest] = useState<PurchaseRequest | null>(null);
+  const [holdReason, setHoldReason] = useState("");
+  const [isUpdatingWire, setIsUpdatingWire] = useState(false);
   const [selectedCalendarInstallment, setSelectedCalendarInstallment] = useState<{
     installmentNumber?: number;
     totalInstallments?: number;
     amount?: number;
+    currency?: string;
     dueDate?: string;
     isProjected?: boolean;
     isPaid?: boolean;
   } | null>(null);
+
+  const handleSaveWire = async (data: WireTransferInput) => {
+    if (!wireModalRequest) return;
+    try {
+      setIsUpdatingWire(true);
+      await updateWireTransferApi(wireModalRequest.id, data);
+      toast.success("Wire transfer details saved successfully");
+      setWireModalRequest(null);
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+      refetchRequests();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update wire transfer details");
+    } finally {
+      setIsUpdatingWire(false);
+    }
+  };
 
   // File import & preview state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -475,6 +516,8 @@ export default function RecurringPayments() {
       subTitle = "Waiting for Review";
     } else if (cardFilter === "REVIEWED") {
       subTitle = "Reviewed";
+    } else if (cardFilter === "ON_HOLD") {
+      subTitle = "On Hold";
     } else if (cardFilter === "COMPLETED") {
       subTitle = "Completed";
     } else if (cardFilter === "REJECTED") {
@@ -495,7 +538,7 @@ export default function RecurringPayments() {
   }, [cardFilter, viewMode]);
 
   // Fetch all RECURRING requests with live polling
-  const { data: requests = [], isLoading } = useQuery<PurchaseRequest[]>({
+  const { data: requests = [], isLoading, refetch: refetchRequests } = useQuery<PurchaseRequest[]>({
     queryKey: ["recurring-requests"],
     queryFn: async () => {
       return await apiClient.get<PurchaseRequest[]>(
@@ -542,6 +585,40 @@ export default function RecurringPayments() {
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to update review status");
+    },
+  });
+
+  // Transition request mutation (Hold / Resume)
+  const transitionMutation = useMutation({
+    mutationFn: async ({
+      id,
+      action,
+      comment,
+      hold,
+    }: {
+      id: string | number;
+      action: string;
+      comment?: string;
+      hold?: { reason: string };
+    }) => {
+      return await apiClient.post(`/api/purchasing/requests/${id}/transition`, {
+        action,
+        comment: comment || (action === "PUT_ON_HOLD" ? "Put on hold" : "Resumed workflow"),
+        ...(hold ? { hold } : {}),
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+      refetchRequests();
+      if (variables.action === "PUT_ON_HOLD") {
+        toast.success("Payment schedule placed on hold");
+      } else {
+        toast.success("Payment schedule workflow resumed");
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to update payment status");
     },
   });
 
@@ -1178,6 +1255,8 @@ export default function RecurringPayments() {
       } else if (cardFilter === "REVIEWED") {
         if (isRejected) return false;
         if (r.review_status !== "REVIEWED") return false;
+      } else if (cardFilter === "ON_HOLD") {
+        if (parsedStatus !== RequestStatus.OnHold && r.status !== "ON_HOLD") return false;
       } else if (cardFilter === "COMPLETED") {
         const isComp = parsedStatus === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID";
         if (!isComp) return false;
@@ -1234,12 +1313,15 @@ export default function RecurringPayments() {
     const reviewed = activeSubs.filter(
       (r) => r.review_status === "REVIEWED"
     ).length;
+    const onHold = requests.filter(
+      (r) => parseRequestStatus(r.status) === RequestStatus.OnHold || r.status === "ON_HOLD"
+    ).length;
     const completed = requests.filter(
       (r) => parseRequestStatus(r.status) === RequestStatus.Completed || r.status === "COMPLETED" || (r.status as string) === "PAID"
     ).length;
     const rejected = requests.filter((r) => parseRequestStatus(r.status) === RequestStatus.Rejected).length;
     const totalAmount = activeSubs.reduce((sum, r) => sum + (r.amount || 0), 0);
-    return { total, maScheduled, dueSoon, waitingReview, reviewed, completed, rejected, totalAmount };
+    return { total, maScheduled, dueSoon, waitingReview, reviewed, onHold, completed, rejected, totalAmount };
   }, [requests]);
 
   if (!canAccess) {
@@ -1250,12 +1332,10 @@ export default function RecurringPayments() {
           Access Restricted
         </h2>
         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-          The Recurring Payments dashboard is only accessible to users with the{" "}
-          <strong>TREASURY</strong> or <strong>AP (Accounts Payable)</strong>{" "}
-          roles.
+          The Scheduled Payments dashboard is only accessible to users with assigned Scheduled Payments permissions, <strong>TREASURY</strong>, or <strong>AP (Accounts Payable)</strong> roles.
         </p>
         <Button className="mt-6" onClick={() => navigate("/purchasing/requests")}>
-          Return to Purchase Requests
+          Return to Dashboard
         </Button>
       </div>
     );
@@ -1453,6 +1533,13 @@ export default function RecurringPayments() {
             color: "sky",
           },
           {
+            key: "ON_HOLD",
+            label: "On Hold",
+            count: stats.onHold,
+            icon: PauseCircle,
+            color: "rose",
+          },
+          {
             key: "COMPLETED",
             label: "Completed",
             count: stats.completed,
@@ -1477,7 +1564,7 @@ export default function RecurringPayments() {
       />
 
       {/* Compact Interactive KPI Filter Cards */}
-      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
+      <div ref={kpiRef} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-2.5 sm:gap-3 animate-in fade-in duration-300 shrink-0">
         {/* 1. All Subscriptions */}
         <Card
           onClick={() => handleCardFilterChange("ALL")}
@@ -1597,7 +1684,30 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 6. Completed */}
+        {/* 6. On Hold */}
+        <Card
+          onClick={() => handleCardFilterChange(cardFilter === "ON_HOLD" ? "ALL" : "ON_HOLD")}
+          className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-rose-300 ${
+            cardFilter === "ON_HOLD" ? "ring-2 ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20" : ""
+          }`}
+        >
+          <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-rose-700 dark:text-rose-300">
+                On Hold
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400 leading-tight mt-0.5">
+                {stats.onHold}
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Paused schedules</p>
+            </div>
+            <div className="p-1.5 rounded-md bg-rose-50 dark:bg-rose-950 flex items-center justify-center text-rose-600 shrink-0">
+              <PauseCircle size={16} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 7. Completed */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "COMPLETED" ? "ALL" : "COMPLETED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-emerald-300 ${
@@ -1620,7 +1730,7 @@ export default function RecurringPayments() {
           </CardContent>
         </Card>
 
-        {/* 7. Rejected */}
+        {/* 8. Rejected */}
         <Card
           onClick={() => handleCardFilterChange(cardFilter === "REJECTED" ? "ALL" : "REJECTED")}
           className={`border border-slate-200/80 dark:border-zinc-800 cursor-pointer shadow-xs hover:shadow-xs transition-all rounded-lg hover:border-rose-300 ${
@@ -1680,6 +1790,7 @@ export default function RecurringPayments() {
               <SelectItem value="INITIAL">Draft</SelectItem>
               <SelectItem value="WAITING_PAYMENT">Waiting Payment</SelectItem>
               <SelectItem value="INVOICE_RECEIVED">Invoice Received</SelectItem>
+              <SelectItem value="ON_HOLD">On Hold</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="REJECTED">Rejected</SelectItem>
             </SelectContent>
@@ -1917,6 +2028,52 @@ export default function RecurringPayments() {
                                 <CalendarClock size={14} />
                               </Button>
                             )}
+                            {parseRequestStatus(req.status) === RequestStatus.OnHold || req.status === "ON_HOLD" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                                title="Resume Workflow from On Hold"
+                                disabled={transitionMutation.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  transitionMutation.mutate({
+                                    id: req.id,
+                                    action: "RESUME_WORKFLOW",
+                                    comment: "Resumed workflow from On Hold",
+                                  });
+                                }}
+                              >
+                                <PlayCircle size={14} />
+                              </Button>
+                            ) : parseRequestStatus(req.status) !== RequestStatus.Completed && parseRequestStatus(req.status) !== RequestStatus.Rejected ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                                title="Put Scheduled Payment On Hold"
+                                disabled={transitionMutation.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setHoldModalRequest(req);
+                                  setHoldReason("");
+                                }}
+                              >
+                                <PauseCircle size={14} />
+                              </Button>
+                            ) : null}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                              title="Edit Wire Info / Banking Details"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWireModalRequest(req);
+                              }}
+                            >
+                              <Landmark size={14} />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2038,6 +2195,7 @@ export default function RecurringPayments() {
                 isProjected: boolean;
                 isPaid: boolean;
                 amount: number;
+                currency?: string;
                 displayTitle: string;
                 isReviewed: boolean;
               }> = [];
@@ -2063,6 +2221,7 @@ export default function RecurringPayments() {
                       isProjected: match.status === "PROJECTED",
                       isPaid: match.status === "PAID",
                       amount: match.amount,
+                      currency: match.currency || req.currency || "USD",
                       displayTitle: `${req.title} (#${match.installmentNumber}/${totalInst})`,
                       isReviewed: req.review_status === "REVIEWED",
                     });
@@ -2075,6 +2234,7 @@ export default function RecurringPayments() {
                         isProjected: false,
                         isPaid: parseRequestStatus(req.status) === RequestStatus.Completed,
                         amount: req.amount,
+                        currency: req.currency || "USD",
                         displayTitle: req.title,
                         isReviewed: req.review_status === "REVIEWED",
                       });
@@ -2127,6 +2287,7 @@ export default function RecurringPayments() {
                                 installmentNumber: item.installmentNumber,
                                 totalInstallments: item.totalInstallments,
                                 amount: item.amount,
+                                currency: item.currency,
                                 dueDate: cell.dateStr,
                                 isProjected: true,
                                 isPaid: false,
@@ -2143,7 +2304,7 @@ export default function RecurringPayments() {
                               </span>
                             </div>
                             <div className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 mt-0.5">
-                              {formatMoney(item.amount)}
+                              {formatMoney(item.amount, item.currency)}
                             </div>
                           </button>
                         );
@@ -2159,6 +2320,7 @@ export default function RecurringPayments() {
                                 installmentNumber: item.installmentNumber,
                                 totalInstallments: item.totalInstallments,
                                 amount: item.amount,
+                                currency: item.currency,
                                 dueDate: cell.dateStr,
                                 isProjected: false,
                                 isPaid: true,
@@ -2173,7 +2335,7 @@ export default function RecurringPayments() {
                               <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                             </div>
                             <div className="text-[10px] font-bold opacity-85 mt-0.5">
-                              {formatMoney(item.amount)}
+                              {formatMoney(item.amount, item.currency)}
                             </div>
                           </button>
                         );
@@ -2188,6 +2350,7 @@ export default function RecurringPayments() {
                               installmentNumber: item.installmentNumber,
                               totalInstallments: item.totalInstallments,
                               amount: item.amount,
+                              currency: item.currency,
                               dueDate: cell.dateStr,
                               isProjected: false,
                               isPaid: false,
@@ -2210,7 +2373,7 @@ export default function RecurringPayments() {
                             />
                           </div>
                           <div className="text-[10px] font-bold opacity-85 mt-0.5">
-                            {formatMoney(item.amount)}
+                            {formatMoney(item.amount, item.currency)}
                           </div>
                         </button>
                       );
@@ -2261,7 +2424,10 @@ export default function RecurringPayments() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
                 <span className="font-bold text-slate-900 dark:text-zinc-100">
-                  {formatMoney(selectedCalendarItem.amount)}
+                  {formatMoney(
+                    selectedCalendarInstallment?.amount ?? selectedCalendarItem.amount,
+                    selectedCalendarInstallment?.currency || selectedCalendarItem.currency || "USD"
+                  )}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -2882,7 +3048,110 @@ export default function RecurringPayments() {
           setScheduleModalRequest(null);
           handleOpenEdit(req);
         }}
+        onEditWireInfo={(req) => {
+          setScheduleModalRequest(null);
+          setWireModalRequest(req);
+        }}
+        onToggleHold={(req) => {
+          if (parseRequestStatus(req.status) === RequestStatus.OnHold || req.status === "ON_HOLD") {
+            transitionMutation.mutate({
+              id: req.id,
+              action: "RESUME_WORKFLOW",
+              comment: "Resumed workflow from On Hold",
+            });
+          } else {
+            setHoldModalRequest(req);
+            setHoldReason("");
+          }
+        }}
       />
+
+      {/* Put on Hold Dialog */}
+      <Dialog
+        open={!!holdModalRequest}
+        onOpenChange={(open) => {
+          if (!open) {
+            setHoldModalRequest(null);
+            setHoldReason("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <PauseCircle className="h-5 w-5" />
+              <DialogTitle className="text-lg font-bold">Put Scheduled Payment On Hold</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Temporarily pause processing and cycle milestone advancement for <strong className="text-slate-900 dark:text-zinc-100">{holdModalRequest?.title}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                Reason for Hold <span className="text-muted-foreground font-normal">(Optional)</span>
+              </label>
+              <textarea
+                className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                placeholder="e.g. Milestone verification pending, contract dispute, vendor inquiry..."
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setHoldModalRequest(null);
+                setHoldReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={transitionMutation.isPending}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
+              onClick={() => {
+                if (!holdModalRequest) return;
+                transitionMutation.mutate(
+                  {
+                    id: holdModalRequest.id,
+                    action: "PUT_ON_HOLD",
+                    comment: holdReason.trim() || "Put on hold",
+                    hold: { reason: holdReason.trim() || "No reason provided" },
+                  },
+                  {
+                    onSuccess: () => {
+                      setHoldModalRequest(null);
+                      setHoldReason("");
+                    },
+                  }
+                );
+              }}
+            >
+              {transitionMutation.isPending ? "Putting on Hold..." : "Confirm Hold"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Wire Transfer Dialog (Edit / Record Wire Info for Scheduled Payment) */}
+      {wireModalRequest && (
+        <WireTransferDialog
+          open={!!wireModalRequest}
+          onOpenChange={(open) => !open && setWireModalRequest(null)}
+          request={wireModalRequest}
+          initialData={(wireModalRequest as any)?.wire_transfer}
+          isEditMode={Boolean((wireModalRequest as any)?.wire_transfer)}
+          isSubmitting={isUpdatingWire}
+          onConfirm={handleSaveWire}
+        />
+      )}
 
       {/* Debt Schedule Import Preview Modal */}
       <DebtSchedulePreviewModal

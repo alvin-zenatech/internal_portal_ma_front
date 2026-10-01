@@ -66,6 +66,7 @@ export const navigation: NavigationItem[] = [
       { label: "Due in 7 Days", path: "/purchasing/recurring?filter=DUE_SOON", navigationCode: "SCHEDULED_PAYMENTS" },
       { label: "Waiting for Review", path: "/purchasing/recurring?filter=WAITING_REVIEW", navigationCode: "SCHEDULED_PAYMENTS" },
       { label: "Reviewed", path: "/purchasing/recurring?filter=REVIEWED", navigationCode: "SCHEDULED_PAYMENTS" },
+      { label: "On Hold", path: "/purchasing/recurring?filter=ON_HOLD", navigationCode: "SCHEDULED_PAYMENTS" },
       { label: "Completed", path: "/purchasing/recurring?filter=COMPLETED", navigationCode: "SCHEDULED_PAYMENTS" },
     ],
   },

@@ -187,14 +187,13 @@ export function formatMoney(val: number | null | undefined, currency: string = "
   if (val == null) val = 0;
   const curr = (currency || "USD").toUpperCase().trim();
   try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: curr,
+    const numStr = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(val);
+    return `${numStr} ${curr}`;
   } catch {
-    return `${curr} ${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${Number(val).toFixed(2)} ${curr}`;
   }
 }
 
