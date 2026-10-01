@@ -184,6 +184,9 @@ export function useNotificationStream(options?: { onNotification?: NotificationL
     return subscribeToNotifications((payload) => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+      queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       handlerRef.current?.(payload);
     });
   }, [queryClient]);
