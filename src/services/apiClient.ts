@@ -1,4 +1,4 @@
-import { handleResponse } from "./helper";
+﻿import { handleResponse } from "./helper";
 
 export interface ActiveApiAction {
   id: string;
@@ -91,8 +91,8 @@ function resolveActionMeta(
     }
     if (action === "CREATE_PO") {
       return {
-        title: "Saving Purchase Order",
-        subtitle: "Saving quote/PO details and item breakdown...",
+        title: "Reviewing Purchase",
+        subtitle: "Saving purchase review and order specifications...",
       };
     }
     if (action === "APPROVE") {
