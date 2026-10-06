@@ -389,6 +389,16 @@ export default function CallTrackingDetails({
                       className="h-8.5 sm:h-9 text-xs sm:text-sm font-mono"
                     />
                   </div>
+                  <div className="space-y-1 text-left w-full">
+                    <label className="font-medium text-xs sm:text-sm">Email</label>
+                    <Input
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={e => setFormData({...formData, email: e.target.value})}
+                      placeholder="e.g. name@company.com"
+                      className="h-8.5 sm:h-9 text-xs sm:text-sm"
+                    />
+                  </div>
 
                   {/* Row 5: Picked Up, KDM */}
                   
@@ -470,6 +480,7 @@ export default function CallTrackingDetails({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-3 text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-md">
                   <div>Contact: <span className="text-foreground font-medium">{log.contact_name || '-'}</span></div>
                   <div>Phone: <span className="text-foreground font-medium">{formatPhoneNumber(log.phone_number) || '-'}</span></div>
+                  <div>Email: <span className="text-foreground font-medium break-all">{log.email || '-'}</span></div>
                   <div>KDM: <span className="text-foreground font-medium">{formatYesNo(log.kdm)}</span> | Picked up: <span className="text-foreground font-medium">{formatYesNo(log.picked_up)}</span></div>
                   <div>Analyst: <span className="text-foreground font-medium">{getAnalystName(log.analyst)}</span></div>
                 </div>
