@@ -23,12 +23,12 @@ function formatCallLocation(stateProvince?: string | null, rawCountry?: string |
   return state || country || "-";
 }
 
-import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallLogs, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useCallLogs, usePipelineTasks, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -315,6 +315,7 @@ export default function CallTracking() {
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const { data: callLogs, isLoading, refetch } = useCallLogs();
+  const { data: pipelineTasks } = usePipelineTasks();
   const { data: users } = usePipelineUsers();
   const isSuperAdminUser = (u: any) => {
     if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
@@ -735,33 +736,125 @@ export default function CallTracking() {
     } catch {}
   };
 
-  const handleExportCallTracking = () => {
+  const handleExportCallTracking = async () => {
     try {
-      const dataToExport = table.getFilteredRowModel().rows.map(r => r.original);
-      const columnMap: Record<string, ExportColumn<CallLog>> = {
-        call_count: { header: "Calls", accessor: (r) => getCallCount(r) },
-        company_name: { header: "Company Name", accessor: (r) => r.company_name || "" },
-        industry: { header: "Industry", accessor: (r) => r.industry || "" },
-        location: { header: "Country / Province", accessor: (r) => {
+      const filteredRows = table.getFilteredRowModel().rows.map(r => r.original);
+      const dataToExport = filteredRows.length > 0 ? filteredRows : (callLogs || []);
+
+      const groups = new Map<string, CallLog[]>();
+      dataToExport.forEach(log => {
+        const key = (log.company_name || '').toLowerCase().trim() || `__no_company_${log.id}`;
+        const group = groups.get(key);
+        if (group) group.push(log);
+        else groups.set(key, [log]);
+      });
+      const companyRows = Array.from(groups.values()).map(calls =>
+        [...calls].sort((a, b) =>
+          formatDate(b.date_of_call).localeCompare(formatDate(a.date_of_call)) || b.id - a.id
+        )
+      );
+
+      const consolidate = (calls: CallLog[], getValue: (r: CallLog) => string, alwaysPerCall = false) => {
+        const values = calls.map(c => getValue(c) || "");
+        if (values.every(v => !v.trim())) return "";
+        if (!alwaysPerCall && values.every(v => v === values[0])) return values[0];
+        return values.join("\n");
+      };
+
+      const callFields: Record<string, { header: string; getValue: (r: CallLog) => string; alwaysPerCall?: boolean }> = {
+        company_name: { header: "Company Name", getValue: (r) => r.company_name || "" },
+        industry: { header: "Industry", getValue: (r) => r.industry || "" },
+        location: { header: "Country / Province", getValue: (r) => {
           const val = formatCallLocation(r.state_province, r.location);
           return val === "-" ? "" : val;
         }},
-        contact_name: { header: "Contact Name", accessor: (r) => r.contact_name || "" },
-        phone_number: { header: "Phone Number", accessor: (r) => formatPhoneNumber(r.phone_number) || "" },
-        date_of_call: { header: "Date of Call", accessor: (r) => formatDate(r.date_of_call) || "" },
-        kdm: { header: "KDM", accessor: (r) => formatYesNo(r.kdm) },
-        picked_up: { header: "Picked Up", accessor: (r) => formatYesNo(r.picked_up) },
-        current_status: { header: "Outcome", accessor: (r) => r.outcome || "" },
-        latest_analyst: { header: "Analyst", accessor: (r) => getAnalystDetails(r.analyst).name },
-        call_length: { header: "Call Length", accessor: (r) => r.call_length || "" },
-        notes: { header: "Notes", accessor: (r) => r.notes || "" },
+        contact_name: { header: "Contact Name", getValue: (r) => r.contact_name || "" },
+        phone_number: { header: "Phone Number", getValue: (r) => formatPhoneNumber(r.phone_number) || "" },
+        date_of_call: { header: "Date of Call", getValue: (r) => formatDate(r.date_of_call) || "", alwaysPerCall: true },
+        kdm: { header: "KDM", getValue: (r) => formatYesNo(r.kdm) },
+        picked_up: { header: "Picked Up", getValue: (r) => formatYesNo(r.picked_up) },
+        current_status: { header: "Outcome", getValue: (r) => r.outcome || "", alwaysPerCall: true },
+        latest_analyst: { header: "Analyst", getValue: (r) => getAnalystDetails(r.analyst).name },
+        call_length: { header: "Call Length", getValue: (r) => r.call_length || "" },
+        notes: { header: "Notes", getValue: (r) => r.notes || "", alwaysPerCall: true },
       };
 
-      const cols = table.getVisibleLeafColumns()
-        .map(col => columnMap[col.id])
-        .filter(Boolean);
+      const columnMap: Record<string, ExportColumn<CallLog[]>> = {
+        call_count: { header: "Calls", accessor: (calls) => getCallCount(calls[0]) },
+      };
+      Object.entries(callFields).forEach(([id, { header, getValue, alwaysPerCall }]) => {
+        columnMap[id] = { header, accessor: (calls) => consolidate(calls, getValue, alwaysPerCall) };
+      });
 
-      exportToCsv(dataToExport.length > 0 ? dataToExport : (callLogs || []), cols, "call_tracking");
+      if (!pipelineTasks) {
+        toast.warning("Couldn't load the Pipeline Dashboard, so the export won't flag companies already on it.");
+      }
+      const dashboardCompanies = new Set(
+        (pipelineTasks || []).map(t => (t.company_name || '').toLowerCase().trim()).filter(Boolean)
+      );
+
+      const getFlags = (calls: CallLog[]) => {
+        const outcomes = calls.map(c => (c.outcome || '').toLowerCase());
+        return {
+          callScheduled: outcomes.some(o => o.includes("call scheduled")),
+          notInterested: outcomes.some(o => o.includes("not interested")),
+          onDashboard: dashboardCompanies.has((calls[0].company_name || '').toLowerCase().trim()),
+        };
+      };
+      const getCellFills = (calls: CallLog[]): Record<string, string | undefined> => {
+        const flags = getFlags(calls);
+        return {
+          company_name: flags.onDashboard ? "FFFFEB9C" : undefined,
+          current_status: flags.callScheduled ? "FFC6EFCE" : flags.notInterested ? "FFFFC7CE" : undefined,
+        };
+      };
+      columnMap.flag = {
+        header: "Flag",
+        accessor: (calls) => {
+          const flags = getFlags(calls);
+          return [
+            flags.callScheduled && "Call Scheduled",
+            flags.notInterested && "Not Interested",
+            flags.onDashboard && "On Dashboard",
+          ].filter(Boolean).join("\n");
+        },
+      };
+      const columnWidths: Record<string, number> = {
+        flag: 18, call_count: 8, company_name: 30, industry: 22, location: 20, contact_name: 22, phone_number: 18,
+        date_of_call: 14, kdm: 8, picked_up: 10, current_status: 22, latest_analyst: 18, call_length: 12, notes: 60,
+      };
+
+      const visibleIds = ["flag", ...table.getVisibleLeafColumns().map(col => col.id).filter(id => columnMap[id])];
+
+      const { default: ExcelJS } = await import("exceljs");
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Call Tracking", { views: [{ state: "frozen", ySplit: 1 }] });
+      sheet.columns = visibleIds.map(id => ({ header: columnMap[id].header, width: columnWidths[id] ?? 18 }));
+      sheet.getRow(1).font = { bold: true };
+      sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: visibleIds.length } };
+      companyRows.forEach(calls => {
+        const values = visibleIds.map(id => columnMap[id].accessor(calls) ?? "");
+        const row = sheet.addRow(values);
+        row.alignment = { vertical: "top", wrapText: true };
+        const lineCount = Math.max(1, ...values.map((val, i) => {
+          const charsPerLine = Math.max(1, (columnWidths[visibleIds[i]] ?? 18) - 1);
+          return String(val).split("\n").reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+        }));
+        row.height = lineCount * 15;
+        const fills = getCellFills(calls);
+        visibleIds.forEach((id, i) => {
+          const fill = fills[id];
+          if (fill) row.getCell(i + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `call_tracking_${new Date().toLocaleDateString("en-CA")}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
       toast.success("Call tracking exported successfully");
     } catch (e: any) {
       toast.error(e?.message || "Failed to export call tracking");
