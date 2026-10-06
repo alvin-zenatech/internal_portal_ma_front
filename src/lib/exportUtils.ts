@@ -20,6 +20,10 @@ function escapeCsvValue(val: string | number | null | undefined | boolean): stri
   return str;
 }
 
+export function guardExcelFormula(val: string): string {
+  return /^[=+\-@]/.test(val) ? String.fromCharCode(0x200b) + val : val;
+}
+
 /**
  * Exports data to a CSV file and triggers a browser download.
  * Prepends UTF-8 BOM (\uFEFF) so Excel correctly handles UTF-8 characters.
