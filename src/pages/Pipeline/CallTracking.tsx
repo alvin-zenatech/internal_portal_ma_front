@@ -23,12 +23,12 @@ function formatCallLocation(stateProvince?: string | null, rawCountry?: string |
   return state || country || "-";
 }
 
-import { exportToCsv, guardExcelFormula, type ExportColumn } from "@/lib/exportUtils";
+import { type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallLogs, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useCallLogs, usePipelineTasks, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -315,6 +315,7 @@ export default function CallTracking() {
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const { data: callLogs, isLoading, refetch } = useCallLogs();
+  const { data: pipelineTasks } = usePipelineTasks();
   const { data: users } = usePipelineUsers();
   const isSuperAdminUser = (u: any) => {
     if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
@@ -735,7 +736,7 @@ export default function CallTracking() {
     } catch {}
   };
 
-  const handleExportCallTracking = () => {
+  const handleExportCallTracking = async () => {
     try {
       const filteredRows = table.getFilteredRowModel().rows.map(r => r.original);
       const dataToExport = filteredRows.length > 0 ? filteredRows : (callLogs || []);
@@ -757,8 +758,7 @@ export default function CallTracking() {
         const values = calls.map(c => getValue(c) || "");
         if (values.every(v => !v.trim())) return "";
         if (!alwaysPerCall && values.every(v => v === values[0])) return values[0];
-        // A bare "-" placeholder at the start of a multi-line cell makes Excel read it as a formula (#NAME?).
-        return values.map(v => (v.trim() === "-" ? "" : v)).join("\n");
+        return values.join("\n");
       };
 
       const callFields: Record<string, { header: string; getValue: (r: CallLog) => string; alwaysPerCall?: boolean }> = {
@@ -783,14 +783,72 @@ export default function CallTracking() {
         call_count: { header: "Calls", accessor: (calls) => getCallCount(calls[0]) },
       };
       Object.entries(callFields).forEach(([id, { header, getValue, alwaysPerCall }]) => {
-        columnMap[id] = { header, accessor: (calls) => guardExcelFormula(consolidate(calls, getValue, alwaysPerCall)) };
+        columnMap[id] = { header, accessor: (calls) => consolidate(calls, getValue, alwaysPerCall) };
       });
 
-      const cols = table.getVisibleLeafColumns()
-        .map(col => columnMap[col.id])
-        .filter(Boolean);
+      if (!pipelineTasks) {
+        toast.warning("Couldn't load the Pipeline Dashboard, so the export won't flag companies already on it.");
+      }
+      const dashboardCompanies = new Set(
+        (pipelineTasks || []).map(t => (t.company_name || '').toLowerCase().trim()).filter(Boolean)
+      );
 
-      exportToCsv(companyRows, cols, "call_tracking");
+      const getFlags = (calls: CallLog[]) => {
+        const outcomes = calls.map(c => (c.outcome || '').toLowerCase());
+        return {
+          callScheduled: outcomes.some(o => o.includes("call scheduled")),
+          notInterested: outcomes.some(o => o.includes("not interested")),
+          onDashboard: dashboardCompanies.has((calls[0].company_name || '').toLowerCase().trim()),
+        };
+      };
+      const getCellFills = (calls: CallLog[]): Record<string, string | undefined> => {
+        const flags = getFlags(calls);
+        return {
+          company_name: flags.onDashboard ? "FFFFEB9C" : undefined,
+          current_status: flags.callScheduled ? "FFC6EFCE" : flags.notInterested ? "FFFFC7CE" : undefined,
+        };
+      };
+      columnMap.flag = {
+        header: "Flag",
+        accessor: (calls) => {
+          const flags = getFlags(calls);
+          return [
+            flags.callScheduled && "Call Scheduled",
+            flags.notInterested && "Not Interested",
+            flags.onDashboard && "On Dashboard",
+          ].filter(Boolean).join("\n");
+        },
+      };
+      const columnWidths: Record<string, number> = {
+        flag: 18, call_count: 8, company_name: 30, industry: 22, location: 20, contact_name: 22, phone_number: 18,
+        date_of_call: 14, kdm: 8, picked_up: 10, current_status: 22, latest_analyst: 18, call_length: 12, notes: 60,
+      };
+
+      const visibleIds = ["flag", ...table.getVisibleLeafColumns().map(col => col.id).filter(id => columnMap[id])];
+
+      const { default: ExcelJS } = await import("exceljs");
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Call Tracking", { views: [{ state: "frozen", ySplit: 1 }] });
+      sheet.columns = visibleIds.map(id => ({ header: columnMap[id].header, width: columnWidths[id] ?? 18 }));
+      sheet.getRow(1).font = { bold: true };
+      sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: visibleIds.length } };
+      companyRows.forEach(calls => {
+        const row = sheet.addRow(visibleIds.map(id => columnMap[id].accessor(calls) ?? ""));
+        row.alignment = { vertical: "top", wrapText: true };
+        const fills = getCellFills(calls);
+        visibleIds.forEach((id, i) => {
+          const fill = fills[id];
+          if (fill) row.getCell(i + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `call_tracking_${new Date().toLocaleDateString("en-CA")}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
       toast.success("Call tracking exported successfully");
     } catch (e: any) {
       toast.error(e?.message || "Failed to export call tracking");
