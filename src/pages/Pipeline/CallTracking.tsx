@@ -833,8 +833,14 @@ export default function CallTracking() {
       sheet.getRow(1).font = { bold: true };
       sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: visibleIds.length } };
       companyRows.forEach(calls => {
-        const row = sheet.addRow(visibleIds.map(id => columnMap[id].accessor(calls) ?? ""));
+        const values = visibleIds.map(id => columnMap[id].accessor(calls) ?? "");
+        const row = sheet.addRow(values);
         row.alignment = { vertical: "top", wrapText: true };
+        const lineCount = Math.max(1, ...values.map((val, i) => {
+          const charsPerLine = Math.max(1, (columnWidths[visibleIds[i]] ?? 18) - 1);
+          return String(val).split("\n").reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+        }));
+        row.height = lineCount * 15;
         const fills = getCellFills(calls);
         visibleIds.forEach((id, i) => {
           const fill = fills[id];
