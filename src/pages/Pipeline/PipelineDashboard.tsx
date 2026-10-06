@@ -139,6 +139,11 @@ export default function PipelineDashboard() {
       return validStatuses.includes(p);
     });
 
+    if (executionAnalystFilter !== "all" && executionAnalystFilter !== "unassigned") {
+      const activeOpportunityStatuses = ["high value", "good fit", "50/50"];
+      result = result.filter(t => activeOpportunityStatuses.includes((t.priority_name || "").toLowerCase()));
+    }
+
     return result;
   }, [tasks, analystFilter, executionAnalystFilter]);
 
