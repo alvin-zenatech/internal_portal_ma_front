@@ -123,6 +123,7 @@ interface DebtSchedulePreviewModalProps {
   fileName?: string;
   onSave: (clearExisting: boolean, records?: DebtSchedulePreviewRecord[]) => Promise<void>;
   isSaving: boolean;
+  allowClearExisting?: boolean;
 }
 
 const SUPPORTED_CURRENCIES = ["USD", "CAD", "GBP", "AUD", "EUR"];
@@ -134,6 +135,7 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
   fileName,
   onSave,
   isSaving,
+  allowClearExisting = true,
 }) => {
   const [search, setSearch] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("ALL");
@@ -902,21 +904,27 @@ export const DebtSchedulePreviewModal: React.FC<DebtSchedulePreviewModalProps> =
 
           {/* Footer */}
           <DialogFooter className="px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/70 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <Checkbox
-                id="clear-existing-toggle"
-                checked={clearExisting}
-                onCheckedChange={handleCheckboxClick}
-                disabled={isSaving}
-              />
-              <label
-                htmlFor="clear-existing-toggle"
-                onClick={handleCheckboxClick}
-                className="font-medium text-slate-700 dark:text-zinc-300 cursor-pointer select-none"
-              >
-                Clear existing M&A debt schedules before saving (Recommended)
-              </label>
-            </div>
+            {allowClearExisting ? (
+              <div className="flex items-center gap-2 text-xs">
+                <Checkbox
+                  id="clear-existing-toggle"
+                  checked={clearExisting}
+                  onCheckedChange={handleCheckboxClick}
+                  disabled={isSaving}
+                />
+                <label
+                  htmlFor="clear-existing-toggle"
+                  onClick={handleCheckboxClick}
+                  className="font-medium text-slate-700 dark:text-zinc-300 cursor-pointer select-none"
+                >
+                  Clear existing M&A debt schedules before saving (Recommended)
+                </label>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Existing schedules for these payees are updated; new payees are added. Nothing is removed.
+              </p>
+            )}
 
             <div className="flex items-center gap-2.5">
               <Button
