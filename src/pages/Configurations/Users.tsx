@@ -84,7 +84,7 @@ export default function Users() {
       toast.success("User created successfully");
       setIsDialogOpen(false);
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || "Failed to create user"),
+    onError: (err: any) => toast.error(err.message || "Failed to create user"),
   });
 
   const updateMutation = useMutation({
