@@ -168,7 +168,19 @@ export default function Sidebar({
                   }`}
                 >
                   {item.subItems.map((sub) => {
-                    const isSubActive = location.pathname === sub.path || location.pathname.startsWith(sub.path + "/");
+                    const currentParams = new URLSearchParams(location.search);
+                    const matchesLocation = (path: string) => {
+                      const [subPath, subQuery] = path.split("?");
+                      const pathMatches = location.pathname === subPath || location.pathname.startsWith(subPath + "/");
+                      if (!pathMatches || !subQuery) return pathMatches;
+                      return Array.from(new URLSearchParams(subQuery)).every(
+                        ([key, value]) => (currentParams.get(key) || "").toUpperCase() === value.toUpperCase()
+                      );
+                    };
+                    const isSubActive = sub.path.includes("?")
+                      ? matchesLocation(sub.path)
+                      : matchesLocation(sub.path) &&
+                        !item.subItems!.some(other => other.path.includes("?") && matchesLocation(other.path));
                     return (
                       <Link
                         key={sub.path}
