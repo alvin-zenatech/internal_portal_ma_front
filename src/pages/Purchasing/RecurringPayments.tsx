@@ -339,6 +339,8 @@ export default function RecurringPayments() {
 
   // File import & preview state
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const masterListInputRef = useRef<HTMLInputElement>(null);
+  const [importSource, setImportSource] = useState<"debt_schedule" | "master_list">("debt_schedule");
   const [isImporting, setIsImporting] = useState(false);
   const [previewData, setPreviewData] = useState<DebtSchedulePreviewData | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -387,6 +389,7 @@ export default function RecurringPayments() {
         formData
       );
       if (res && res.records && res.records.length > 0) {
+        setImportSource("debt_schedule");
         setPreviewData(res);
         setPreviewFile(file);
         setIsPreviewOpen(true);
@@ -403,10 +406,54 @@ export default function RecurringPayments() {
     }
   };
 
+  const handleMasterListSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsImporting(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await apiClient.post<DebtSchedulePreviewData>(
+        "/api/purchasing/preview-master-list",
+        formData
+      );
+      if (res && res.records && res.records.length > 0) {
+        setImportSource("master_list");
+        setPreviewData(res);
+        setPreviewFile(file);
+        setIsPreviewOpen(true);
+      } else {
+        toast.error("No valid payments found in the master list.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to read the master list");
+    } finally {
+      setIsImporting(false);
+      if (masterListInputRef.current) {
+        masterListInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleSaveImport = async (clearExisting: boolean, recordsToSave?: DebtSchedulePreviewRecord[]) => {
     if (!previewData) return;
     try {
       setIsSavingImport(true);
+      if (importSource === "master_list") {
+        const masterForm = new FormData();
+        masterForm.append("records_json", JSON.stringify(recordsToSave || previewData.records));
+        const res = await apiClient.post<any>("/api/purchasing/import-master-list", masterForm);
+        toast.success(
+          `Master list saved: ${res.created_count ?? 0} new and ${res.updated_count ?? 0} updated schedules.`
+        );
+        setIsPreviewOpen(false);
+        setPreviewData(null);
+        setPreviewFile(null);
+        queryClient.invalidateQueries({ queryKey: ["recurring-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+        return;
+      }
       const formData = new FormData();
       if (previewFile) {
         formData.append("file", previewFile);
@@ -1457,6 +1504,25 @@ export default function RecurringPayments() {
             >
               <FileSpreadsheet size={15} />
               <span>{isImporting ? "Importing..." : "Import Debt Schedule"}</span>
+            </Button>
+
+            <input
+              type="file"
+              ref={masterListInputRef}
+              onChange={handleMasterListSelect}
+              accept=".xlsx, .xlsm, .csv"
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => masterListInputRef.current?.click()}
+              disabled={isImporting}
+              className="h-9 gap-1.5 border-emerald-600/40 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:border-emerald-600/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40 font-medium"
+              title="Import a master list of payments (Payment Date, Payment Amount, Payee, Currency, Note Type) from .xlsx/.xlsm/.csv"
+            >
+              <FileSpreadsheet size={15} />
+              <span>Import Master List</span>
             </Button>
 
             <Button
@@ -3167,6 +3233,7 @@ export default function RecurringPayments() {
         fileName={previewFile?.name}
         onSave={handleSaveImport}
         isSaving={isSavingImport}
+        allowClearExisting={importSource !== "master_list"}
       />
     </div>
   );

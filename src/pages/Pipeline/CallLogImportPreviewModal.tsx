@@ -414,6 +414,8 @@ const TableRowItem = React.memo(function TableRowItem({
         )}
       </TableCell>
 
+      <TableCell className="text-xs py-1.5 px-2.5 truncate max-w-[180px]" title={row.email}>{row.email || '-'}</TableCell>
+
       <TableCell className="text-xs whitespace-nowrap py-1.5 px-2.5">{row.date_of_call || '-'}</TableCell>
       <TableCell className="text-xs text-center font-medium py-1.5 px-2.5">{formatYesNo(row.kdm || row.raw_kdm) || '-'}</TableCell>
       <TableCell className="text-xs text-center font-medium py-1.5 px-2.5">{formatYesNo(row.picked_up) || '-'}</TableCell>
@@ -1028,6 +1030,7 @@ export default function CallLogImportPreviewModal({
         { header: 'Contact', accessor: (r) => r.contact_name || r.raw_contact_name || '' },
         { header: 'Position', accessor: (r) => r.position || r.raw_position || '' },
         { header: 'Phone', accessor: (r) => r.phone_number || r.raw_phone_number || '' },
+        { header: 'Email', accessor: (r) => r.email || '' },
         { header: 'Date', accessor: (r) => r.date_of_call || '' },
         { header: 'KDM', accessor: (r) => r.kdm || r.raw_kdm || '' },
         { header: 'Picked Up?', accessor: (r) => r.picked_up || '' },
@@ -1283,6 +1286,7 @@ export default function CallLogImportPreviewModal({
                 <TableHead className="w-[100px] py-1.5 px-2.5 font-semibold text-xs">Country</TableHead>
                 <TableHead className="w-[150px] py-1.5 px-2.5 font-semibold text-xs">Contact</TableHead>
                 <TableHead className="w-[140px] py-1.5 px-2.5 font-semibold text-xs">Phone</TableHead>
+                <TableHead className="w-[180px] py-1.5 px-2.5 font-semibold text-xs">Email</TableHead>
                 <TableHead className="w-[110px] py-1.5 px-2.5 font-semibold text-xs">Date</TableHead>
                 <TableHead className="w-[90px] py-1.5 px-2.5 text-center font-semibold text-xs">KDM</TableHead>
                 <TableHead className="w-[100px] py-1.5 px-2.5 text-center font-semibold text-xs">Picked Up?</TableHead>
