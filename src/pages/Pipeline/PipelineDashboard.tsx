@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import PipelineListView from "./PipelineListView";
 import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
+import MultiPhoneInput from "@/components/Pipeline/MultiPhoneInput";
 import { 
   usePipelineTasks, 
   usePipelineUsers,
@@ -640,23 +641,21 @@ export default function PipelineDashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 min-w-0">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  value={newCompanyEmail}
-                  onChange={(e) => setNewCompanyEmail(e.target.value)}
-                  placeholder="contact@company.com"
-                />
-              </div>
-              <div className="space-y-2 min-w-0">
-                <label className="text-sm font-medium">Phone</label>
-                <Input
-                  value={newCompanyPhone}
-                  onChange={(e) => setNewCompanyPhone(e.target.value)}
-                  placeholder="Phone number"
-                />
-              </div>
+            <div className="space-y-2 min-w-0">
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                value={newCompanyEmail}
+                onChange={(e) => setNewCompanyEmail(e.target.value)}
+                placeholder="contact@company.com"
+              />
+            </div>
+
+            <div className="space-y-2 min-w-0">
+              <label className="text-sm font-medium">Phone Number(s)</label>
+              <MultiPhoneInput
+                value={newCompanyPhone}
+                onChange={setNewCompanyPhone}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

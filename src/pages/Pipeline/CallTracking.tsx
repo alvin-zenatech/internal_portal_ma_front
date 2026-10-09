@@ -23,7 +23,7 @@ function formatCallLocation(stateProvince?: string | null, rawCountry?: string |
   return state || country || "-";
 }
 
-import { type ExportColumn } from "@/lib/exportUtils";
+import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
@@ -801,13 +801,6 @@ export default function CallTracking() {
           onDashboard: dashboardCompanies.has((calls[0].company_name || '').toLowerCase().trim()),
         };
       };
-      const getCellFills = (calls: CallLog[]): Record<string, string | undefined> => {
-        const flags = getFlags(calls);
-        return {
-          company_name: flags.onDashboard ? "FFFFEB9C" : undefined,
-          current_status: flags.callScheduled ? "FFC6EFCE" : flags.notInterested ? "FFFFC7CE" : undefined,
-        };
-      };
       columnMap.flag = {
         header: "Flag",
         accessor: (calls) => {
@@ -819,42 +812,15 @@ export default function CallTracking() {
           ].filter(Boolean).join("\n");
         },
       };
-      const columnWidths: Record<string, number> = {
-        flag: 18, call_count: 8, company_name: 30, industry: 22, location: 20, contact_name: 22, phone_number: 18,
-        date_of_call: 14, kdm: 8, picked_up: 10, current_status: 22, latest_analyst: 18, call_length: 12, notes: 60,
-      };
 
       const visibleIds = ["flag", ...table.getVisibleLeafColumns().map(col => col.id).filter(id => columnMap[id])];
 
-      const { default: ExcelJS } = await import("exceljs");
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("Call Tracking", { views: [{ state: "frozen", ySplit: 1 }] });
-      sheet.columns = visibleIds.map(id => ({ header: columnMap[id].header, width: columnWidths[id] ?? 18 }));
-      sheet.getRow(1).font = { bold: true };
-      sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: visibleIds.length } };
-      companyRows.forEach(calls => {
-        const values = visibleIds.map(id => columnMap[id].accessor(calls) ?? "");
-        const row = sheet.addRow(values);
-        row.alignment = { vertical: "top", wrapText: true };
-        const lineCount = Math.max(1, ...values.map((val, i) => {
-          const charsPerLine = Math.max(1, (columnWidths[visibleIds[i]] ?? 18) - 1);
-          return String(val).split("\n").reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
-        }));
-        row.height = lineCount * 15;
-        const fills = getCellFills(calls);
-        visibleIds.forEach((id, i) => {
-          const fill = fills[id];
-          if (fill) row.getCell(i + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
-        });
-      });
+      const exportCols: ExportColumn<any>[] = visibleIds.map(id => ({
+        header: columnMap[id].header,
+        accessor: (calls) => columnMap[id].accessor(calls) ?? ""
+      }));
 
-      const buffer = await workbook.xlsx.writeBuffer();
-      const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `call_tracking_${new Date().toLocaleDateString("en-CA")}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      exportToCsv(companyRows, exportCols, "call_tracking");
       toast.success("Call tracking exported successfully");
     } catch (e: any) {
       toast.error(e?.message || "Failed to export call tracking");

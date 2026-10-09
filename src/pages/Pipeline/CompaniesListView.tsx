@@ -7,11 +7,13 @@ import { useSearchParams } from "react-router-dom";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, ArrowUpDown, Building2, User, Mail, Phone, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, ArrowUpDown, Building2, User, Mail, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
+import MultiPhoneInput from "@/components/Pipeline/MultiPhoneInput";
+import PhoneDisplay from "@/components/Pipeline/PhoneDisplay";
 
 export default function CompaniesListView() {
 
@@ -159,13 +161,12 @@ export default function CompaniesListView() {
           {row.original.email && (
             <div className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-              {row.original.email}
+              <a href={`mailto:${row.original.email}`} className="hover:underline">{row.original.email}</a>
             </div>
           )}
           {row.original.phone && (
-            <div className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-              {row.original.phone}
+            <div className="flex items-start gap-1.5 pt-0.5">
+              <PhoneDisplay phone={row.original.phone} mode="badges" />
             </div>
           )}
           {!row.original.email && !row.original.phone && (
@@ -351,25 +352,22 @@ export default function CompaniesListView() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div className="space-y-1.5 min-w-0">
-                <label className="text-xs sm:text-sm font-medium">Email</label>
-                <Input 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)} 
-                  placeholder="contact@company.com" 
-                  className="h-8.5 sm:h-9 text-xs sm:text-sm"
-                />
-              </div>
-              <div className="space-y-1.5 min-w-0">
-                <label className="text-xs sm:text-sm font-medium">Phone</label>
-                <Input 
-                  value={phone} 
-                  onChange={e => setPhone(e.target.value)} 
-                  placeholder="Phone number" 
-                  className="h-8.5 sm:h-9 text-xs sm:text-sm"
-                />
-              </div>
+            <div className="space-y-1.5 min-w-0">
+              <label className="text-xs sm:text-sm font-medium">Email</label>
+              <Input 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                placeholder="contact@company.com" 
+                className="h-8.5 sm:h-9 text-xs sm:text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5 min-w-0">
+              <label className="text-xs sm:text-sm font-medium">Phone Number(s)</label>
+              <MultiPhoneInput 
+                value={phone} 
+                onChange={setPhone} 
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

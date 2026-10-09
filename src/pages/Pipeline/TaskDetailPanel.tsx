@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Building2, User, Mail, Phone, Edit, MessageSquare, Edit2, Trash2, Paperclip, X, Loader2, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import PhoneDisplay from "@/components/Pipeline/PhoneDisplay";
 import { BASE_URL } from "@/services/apiClient";
 import { useAuth } from "@/lib/AuthContext";
 import CallTrackingDetails from "./CallTrackingDetails";
@@ -90,7 +91,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                   <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> {task.name}</span>
                   {task.industry_name && <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {task.industry_name}</span>}
                   <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {task.email}</span>
-                  {task.phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {task.phone}</span>}
+                  {task.phone && <PhoneDisplay phone={task.phone} mode="badges" />}
                 </div>
               </div>
               <div className="flex items-center gap-2 sm:mr-8 shrink-0">
@@ -176,6 +177,16 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                       <dd className="font-medium">{new Date(task.created_at).toLocaleString()}</dd>
                     </div>
                   </div>
+
+                  {/* Dedicated Phone Numbers Section */}
+                  <div className="sm:col-span-2 pt-2 border-t border-border/60">
+                    <dt className="text-muted-foreground mb-1.5 font-medium flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 text-primary" /> Phone Number(s)
+                    </dt>
+                    <dd>
+                      <PhoneDisplay phone={task.phone} mode="list" />
+                    </dd>
+                  </div>
                 </dl>
 
                 {/* Call Logs */}
@@ -232,7 +243,7 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                                     <div className="flex flex-col"><span className="text-muted-foreground">Contact</span><span className="font-medium">{log.contact_name}</span></div>
                                   )}
                                   {log.phone_number && (
-                                    <div className="flex flex-col"><span className="text-muted-foreground">Phone</span><span className="font-medium">{log.phone_number}</span></div>
+                                    <div className="flex flex-col"><span className="text-muted-foreground">Phone</span><PhoneDisplay phone={log.phone_number} mode="badges" /></div>
                                   )}
                                   {log.kdm && (
                                     <div className="flex flex-col"><span className="text-muted-foreground">KDM</span><span className="font-medium">{formatYesNo(log.kdm)}</span></div>

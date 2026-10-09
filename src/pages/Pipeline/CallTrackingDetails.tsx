@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatYesNo, formatPhoneNumber } from "@/lib/utils";
+import { formatYesNo } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Loader2 } from "lucide-react";
 import { AutocompleteInput } from "@/components/ui/autocomplete-input";
+import MultiPhoneInput from "@/components/Pipeline/MultiPhoneInput";
+import PhoneDisplay from "@/components/Pipeline/PhoneDisplay";
 
 export default function CallTrackingDetails({ 
   companyName, 
@@ -203,7 +205,7 @@ export default function CallTrackingDetails({
             await createCompany({
               name: trimmedName,
               contact_name: formData.contact_name || undefined,
-              phone: formData.phone_number?.replace(/ \((Personal|Office)\)$/, '').trim() || undefined,
+              phone: formData.phone_number?.trim() || undefined,
             });
           } catch (e) {
             console.error("Failed to auto-create company on save", e);
@@ -353,32 +355,12 @@ export default function CallTrackingDetails({
                   </div>
                   
                   {/* Row 4: Phone Number, Call Length */}
-                  <div className="space-y-1 text-left w-full">
-                    <label className="font-medium text-xs sm:text-sm">Phone Number</label>
-                    <div className="flex gap-2">
-                      <Input 
-                        value={formData.phone_number?.replace(/ \((Personal|Office)\)$/, '') || ''} 
-                        onChange={e => {
-                          const type = formData.phone_number?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
-                          setFormData({...formData, phone_number: e.target.value ? `${e.target.value} (${type})` : ''})
-                        }}
-                        placeholder="e.g. 555-123-4567"
-                        className="flex-1 h-8.5 sm:h-9 text-xs sm:text-sm"
-                      />
-                      <Select 
-                        value={formData.phone_number?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
-                        onValueChange={val => {
-                          const num = formData.phone_number?.replace(/ \((Personal|Office)\)$/, '') || '';
-                          setFormData({...formData, phone_number: num ? `${num} (${val})` : ` (${val})`})
-                        }}
-                      >
-                        <SelectTrigger className="w-[100px] sm:w-[120px] h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Personal">Personal</SelectItem>
-                          <SelectItem value="Office">Office</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-1 text-left w-full sm:col-span-2">
+                    <label className="font-medium text-xs sm:text-sm">Phone Number(s)</label>
+                    <MultiPhoneInput 
+                      value={formData.phone_number} 
+                      onChange={(val) => setFormData({ ...formData, phone_number: val })}
+                    />
                   </div>
                   <div className="space-y-1 text-left w-full">
                     <label className="font-medium text-xs sm:text-sm">Call Length</label>
@@ -469,7 +451,7 @@ export default function CallTrackingDetails({
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-3 text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-md">
                   <div>Contact: <span className="text-foreground font-medium">{log.contact_name || '-'}</span></div>
-                  <div>Phone: <span className="text-foreground font-medium">{formatPhoneNumber(log.phone_number) || '-'}</span></div>
+                  <div className="flex items-center gap-1.5">Phone: <PhoneDisplay phone={log.phone_number} mode="badges" /></div>
                   <div>KDM: <span className="text-foreground font-medium">{formatYesNo(log.kdm)}</span> | Picked up: <span className="text-foreground font-medium">{formatYesNo(log.picked_up)}</span></div>
                   <div>Analyst: <span className="text-foreground font-medium">{getAnalystName(log.analyst)}</span></div>
                 </div>

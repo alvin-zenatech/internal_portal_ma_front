@@ -27,6 +27,8 @@ import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import ExecutionAnalystSelect from "@/components/Pipeline/ExecutionAnalystSelect";
 import BDAnalystSelect from "@/components/Pipeline/BDAnalystSelect";
+import MultiPhoneInput from "@/components/Pipeline/MultiPhoneInput";
+import { parsePhoneNumbers } from "@/lib/phoneUtils";
 
 export default function TaskFormModal({ open, onOpenChange, task }: { open: boolean, onOpenChange: (o: boolean) => void, task: PipelineTask | null }) {
   const { data: industries } = useIndustries();
@@ -87,9 +89,10 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const parsedPhones = parsePhoneNumbers(formData.phone);
       if (
         !formData.company_name || !formData.name || !formData.email || 
-        !formData.phone?.replace(/ \((Personal|Office)\)$/, '').trim() || 
+        parsedPhones.length === 0 || 
         !formData.priority_id || !formData.analyst_id || !formData.industry_id || 
         !formData.country_code || !formData.state_code || 
         (!task && !formData.notes)
@@ -157,7 +160,7 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                         name,
                         contact_name: formData.name?.trim() || undefined,
                         email: formData.email?.trim() || undefined,
-                        phone: formData.phone?.replace(/ \((Personal|Office)\)$/, '').trim() || undefined,
+                        phone: formData.phone?.trim() || undefined,
                         location: [formData.state_code, formData.country_code].filter(Boolean).join(", ") || undefined,
                         state_name: formData.state_code?.trim() || undefined,
                         country_code: formData.country_code?.trim() || undefined,
@@ -183,32 +186,14 @@ export default function TaskFormModal({ open, onOpenChange, task }: { open: bool
                 <Label className="text-xs sm:text-sm">Email *</Label>
                 <Input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="h-8.5 sm:h-9 text-xs sm:text-sm" />
               </div>
-              <div className="space-y-1.5 min-w-0">
-                <Label className="text-xs sm:text-sm">Phone *</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    required 
-                    value={formData.phone?.replace(/ \((Personal|Office)\)$/, '') || ''} 
-                    onChange={e => {
-                      const type = formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal';
-                      setFormData({...formData, phone: `${e.target.value} (${type})`})
-                    }}
-                    className="flex-1 h-8.5 sm:h-9 text-xs sm:text-sm"
-                  />
-                  <Select 
-                    value={formData.phone?.match(/ \((Personal|Office)\)$/)?.[1] || 'Personal'} 
-                    onValueChange={val => {
-                      const num = formData.phone?.replace(/ \((Personal|Office)\)$/, '') || '';
-                      setFormData({...formData, phone: num ? `${num} (${val})` : ` (${val})`})
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px] sm:w-[120px] h-8.5 sm:h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Personal">Personal</SelectItem>
-                      <SelectItem value="Office">Office</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+              <div className="space-y-1.5 min-w-0 sm:col-span-2">
+                <Label className="text-xs sm:text-sm">Phone Number(s) *</Label>
+                <MultiPhoneInput 
+                  value={formData.phone} 
+                  onChange={(val) => setFormData((prev: any) => ({ ...prev, phone: val }))}
+                  required
+                />
               </div>
 
               <div className="space-y-1.5 min-w-0">

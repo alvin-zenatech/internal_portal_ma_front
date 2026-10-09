@@ -81,7 +81,11 @@ export interface PipelineTask {
 export interface DoNotContactRecord {
   id: number;
   company_name: string;
-  reason?: string;
+  location?: string | null;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  reason?: string | null;
   added_by?: string;
   created_at: string;
 }
@@ -781,7 +785,14 @@ export function useDoNotContactList() {
 export function useCreateDoNotContact() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { company_name: string; reason?: string }) => {
+    mutationFn: async (data: { 
+      company_name: string; 
+      location?: string | null; 
+      contact_name?: string | null; 
+      phone?: string | null; 
+      email?: string | null; 
+      reason?: string | null;
+    }) => {
       return await api.post("/api/pipeline/do-not-contact", data);
     },
     onSuccess: () => {
@@ -795,7 +806,17 @@ export function useCreateDoNotContact() {
 export function useUpdateDoNotContact() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { company_name: string; reason?: string } }) => {
+    mutationFn: async ({ id, data }: { 
+      id: number; 
+      data: { 
+        company_name: string; 
+        location?: string | null; 
+        contact_name?: string | null; 
+        phone?: string | null; 
+        email?: string | null; 
+        reason?: string | null;
+      } 
+    }) => {
       return await api.put(`/api/pipeline/do-not-contact/${id}`, data);
     },
     onSuccess: () => {
