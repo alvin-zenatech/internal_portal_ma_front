@@ -35,6 +35,7 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
         { header: "Contact", accessor: (r) => r.contact_name || r.raw_contact_name || "" },
         { header: "Position", accessor: (r) => r.position || r.raw_position || "" },
         { header: "Phone", accessor: (r) => r.phone_number || r.raw_phone_number || "" },
+        { header: "Email", accessor: (r) => r.email || "" },
         { header: "Date", accessor: (r) => r.date_of_call || "" },
         { header: "KDM", accessor: (r) => r.kdm || r.raw_kdm || "" },
                 { header: "Picked Up?", accessor: (r) => r.picked_up || "" },

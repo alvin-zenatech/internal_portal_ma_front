@@ -595,6 +595,7 @@ export interface CallTrackingSummary {
   outcome?: string | null;
   latest_analyst: string | null;
   phone_number: string | null;
+  email?: string | null;
   picked_up: string | null;
   call_length: string | null;
   notes?: string | null;
@@ -610,6 +611,7 @@ export type CallLog = {
   contact_name?: string;
   kdm?: string;
   phone_number?: string;
+  email?: string;
   date_of_call?: string;
   picked_up?: string;
   outcome?: string;

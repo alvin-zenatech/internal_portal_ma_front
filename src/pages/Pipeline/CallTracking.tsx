@@ -590,6 +590,12 @@ export default function CallTracking() {
         size: 160
       },
       {
+        accessorKey: 'email',
+        header: ({ column }) => <ColumnHeader column={column} title="Email" />,
+        cell: ({ row }) => <span>{row.original.email || '-'}</span>,
+        size: 200
+      },
+      {
         accessorKey: 'date_of_call',
         accessorFn: (row) => formatDate(row.date_of_call) || "-",
         header: ({ column }) => <ColumnHeader column={column} title="Date of Call" />,
@@ -691,6 +697,7 @@ export default function CallTracking() {
     'location',
     'contact_name',
     'phone_number',
+    'email',
     'date_of_call',
     'kdm',
     'picked_up',
@@ -705,13 +712,19 @@ export default function CallTracking() {
   const { data: dbColumnSettings } = useTableColumnOrder('call-tracking');
   const updateColumnOrder = useUpdateTableColumnOrder();
 
+  const withEmailColumn = (list: string[]) => {
+    if (list.includes('email')) return list;
+    const phoneIndex = list.indexOf('phone_number');
+    return phoneIndex === -1 ? [...list, 'email'] : [...list.slice(0, phoneIndex + 1), 'email', ...list.slice(phoneIndex + 1)];
+  };
+
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('call_tracking_column_order_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const list = parsed.filter(c => c !== 'call_count');
+          const list = withEmailColumn(parsed.filter(c => c !== 'call_count'));
           return ['call_count', ...list];
         }
       }
@@ -721,7 +734,7 @@ export default function CallTracking() {
 
   useEffect(() => {
     if (dbColumnSettings?.column_order && Array.isArray(dbColumnSettings.column_order) && dbColumnSettings.column_order.length > 0) {
-      const list = dbColumnSettings.column_order.filter(c => c !== 'call_count');
+      const list = withEmailColumn(dbColumnSettings.column_order.filter(c => c !== 'call_count'));
       setColumnOrder(['call_count', ...list]);
     }
   }, [dbColumnSettings]);
@@ -770,6 +783,7 @@ export default function CallTracking() {
         }},
         contact_name: { header: "Contact Name", getValue: (r) => r.contact_name || "" },
         phone_number: { header: "Phone Number", getValue: (r) => formatPhoneNumber(r.phone_number) || "" },
+        email: { header: "Email", getValue: (r) => r.email || "" },
         date_of_call: { header: "Date of Call", getValue: (r) => formatDate(r.date_of_call) || "", alwaysPerCall: true },
         kdm: { header: "KDM", getValue: (r) => formatYesNo(r.kdm) },
         picked_up: { header: "Picked Up", getValue: (r) => formatYesNo(r.picked_up) },
@@ -820,7 +834,7 @@ export default function CallTracking() {
         },
       };
       const columnWidths: Record<string, number> = {
-        flag: 18, call_count: 8, company_name: 30, industry: 22, location: 20, contact_name: 22, phone_number: 18,
+        flag: 18, call_count: 8, company_name: 30, industry: 22, location: 20, contact_name: 22, phone_number: 18, email: 28,
         date_of_call: 14, kdm: 8, picked_up: 10, current_status: 22, latest_analyst: 18, call_length: 12, notes: 60,
       };
 
