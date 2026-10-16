@@ -28,7 +28,7 @@ import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallLogs, usePipelineTasks, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useCallLogs, usePipelineTasks, useDoNotContactList, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -316,6 +316,7 @@ export default function CallTracking() {
 
   const { data: callLogs, isLoading, refetch } = useCallLogs();
   const { data: pipelineTasks } = usePipelineTasks();
+  const { data: doNotContactList } = useDoNotContactList();
   const { data: users } = usePipelineUsers();
   const isSuperAdminUser = (u: any) => {
     if (u.is_super_admin === true || u.isSuperAdmin === true) return true;
@@ -807,9 +808,19 @@ export default function CallTracking() {
         (pipelineTasks || []).map(t => (t.company_name || '').toLowerCase().trim()).filter(Boolean)
       );
 
+      if (!doNotContactList) {
+        toast.warning("Couldn't load the Do Not Contact list, so the export won't flag those companies.");
+      }
+      // Ignore case and spacing so "Acme  Inc" still matches "acme inc"
+      const normalizeCompany = (name?: string | null) => (name || '').toLowerCase().replace(/\s+/g, '');
+      const doNotContactCompanies = new Set(
+        (doNotContactList || []).map(d => normalizeCompany(d.company_name)).filter(Boolean)
+      );
+
       const getFlags = (calls: CallLog[]) => {
         const outcomes = calls.map(c => (c.outcome || '').toLowerCase());
         return {
+          doNotContact: doNotContactCompanies.has(normalizeCompany(calls[0].company_name)),
           callScheduled: outcomes.some(o => o.includes("call scheduled")),
           notInterested: outcomes.some(o => o.includes("not interested")),
           onDashboard: dashboardCompanies.has((calls[0].company_name || '').toLowerCase().trim()),
@@ -820,6 +831,7 @@ export default function CallTracking() {
         accessor: (calls) => {
           const flags = getFlags(calls);
           return [
+            flags.doNotContact && "Do Not Contact",
             flags.callScheduled && "Call Scheduled",
             flags.notInterested && "Not Interested",
             flags.onDashboard && "On Dashboard",
