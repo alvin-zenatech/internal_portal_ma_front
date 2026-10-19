@@ -13,8 +13,16 @@ import {
   MapPin, 
   Phone, 
   FileText,
-  Clock
+  Clock,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  X
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo } from "react";
 import { 
   useDoNotContactList, 
@@ -44,6 +52,127 @@ import PhoneDisplay from "@/components/Pipeline/PhoneDisplay";
 const formatDncLocation = (r: { location?: string | null; state_province?: string | null }) =>
   [r.state_province, r.location].map((v) => (v || "").trim()).filter(Boolean).join(", ");
 
+const BLANK = "(Blank)";
+type DncColumnKey = "company" | "contact" | "contact_info" | "location" | "reason" | "date_added";
+type DncSort = { key: DncColumnKey; desc: boolean };
+
+// What each column filters on (a row can match several values) and sorts by
+const DNC_COLUMNS: Record<DncColumnKey, {
+  filterValues: (r: DoNotContactRecord) => string[];
+  sortValue: (r: DoNotContactRecord) => string | number;
+}> = {
+  company: { filterValues: (r) => [r.company_name?.trim() || BLANK], sortValue: (r) => (r.company_name || "").trim().toLowerCase() },
+  contact: { filterValues: (r) => [r.contact_name?.trim() || BLANK], sortValue: (r) => (r.contact_name || "").trim().toLowerCase() },
+  contact_info: {
+    filterValues: (r) => {
+      const values = [r.email?.trim() && "Has email", r.phone?.trim() && "Has phone"].filter(Boolean) as string[];
+      return values.length ? values : ["No contact info"];
+    },
+    sortValue: (r) => (r.email || r.phone || "").trim().toLowerCase(),
+  },
+  location: { filterValues: (r) => [formatDncLocation(r) || BLANK], sortValue: (r) => formatDncLocation(r).toLowerCase() },
+  reason: { filterValues: (r) => [r.reason?.trim() || BLANK], sortValue: (r) => (r.reason || "").trim().toLowerCase() },
+  date_added: {
+    filterValues: (r) => [r.created_at ? new Date(r.created_at).toLocaleDateString() : BLANK],
+    sortValue: (r) => (r.created_at ? Date.parse(r.created_at) : 0),
+  },
+};
+
+function DncColumnHeader({
+  title,
+  columnKey,
+  sort,
+  onSort,
+  rows,
+  selected,
+  onFilterChange,
+}: {
+  title: string;
+  columnKey: DncColumnKey;
+  sort: DncSort;
+  onSort: (key: DncColumnKey) => void;
+  rows: DoNotContactRecord[];
+  selected: string[];
+  onFilterChange: (key: DncColumnKey, values: string[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const options = useMemo(() => {
+    if (!isOpen) return [];
+    const counts = new Map<string, number>();
+    rows.forEach((r) => DNC_COLUMNS[columnKey].filterValues(r).forEach((v) => counts.set(v, (counts.get(v) || 0) + 1)));
+    return Array.from(counts.entries())
+      .sort(([a], [b]) => (a === BLANK ? 1 : b === BLANK ? -1 : a.localeCompare(b)))
+      .filter(([v]) => v.toLowerCase().includes(query.toLowerCase().trim()));
+  }, [isOpen, rows, columnKey, query]);
+
+  const toggle = (value: string) =>
+    onFilterChange(columnKey, selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+
+  const isSorted = sort.key === columnKey;
+  const SortIcon = !isSorted ? ArrowUpDown : sort.desc ? ArrowDown : ArrowUp;
+
+  return (
+    <div className="flex items-center gap-0.5 group whitespace-nowrap min-w-0">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-1.5 h-7 min-w-0 px-1.5 text-xs font-semibold justify-start"
+        onClick={() => onSort(columnKey)}
+      >
+        <span className="truncate">{title}</span>
+        <SortIcon className={cn("ml-1 h-3 w-3 shrink-0", isSorted ? "opacity-100" : "opacity-50 group-hover:opacity-100")} />
+      </Button>
+      <Popover open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setQuery(""); }}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-5 shrink-0 -ml-1" aria-label={`Filter ${title}`}>
+            <Filter className={cn("h-3 w-3", selected.length ? "text-primary opacity-100" : "text-muted-foreground opacity-50 group-hover:opacity-100")} />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="start">
+          <div className="space-y-2.5">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder={`Search ${title.toLowerCase()}...`}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-8 pl-8 text-xs bg-muted/30"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+              {options.length ? options.map(([value, count]) => (
+                <div key={value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`dnc-filter-${columnKey}-${value}`}
+                    checked={selected.includes(value)}
+                    onCheckedChange={() => toggle(value)}
+                  />
+                  <Label
+                    htmlFor={`dnc-filter-${columnKey}-${value}`}
+                    className={cn("text-sm font-normal cursor-pointer leading-none flex-1 truncate", value === BLANK && "italic text-muted-foreground")}
+                  >
+                    {value}
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{count}</span>
+                </div>
+              )) : (
+                <div className="text-xs text-muted-foreground text-center py-4">No values</div>
+              )}
+            </div>
+            {selected.length > 0 && (
+              <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-muted-foreground hover:text-foreground border-t pt-1" onClick={() => onFilterChange(columnKey, [])}>
+                Clear filter ({selected.length})
+              </Button>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export default function DoNotContact() {
   const { data: dncList, isLoading } = useDoNotContactList();
   const createDnc = useCreateDoNotContact();
@@ -67,6 +196,14 @@ export default function DoNotContact() {
   const countryOptions = useMemo(() => (countries || []).map((c) => ({ id: c.name, name: c.name })), [countries]);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [sort, setSort] = useState<DncSort>({ key: "date_added", desc: true });
+  const [columnFilters, setColumnFilters] = useState<Partial<Record<DncColumnKey, string[]>>>({});
+  const activeFilterCount = Object.values(columnFilters).reduce((n, v) => n + (v?.length || 0), 0);
+
+  const handleSort = (key: DncColumnKey) =>
+    setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key === "date_added" }));
+  const handleFilterChange = (key: DncColumnKey, values: string[]) =>
+    setColumnFilters((f) => ({ ...f, [key]: values.length ? values : undefined }));
 
   // Add modal state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -102,18 +239,33 @@ export default function DoNotContact() {
 
   const filteredList = useMemo(() => {
     if (!dncList) return [];
-    if (!searchTerm.trim()) return dncList;
     const term = searchTerm.toLowerCase().trim();
-    return dncList.filter((record) =>
-      record.company_name?.toLowerCase().includes(term) ||
-      record.contact_name?.toLowerCase().includes(term) ||
-      record.email?.toLowerCase().includes(term) ||
-      record.phone?.toLowerCase().includes(term) ||
-      record.location?.toLowerCase().includes(term) ||
-      record.state_province?.toLowerCase().includes(term) ||
-      record.reason?.toLowerCase().includes(term)
-    );
-  }, [dncList, searchTerm]);
+    const filters = Object.entries(columnFilters).filter(([, v]) => v?.length) as [DncColumnKey, string[]][];
+
+    const rows = dncList.filter((record) => {
+      const matchesSearch = !term ||
+        record.company_name?.toLowerCase().includes(term) ||
+        record.contact_name?.toLowerCase().includes(term) ||
+        record.email?.toLowerCase().includes(term) ||
+        record.phone?.toLowerCase().includes(term) ||
+        record.location?.toLowerCase().includes(term) ||
+        record.state_province?.toLowerCase().includes(term) ||
+        record.reason?.toLowerCase().includes(term);
+      // Every filtered column must match one of its selected values
+      return matchesSearch && filters.every(([key, selected]) =>
+        DNC_COLUMNS[key].filterValues(record).some((v) => selected.includes(v)));
+    });
+
+    const { sortValue } = DNC_COLUMNS[sort.key];
+    return rows.sort((a, b) => {
+      const va = sortValue(a), vb = sortValue(b);
+      // Blanks go last whichever way the column is sorted
+      if (va === "" || va === 0) return vb === "" || vb === 0 ? 0 : 1;
+      if (vb === "" || vb === 0) return -1;
+      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return sort.desc ? -cmp : cmp;
+    });
+  }, [dncList, searchTerm, columnFilters, sort]);
 
   const handleExportDnc = () => {
     try {
@@ -128,7 +280,8 @@ export default function DoNotContact() {
         { header: "Reason / Notes", accessor: (r) => r.reason || "" },
         { header: "Date Added", accessor: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString() : "" },
       ];
-      exportToCsv(dataToExport.length > 0 ? dataToExport : (dncList || []), cols, "do_not_contact_list");
+      // Export exactly what's on screen (search, filters and sort applied)
+      exportToCsv(dataToExport, cols, "do_not_contact_list");
       toast.success("Do Not Contact list exported successfully");
     } catch (e: any) {
       toast.error(e?.message || "Failed to export Do Not Contact list");
@@ -264,6 +417,18 @@ export default function DoNotContact() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap ml-auto sm:ml-0">
+              {(activeFilterCount > 0 || searchTerm.trim()) && (
+                <>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    Showing {filteredList.length} of {dncList?.length || 0}
+                  </span>
+                  {activeFilterCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => setColumnFilters({})} className="gap-1 h-8.5 sm:h-9 text-xs">
+                      <X className="h-3.5 w-3.5" /> Clear filters ({activeFilterCount})
+                    </Button>
+                  )}
+                </>
+              )}
               <Button variant="outline" size="sm" onClick={handleExportDnc} className="gap-1.5 h-8.5 sm:h-9 text-xs">
                 <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Export CSV
               </Button>
@@ -278,12 +443,26 @@ export default function DoNotContact() {
               <Table containerClassName="none">
                 <TableHeader className="sticky top-0 z-10 bg-muted/90 backdrop-blur">
                   <TableRow>
-                    <TableHead className="w-[220px] py-2.5 text-xs font-semibold">Company Name</TableHead>
-                    <TableHead className="w-[160px] py-2.5 text-xs font-semibold">Contact</TableHead>
-                    <TableHead className="w-[240px] py-2.5 text-xs font-semibold">Contact Info</TableHead>
-                    <TableHead className="w-[160px] py-2.5 text-xs font-semibold">Location</TableHead>
-                    <TableHead className="min-w-[180px] py-2.5 text-xs font-semibold">Reason / Notes</TableHead>
-                    <TableHead className="w-[120px] py-2.5 text-xs font-semibold">Date Added</TableHead>
+                    {([
+                      ["company", "Company Name", "w-[220px]"],
+                      ["contact", "Contact", "w-[160px]"],
+                      ["contact_info", "Contact Info", "w-[240px]"],
+                      ["location", "Location", "w-[160px]"],
+                      ["reason", "Reason / Notes", "min-w-[180px]"],
+                      ["date_added", "Date Added", "w-[120px]"],
+                    ] as [DncColumnKey, string, string][]).map(([key, title, width]) => (
+                      <TableHead key={key} className={cn(width, "py-1.5 text-xs font-semibold")}>
+                        <DncColumnHeader
+                          title={title}
+                          columnKey={key}
+                          sort={sort}
+                          onSort={handleSort}
+                          rows={dncList || []}
+                          selected={columnFilters[key] || []}
+                          onFilterChange={handleFilterChange}
+                        />
+                      </TableHead>
+                    ))}
                     <TableHead className="w-[100px] text-right py-2.5 text-xs font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -408,7 +587,7 @@ export default function DoNotContact() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                        {searchTerm ? "No matching Do Not Contact records found." : "The Do Not Contact list is empty."}
+                        {searchTerm || activeFilterCount ? "No matching Do Not Contact records found." : "The Do Not Contact list is empty."}
                       </TableCell>
                     </TableRow>
                   )}
