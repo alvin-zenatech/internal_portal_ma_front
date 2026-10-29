@@ -10,7 +10,6 @@ src/
   assets/                   # Images and icons
   components/               # Reusable UI, one folder per feature
     AppShell/               # Layout chrome: sidebar, top bar, navigation, notifications
-    Dashboard/              # Financial dashboard charts, cards and tables
     Pipeline/               # Pipeline widgets: analyst selects, KPI cards, phone inputs, call-log upload queue
     Purchasing/             # Purchasing dialogs (debt schedule preview)
     common/                 # Shared by several pages: error boundary, route guard
@@ -20,14 +19,10 @@ src/
   pages/                    # One folder per feature/route group
     Auth/                   # Login and pending-access screens
     Configurations/         # Users, roles and permission settings
-    Dashboard/              # Financial dashboard (not currently routed)
     Log/                    # Audit log
     Pipeline/               # M&A deal pipeline: list/kanban views, call tracking, follow-ups, weekly check-in, uploads, master data
     Purchasing/             # Purchase requests, recurring/scheduled payments, wire transfer forms and autocompletes
-    Reports/                # Reconciliation report download (not currently routed)
-    Settings/               # Settings placeholder (not currently routed)
   services/                 # API calls: apiClient + one <feature>Service.ts per backend area
-  template/                 # Excel templates bundled with the app (bank reconciliation)
   types/                    # TypeScript types, one file per feature
   utils/                    # Pure helper functions
   App.tsx                   # Web routes (lazy-loaded pages)
