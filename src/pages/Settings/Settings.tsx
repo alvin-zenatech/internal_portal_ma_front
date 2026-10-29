@@ -1,4 +1,4 @@
-// src/pages/Settings.tsx
+// src/pages/Settings/Settings.tsx
 
 export default function Settings() {
   return (
