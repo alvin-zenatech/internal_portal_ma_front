@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { lazy, Suspense } from "react";
 import { AuthProvider } from "./lib/AuthContext";
 
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/common/ProtectedRoute";
 
 const AppShell = lazy(() => import("./components/AppShell/AppShell"));
 
@@ -12,8 +12,8 @@ const UserRoleAssignment = lazy(() => import("./pages/Configurations/UserRoleAss
 const RoleGroupPermissions = lazy(() => import("./pages/Configurations/RoleGroupPermissions"));
 const RoleApiPermissions = lazy(() => import("./pages/Configurations/RoleApiPermissions"));
 const AuditLog = lazy(() => import("./pages/Log/AuditLog"));
-const Login = lazy(() => import("./pages/Login"));
-const PendingAccess = lazy(() => import("./pages/PendingAccess"));
+const Login = lazy(() => import("./pages/Auth/Login"));
+const PendingAccess = lazy(() => import("./pages/Auth/PendingAccess"));
 
 // Purchasing / Scheduled Payments
 const RecurringPayments = lazy(() => import("./pages/Purchasing/RecurringPayments"));

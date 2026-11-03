@@ -81,7 +81,8 @@ export interface PipelineTask {
 export interface DoNotContactRecord {
   id: number;
   company_name: string;
-  location?: string | null;
+  location?: string | null; // country
+  state_province?: string | null;
   contact_name?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -787,10 +788,11 @@ export function useDoNotContactList() {
 export function useCreateDoNotContact() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { 
-      company_name: string; 
-      location?: string | null; 
-      contact_name?: string | null; 
+    mutationFn: async (data: {
+      company_name: string;
+      location?: string | null;
+      state_province?: string | null;
+      contact_name?: string | null;
       phone?: string | null; 
       email?: string | null; 
       reason?: string | null;
@@ -802,6 +804,7 @@ export function useCreateDoNotContact() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success("Added to Do Not Contact list");
     },
+    onError: (err: Error) => toast.error(err.message || "Failed to add to Do Not Contact list"),
   });
 }
 
@@ -811,9 +814,10 @@ export function useUpdateDoNotContact() {
     mutationFn: async ({ id, data }: { 
       id: number; 
       data: { 
-        company_name: string; 
-        location?: string | null; 
-        contact_name?: string | null; 
+        company_name: string;
+        location?: string | null;
+        state_province?: string | null;
+        contact_name?: string | null;
         phone?: string | null; 
         email?: string | null; 
         reason?: string | null;
@@ -826,6 +830,7 @@ export function useUpdateDoNotContact() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success("Updated Do Not Contact record");
     },
+    onError: (err: Error) => toast.error(err.message || "Failed to update Do Not Contact record"),
   });
 }
 
