@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, KeyRound, ArrowUpDown, Power, Ban, Search, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Plus, Edit, Trash2, KeyRound, ArrowUpDown, Power, Ban, Search, ChevronDown, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useAuth } from "@/lib/AuthContext";
@@ -102,9 +102,9 @@ export default function Users() {
     mutationFn: (id: string) => apiClient.delete(`/api/configuration/users/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("User deactivated/deleted successfully");
+      toast.success("User removed successfully");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to delete user"),
+    onError: (err: any) => toast.error(err.response?.data?.detail || err.message || "Failed to remove user"),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -248,7 +248,7 @@ export default function Users() {
       }
     ];
 
-    if (hasPermission("CONFIG_USER_ROLE_ASSIGNMENT_READ") || hasPermission("CONFIG_USERS_UPDATE")) {
+    if (hasPermission("CONFIG_USER_ROLE_ASSIGNMENT_READ") || hasPermission("CONFIG_USERS_UPDATE") || hasPermission("CONFIG_USERS_DELETE")) {
       cols.push({
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
@@ -288,6 +288,20 @@ export default function Users() {
                         <><Power className="mr-2 h-4 w-4 text-green-600" /> Activate</>
                       )}
                     </DropdownMenuItem>
+                  )}
+                  {hasPermission("CONFIG_USERS_DELETE") && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => {
+                          setUserToDelete(user);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Remove User
+                      </DropdownMenuItem>
+                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -504,10 +518,10 @@ export default function Users() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this user?</AlertDialogTitle>
+            <AlertDialogTitle>Remove {userToDelete?.full_name || userToDelete?.email || "this user"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user
-              account and remove their data from our servers.
+              This removes the user from the list and they will no longer be able to log in.
+              The removal is recorded in the audit log.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -517,7 +531,7 @@ export default function Users() {
               disabled={deleteMutation.isPending}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? "Removing..." : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
