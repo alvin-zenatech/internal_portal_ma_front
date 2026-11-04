@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table';
 import { CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Edit3, Download, Check, Trash2, X } from 'lucide-react';
 import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts, useCountries, useStates } from '@/hooks/usePipeline';
+import { callLogImportQueue, useCallLogImportQueue } from '@/services/callLogImportQueue';
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { formatYesNo, formatPhoneNumber } from "@/lib/utils";
 
@@ -259,6 +260,13 @@ const TableRowItem = React.memo(function TableRowItem({
                 Remove
               </Button>
             </div>
+          </div>
+        ) : row.is_queued ? (
+          <div className="flex items-center justify-between gap-2 bg-amber-500/10 border border-amber-500/20 rounded-md px-2.5 py-1.5">
+            <span className="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 truncate flex items-center gap-1.5" title={row.company_name || row.raw_company_name}>
+              <Loader2 className="h-3 w-3 animate-spin shrink-0 text-amber-600 dark:text-amber-400" />
+              Queued for background import: {row.company_name || row.raw_company_name}
+            </span>
           </div>
         ) : row.is_confirmed ? (
           <div className="flex items-center justify-between gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md px-2.5 py-1.5">
@@ -509,10 +517,59 @@ export default function CallLogImportPreviewModal({
 
   const queryClient = useQueryClient();
   const { mutate: confirmImport, isPending: isImporting } = useConfirmImportCallLog();
-  const [isBatchAddingPending, setIsBatchAddingPending] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const queueProgress = useCallLogImportQueue();
   const [importingRows, setImportingRows] = useState<Record<number, boolean>>({});
   const [removingRows, setRemovingRows] = useState<Record<number, boolean>>({});
+
+  // Subscribe to background queue events to update live row status and duplicate collisions
+  useEffect(() => {
+    return callLogImportQueue.subscribe(({ completedChunk }) => {
+      if (!completedChunk || completedChunk.length === 0) return;
+
+      const chunkIndices = new Set(completedChunk.map((r) => r.row_index));
+
+      // Add completed chunk to live duplicate index
+      for (const r of completedChunk) {
+        dupIndex.add(
+          r.company_name || r.raw_company_name,
+          r.phone_number || r.raw_phone_number,
+          r.date_of_call,
+          r.analyst || r.raw_analyst
+        );
+      }
+
+      // Live update modal rows
+      setRows((prev) =>
+        prev.map((r) => {
+          if (chunkIndices.has(r.row_index)) {
+            const completedRow = completedChunk.find((x) => x.row_index === r.row_index);
+            return {
+              ...r,
+              ...(completedRow || {}),
+              is_imported: true,
+              is_confirmed: true,
+              is_queued: false,
+              selected_for_import: false,
+              is_duplicate: true,
+              duplicate_reason: 'Imported to database',
+            };
+          }
+          const targetName = r.company_name || r.raw_company_name;
+          const targetPhone = r.phone_number || r.raw_phone_number;
+          const { isDup, dupReason } = dupIndex.check(targetName, targetPhone, r.date_of_call);
+          if (isDup && !r.is_duplicate) {
+            return {
+              ...r,
+              is_duplicate: true,
+              duplicate_reason: dupReason,
+              selected_for_import: false,
+            };
+          }
+          return r;
+        })
+      );
+    });
+  }, [dupIndex]);
 
   const handleRemoveSingleRow = useCallback(async (rowIndex: number) => {
     const targetRow = rows.find((r) => r.row_index === rowIndex);
@@ -779,9 +836,9 @@ export default function CallLogImportPreviewModal({
       }
     }
 
-    // Apply pending filter if selected (excludes confirmed, imported, and duplicates)
+    // Apply pending filter if selected (excludes confirmed, imported, duplicates, and queued)
     if (subTab === 'pending') {
-      list = list.filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate);
+      list = list.filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued);
     }
     return list;
   }, [rows, searchFilter, statusFilter, subTab, scoreOp, scoreVal]);
@@ -823,7 +880,7 @@ export default function CallLogImportPreviewModal({
       const r = rows[i];
       if (r.selected_for_import) selectedCount++;
 
-      const isPending = !r.is_imported && !r.is_confirmed && !r.is_duplicate;
+      const isPending = !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued;
 
       if (r.match_type === 'exact') {
         allExact++;
@@ -889,7 +946,7 @@ export default function CallLogImportPreviewModal({
             const match = scoreOp === 'gte' ? pct >= num : pct <= num;
             if (match) {
               totalWithScore++;
-              if (!r.is_imported && !r.is_confirmed && !r.is_duplicate) {
+              if (!r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued) {
                 pendingWithScore++;
               }
             }
@@ -1038,31 +1095,32 @@ export default function CallLogImportPreviewModal({
     setRows((prev) => prev.map((r) => (r.is_duplicate ? { ...r, selected_for_import: false } : r)));
   };
 
-  const handleConfirmAllSuggested = async () => {
+  const handleConfirmAllSuggested = () => {
     // Collect eligible rows based on current filter or pending suggested
     const eligibleIndices = new Set(
       (statusFilter === 'all'
         ? rows.filter((r) => r.match_type === 'suggested' || (r.suggestions && r.suggestions.length > 0))
         : filteredRows
       )
-        .filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate)
+        .filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued)
         .map((r) => r.row_index)
     );
 
     if (eligibleIndices.size === 0) return;
 
-    // Build the confirmed row payload to add directly to database in batches
-    const rowsToImport: IndexedRow[] = [];
+    // Build the confirmed row payload to add to the background batch queue
+    const rowsToQueue: IndexedRow[] = [];
     for (const r of rows) {
-      if (eligibleIndices.has(r.row_index) && !r.is_imported && !r.is_confirmed && !r.is_duplicate) {
+      if (eligibleIndices.has(r.row_index) && !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued) {
         const topSuggestion = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0] : null;
         const matchedCompanyId = r.matched_company_id || (topSuggestion ? topSuggestion.id : null);
         const companyName = r.company_name || (topSuggestion ? topSuggestion.name : r.raw_company_name);
 
-        rowsToImport.push({
+        rowsToQueue.push({
           ...r,
           selected_for_import: true,
           is_confirmed: true,
+          is_queued: true,
           matched_company_id: matchedCompanyId,
           company_name: companyName,
           industry: r.industry || (topSuggestion ? topSuggestion.industry : r.raw_industry),
@@ -1075,78 +1133,27 @@ export default function CallLogImportPreviewModal({
       }
     }
 
-    if (rowsToImport.length === 0) return;
+    if (rowsToQueue.length === 0) return;
 
-    setIsBatchAddingPending(true);
-    const BATCH_SIZE = 100;
-    const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
-    setBatchProgress({ current: 0, total: totalBatches });
-    let successCount = 0;
-    const importedIndices = new Set<number>();
-
-    try {
-      for (let i = 0; i < rowsToImport.length; i += BATCH_SIZE) {
-        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        setBatchProgress({ current: batchNum, total: totalBatches });
-        const chunk = rowsToImport.slice(i, i + BATCH_SIZE);
-        await api.post<{ imported_count: number; status: string }>('/api/pipeline/confirm-import-call-log', { rows: chunk });
-        successCount += chunk.length;
-
-        // Add chunk to live dupIndex
-        for (const r of chunk) {
-          importedIndices.add(r.row_index);
-          dupIndex.add(
-            r.company_name || r.raw_company_name,
-            r.phone_number || r.raw_phone_number,
-            r.date_of_call,
-            r.analyst || r.raw_analyst
-          );
+    // Immediately mark them as queued in the modal state so pending counter drops immediately
+    // and user can switch to the next tab right away
+    setRows((prev) =>
+      prev.map((r) => {
+        if (eligibleIndices.has(r.row_index)) {
+          const queuedRow = rowsToQueue.find((x) => x.row_index === r.row_index);
+          return {
+            ...r,
+            ...(queuedRow || {}),
+            is_confirmed: true,
+            is_queued: true,
+          };
         }
+        return r;
+      })
+    );
 
-        // Live update modal rows so imported items show as added and newly formed dups get marked
-        setRows((prev) =>
-          prev.map((r) => {
-            if (importedIndices.has(r.row_index)) {
-              const importedRow = rowsToImport.find((x) => x.row_index === r.row_index);
-              return {
-                ...r,
-                ...(importedRow || {}),
-                is_imported: true,
-                is_confirmed: true,
-                selected_for_import: false,
-                is_duplicate: true,
-                duplicate_reason: 'Imported to database'
-              };
-            }
-            const targetName = r.company_name || r.raw_company_name;
-            const targetPhone = r.phone_number || r.raw_phone_number;
-            const { isDup, dupReason } = dupIndex.check(targetName, targetPhone, r.date_of_call);
-            if (isDup && !r.is_duplicate) {
-              return {
-                ...r,
-                is_duplicate: true,
-                duplicate_reason: dupReason,
-                selected_for_import: false
-              };
-            }
-            return r;
-          })
-        );
-      }
-
-      toast.success(`Successfully added ${successCount} pending call logs to database.`);
-      queryClient.invalidateQueries({ queryKey: ['call-logs'] });
-      queryClient.invalidateQueries({ queryKey: ['call-tracking-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['call-tracking-summary-infinite'] });
-      queryClient.invalidateQueries({ queryKey: ['companies'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['pipeline-tasks'] });
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to add batch of pending call logs');
-    } finally {
-      setIsBatchAddingPending(false);
-      setBatchProgress(null);
-    }
+    // Push to the background import queue (appended to the back of the queue)
+    callLogImportQueue.enqueue(rowsToQueue, queryClient);
   };
 
   const handleExportPreview = () => {
@@ -1214,7 +1221,7 @@ export default function CallLogImportPreviewModal({
   if (!previewData) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { if (!isImporting && !isBatchAddingPending) onOpenChange(val); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -1427,17 +1434,17 @@ export default function CallLogImportPreviewModal({
                 size="sm"
                 className="h-9 sm:h-10 text-xs sm:text-sm px-3.5 bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 font-medium"
                 onClick={handleConfirmAllSuggested}
-                disabled={isBatchAddingPending || isImporting}
+                disabled={isImporting}
               >
-                {isBatchAddingPending && batchProgress ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    Adding Batches ({batchProgress.current}/{batchProgress.total})...
-                  </>
-                ) : (
-                  `Accept All Pending (${activeCategoryCounts.pending})`
-                )}
+                Accept All Pending ({activeCategoryCounts.pending})
               </Button>
+            )}
+
+            {queueProgress.isRunning && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-700 dark:text-amber-300 text-xs font-medium">
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>Background: {queueProgress.completed} / {queueProgress.total} imported ({queueProgress.queued} in queue)</span>
+              </div>
             )}
 
             {stats.duplicateCount > 0 && (
@@ -1528,17 +1535,25 @@ export default function CallLogImportPreviewModal({
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t shrink-0">
-          <div className="text-sm text-muted-foreground">
-            Ready to import <span className="font-semibold text-foreground">{stats.selectedCount}</span> of {stats.total} rows.
+          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            <span>
+              Ready to import <span className="font-semibold text-foreground">{stats.selectedCount}</span> of {stats.total} rows.
+            </span>
+            {queueProgress.isRunning && (
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                Background import active ({queueProgress.completed}/{queueProgress.total} imported). You can safely close this preview anytime.
+              </span>
+            )}
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" size="sm" className="h-9 sm:h-10 text-sm px-4" onClick={() => onOpenChange(false)} disabled={isImporting || isBatchAddingPending}>
-              Cancel
+            <Button variant="outline" size="sm" className="h-9 sm:h-10 text-sm px-4" onClick={() => onOpenChange(false)} disabled={isImporting}>
+              {queueProgress.isRunning ? 'Close (Background Running)' : 'Cancel'}
             </Button>
             <Button
               size="sm"
               className="h-9 sm:h-10 text-sm px-5 font-semibold"
-              disabled={stats.selectedCount === 0 || isImporting || isBatchAddingPending}
+              disabled={stats.selectedCount === 0 || isImporting}
               onClick={handleConfirm}
             >
               {isImporting ? (

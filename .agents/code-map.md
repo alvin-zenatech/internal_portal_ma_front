@@ -419,7 +419,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useClearReadNotifications` (export function)
 - `useClearAllNotifications` (export function)
 
-## src/hooks/usePipeline.ts (1039 lines) - use pipeline (hooks)
+## src/hooks/usePipeline.ts (1040 lines) - use pipeline (hooks)
 - `MasterData` (export interface)
 - `CompanyData` (export interface)
 - `PipelinePriority` (export interface)
@@ -708,7 +708,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `auditTable` (fn)
     - `loginTable` (fn)
 
-## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1649 lines) - call log import preview modal (pages  pipeline)
+## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1664 lines) - call log import preview modal (pages  pipeline)
 - `Props` (interface)
 - `IndexedRow` (interface)
 - `normalizeForDupCheck` (const)
@@ -720,6 +720,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `CallLogImportPreviewModal` (export function)
     - `dupIndex` (fn) - Pre-computed duplicate lookup index from live DB + preview data
     - `queryClient` (fn)
+    - `queueProgress` (fn)
     - `handleRemoveSingleRow` (fn)
     - `handleImportSingleRow` (fn)
     - `filteredRows` (fn) - Fast Filtering with robust symbol, phrase, and word-boundary matching

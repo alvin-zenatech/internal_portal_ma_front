@@ -909,6 +909,7 @@ export interface CallLogPreviewRow {
   has_user_changed?: boolean;
   selected_for_import: boolean;
   is_imported?: boolean;
+  is_queued?: boolean;
 }
 
 export interface ExistingCallLogItem {

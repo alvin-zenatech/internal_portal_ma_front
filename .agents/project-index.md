@@ -70,7 +70,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/hooks/useHeartbeat.ts (44 lines) - Track user activity
 - src/hooks/useMasterTables.ts (108 lines) - use master tables (hooks)
 - src/hooks/useNotifications.ts (299 lines) - use notifications (hooks)
-- src/hooks/usePipeline.ts (1039 lines) - use pipeline (hooks)
+- src/hooks/usePipeline.ts (1040 lines) - use pipeline (hooks)
 - src/hooks/usePurchasing.ts (377 lines) - use purchasing (hooks)
 - src/hooks/useSearch.ts (16 lines) - use search (hooks)
 - src/lib/AuthContext.tsx (181 lines) - auth context (lib)
@@ -87,7 +87,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Configurations/UserRoleAssignment.tsx (386 lines) - user role assignment (pages  configurations)
 - src/pages/Configurations/Users.tsx (567 lines) - users (pages  configurations)
 - src/pages/Log/AuditLog.tsx (496 lines) - audit log (pages  log)
-- src/pages/Pipeline/CallLogImportPreviewModal.tsx (1649 lines) - call log import preview modal (pages  pipeline)
+- src/pages/Pipeline/CallLogImportPreviewModal.tsx (1664 lines) - call log import preview modal (pages  pipeline)
 - src/pages/Pipeline/CallTracking.tsx (1436 lines) - call tracking (pages  pipeline)
 - src/pages/Pipeline/CallTrackingDetails.tsx (495 lines) - call tracking details (pages  pipeline)
 - src/pages/Pipeline/CompaniesListView.tsx (426 lines) - companies list view (pages  pipeline)
