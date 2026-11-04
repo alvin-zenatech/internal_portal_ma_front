@@ -475,6 +475,8 @@ export default function CallLogImportPreviewModal({
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'exact' | 'suggested' | 'new' | 'duplicate' | 'selected'>('all');
   const [subTab, setSubTab] = useState<'all' | 'pending'>('all');
+  const [scoreOp, setScoreOp] = useState<'all' | 'gte' | 'lte'>('all');
+  const [scoreVal, setScoreVal] = useState<string>('80');
   const [visibleCount, setVisibleCount] = useState(60);
 
   const { data: liveCallLogs } = useQuery<ExistingCallLogItem[]>({
@@ -763,16 +765,28 @@ export default function CallLogImportPreviewModal({
       list = list.filter((r) => r.selected_for_import);
     }
 
+    // Apply score filter when in suggested matches or when a score threshold is set
+    if (statusFilter === 'suggested' && scoreOp !== 'all') {
+      const num = parseFloat(scoreVal);
+      if (!isNaN(num)) {
+        list = list.filter((r) => {
+          const topScore = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0].score : (r.match_confidence || 0);
+          const pct = Math.round(topScore * 100);
+          return scoreOp === 'gte' ? pct >= num : pct <= num;
+        });
+      }
+    }
+
     // Apply pending filter if selected (excludes confirmed, imported, and duplicates)
     if (subTab === 'pending') {
       list = list.filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate);
     }
     return list;
-  }, [rows, searchFilter, statusFilter, subTab]);
+  }, [rows, searchFilter, statusFilter, subTab, scoreOp, scoreVal]);
 
   useEffect(() => {
     setVisibleCount(60);
-  }, [searchFilter, statusFilter, subTab, previewData]);
+  }, [searchFilter, statusFilter, subTab, scoreOp, scoreVal, previewData]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -860,6 +874,27 @@ export default function CallLogImportPreviewModal({
       return { total: stats.allExact, pending: stats.pendingExact };
     }
     if (statusFilter === 'suggested') {
+      if (scoreOp !== 'all') {
+        const num = parseFloat(scoreVal);
+        if (!isNaN(num)) {
+          let totalWithScore = 0;
+          let pendingWithScore = 0;
+          for (let i = 0; i < rows.length; i++) {
+            const r = rows[i];
+            if (r.match_type !== 'suggested') continue;
+            const topScore = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0].score : (r.match_confidence || 0);
+            const pct = Math.round(topScore * 100);
+            const match = scoreOp === 'gte' ? pct >= num : pct <= num;
+            if (match) {
+              totalWithScore++;
+              if (!r.is_imported && !r.is_confirmed && !r.is_duplicate) {
+                pendingWithScore++;
+              }
+            }
+          }
+          return { total: totalWithScore, pending: pendingWithScore };
+        }
+      }
       return { total: stats.allSuggested, pending: stats.pendingSuggested };
     }
     if (statusFilter === 'new') {
@@ -869,7 +904,7 @@ export default function CallLogImportPreviewModal({
       return { total: stats.allDuplicate, pending: stats.pendingDuplicate };
     }
     return { total: stats.allTotal, pending: stats.pendingTotal };
-  }, [statusFilter, stats]);
+  }, [statusFilter, stats, scoreOp, scoreVal, rows]);
 
   // Stable event callbacks for memoized rows
   const handleToggleRow = useCallback((index: number, checked: boolean) => {
@@ -1229,6 +1264,54 @@ export default function CallLogImportPreviewModal({
               </span>
             </button>
           </div>
+
+          {/* Match Score Filter for Suggested Matches */}
+          {statusFilter === 'suggested' && (
+            <div className="flex items-center gap-1.5 rounded-lg border bg-amber-500/10 border-amber-500/25 px-2.5 py-1 text-xs shrink-0 text-amber-900 dark:text-amber-200">
+              <span className="font-semibold text-[11px] whitespace-nowrap">Match Score:</span>
+              <select
+                value={scoreOp}
+                onChange={(e) => setScoreOp(e.target.value as any)}
+                className="h-7 text-xs rounded border border-amber-500/30 bg-background px-1.5 text-foreground focus:outline-none cursor-pointer font-medium"
+              >
+                <option value="all">All Scores</option>
+                <option value="lte">≤</option>
+                <option value="gte">≥</option>
+              </select>
+
+              {scoreOp !== 'all' && (
+                <div className="flex items-center gap-1">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={scoreVal}
+                      onChange={(e) => setScoreVal(e.target.value)}
+                      className="h-7 w-13 rounded border border-amber-500/30 bg-background px-1.5 pr-4 text-center text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">%</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 ml-1">
+                    {[80, 85, 89, 90].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setScoreVal(String(preset))}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-colors ${
+                          scoreVal === String(preset)
+                            ? 'bg-amber-500 text-white shadow-2xs'
+                            : 'bg-amber-500/15 text-amber-800 dark:text-amber-200 hover:bg-amber-500/25'
+                        }`}
+                      >
+                        {preset}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
             <Button
