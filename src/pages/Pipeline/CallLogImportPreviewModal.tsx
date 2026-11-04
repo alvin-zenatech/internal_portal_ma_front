@@ -177,7 +177,7 @@ interface RowProps {
   isImportingSingle?: boolean;
   isRemovingSingle?: boolean;
   onToggleRow: (index: number, checked: boolean) => void;
-  onCompanyChange: (index: number, val: string) => void;
+  onCompanyChange: (index: number, val: string, autoConfirm?: boolean) => void;
   onPhoneChange: (index: number, val: string) => void;
   onAnalystChange: (index: number, analystId: string) => void;
   onOpenCompanyModal: (row: CallLogPreviewRow) => void;
@@ -226,7 +226,7 @@ const TableRowItem = React.memo(function TableRowItem({
           )}
           {row.match_type === 'suggested' && (
             <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px] py-0.5 px-2 font-semibold">
-              <HelpCircle className="h-3 w-3 mr-1" /> Suggested
+              <HelpCircle className="h-3 w-3 mr-1" /> {row.match_confidence ? `${Math.round(row.match_confidence * 100)}% Match` : 'Suggested'}
             </Badge>
           )}
           {row.match_type === 'new' && (
@@ -386,7 +386,7 @@ const TableRowItem = React.memo(function TableRowItem({
             <button
               type="button"
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold ml-auto shrink-0 cursor-pointer"
-              onClick={() => onCompanyChange(row.row_index, String(row.suggestions![0].id))}
+              onClick={() => onCompanyChange(row.row_index, String(row.suggestions![0].id), true)}
             >
               Use
             </button>
@@ -635,15 +635,33 @@ export default function CallLogImportPreviewModal({
     const targetRow = rows.find((r) => r.row_index === rowIndex);
     if (!targetRow) return;
 
+    const shouldAdoptTopSuggestion = !targetRow.matched_company_id && targetRow.match_type !== 'new' && targetRow.suggestions && targetRow.suggestions.length > 0;
+    const topSuggestion = shouldAdoptTopSuggestion ? targetRow.suggestions![0] : null;
+
+    const matchedCompanyId = targetRow.matched_company_id || (topSuggestion ? topSuggestion.id : null);
+    const companyName = topSuggestion ? topSuggestion.name : (targetRow.company_name || targetRow.raw_company_name);
+
+    const rowToImport: CallLogPreviewRow = {
+      ...targetRow,
+      matched_company_id: matchedCompanyId,
+      company_name: companyName,
+      industry: (topSuggestion ? topSuggestion.industry : null) || targetRow.industry || targetRow.raw_industry,
+      state_province: (topSuggestion ? topSuggestion.state_province : null) || targetRow.state_province || targetRow.raw_state_province,
+      location: (topSuggestion ? topSuggestion.location : null) || targetRow.location || targetRow.raw_location,
+      contact_name: (topSuggestion ? topSuggestion.contact_name : null) || targetRow.contact_name || targetRow.raw_contact_name,
+      position: (topSuggestion ? topSuggestion.position : null) || targetRow.position || targetRow.raw_position,
+      phone_number: (topSuggestion ? topSuggestion.phone_number : null) || targetRow.phone_number || targetRow.raw_phone_number,
+    };
+
     setImportingRows((prev) => ({ ...prev, [rowIndex]: true }));
-    confirmImport([targetRow], {
+    confirmImport([rowToImport], {
       onSuccess: () => {
-        toast.success(`Imported call log for "${targetRow.company_name || targetRow.raw_company_name}"`);
+        toast.success(`Imported call log for "${companyName}"`);
 
         // 1. Add this newly imported log to the duplicate lookup index
         dupIndex.add(
-          targetRow.company_name || targetRow.raw_company_name,
-          targetRow.phone_number || targetRow.raw_phone_number,
+          companyName,
+          rowToImport.phone_number || targetRow.raw_phone_number,
           targetRow.date_of_call,
           targetRow.analyst || targetRow.raw_analyst
         );
@@ -654,6 +672,7 @@ export default function CallLogImportPreviewModal({
             if (r.row_index === rowIndex) {
               return {
                 ...r,
+                ...rowToImport,
                 is_imported: true,
                 is_confirmed: true,
                 selected_for_import: false,
@@ -1015,7 +1034,7 @@ export default function CallLogImportPreviewModal({
     });
   }, []);
 
-  const handleCompanyChange = useCallback((index: number, value: string) => {
+  const handleCompanyChange = useCallback((index: number, value: string, autoConfirm = false) => {
     setRows((prev) =>
       prev.map((r) => {
         if (r.row_index !== index) return r;
@@ -1071,7 +1090,7 @@ export default function CallLogImportPreviewModal({
           match_type: matchType,
           is_duplicate: isDup,
           duplicate_reason: dupReason,
-          is_confirmed: false,
+          is_confirmed: autoConfirm,
           has_user_changed: true,
           selected_for_import: !isDup
         };
@@ -1083,11 +1102,30 @@ export default function CallLogImportPreviewModal({
     setRows((prev) =>
       prev.map((r) => {
         if (r.row_index !== rowIndex) return r;
-        const targetName = r.company_name || r.raw_company_name;
-        const { isDup, dupReason } = dupIndex.check(targetName, r.phone_number, r.date_of_call);
+        const shouldAdoptTopSuggestion = !r.matched_company_id && r.match_type !== 'new' && r.suggestions && r.suggestions.length > 0;
+        const topSuggestion = shouldAdoptTopSuggestion ? r.suggestions![0] : null;
+
+        const matchedCompanyId = r.matched_company_id || (topSuggestion ? topSuggestion.id : null);
+        const targetName = topSuggestion ? topSuggestion.name : (r.company_name || r.raw_company_name);
+        const targetIndustry = (topSuggestion ? topSuggestion.industry : null) || r.industry || r.raw_industry;
+        const targetState = (topSuggestion ? topSuggestion.state_province : null) || r.state_province || r.raw_state_province;
+        const targetLocation = (topSuggestion ? topSuggestion.location : null) || r.location || r.raw_location;
+        const targetContact = (topSuggestion ? topSuggestion.contact_name : null) || r.contact_name || r.raw_contact_name;
+        const targetPosition = (topSuggestion ? topSuggestion.position : null) || r.position || r.raw_position;
+        const targetPhone = (topSuggestion ? topSuggestion.phone_number : null) || r.phone_number || r.raw_phone_number;
+
+        const { isDup, dupReason } = dupIndex.check(targetName, targetPhone, r.date_of_call);
         return {
           ...r,
           is_confirmed: true,
+          matched_company_id: matchedCompanyId,
+          company_name: targetName,
+          industry: targetIndustry,
+          state_province: targetState,
+          location: targetLocation,
+          contact_name: targetContact,
+          position: targetPosition,
+          phone_number: targetPhone,
           is_duplicate: isDup,
           duplicate_reason: dupReason,
           selected_for_import: !isDup,
@@ -1105,12 +1143,10 @@ export default function CallLogImportPreviewModal({
   };
 
   const handleConfirmAllSuggested = () => {
-    // Collect eligible rows based on current filter or pending suggested
+    // Collect eligible rows based on current filtered view (or all pending if on 'all')
+    const sourceRows = filteredRows.length > 0 ? filteredRows : rows;
     const eligibleIndices = new Set(
-      (statusFilter === 'all'
-        ? rows.filter((r) => r.match_type === 'suggested' || (r.suggestions && r.suggestions.length > 0))
-        : filteredRows
-      )
+      sourceRows
         .filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued)
         .map((r) => r.row_index)
     );
@@ -1121,9 +1157,11 @@ export default function CallLogImportPreviewModal({
     const rowsToQueue: IndexedRow[] = [];
     for (const r of rows) {
       if (eligibleIndices.has(r.row_index) && !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued) {
-        const topSuggestion = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0] : null;
+        const shouldAdoptTopSuggestion = !r.matched_company_id && r.match_type !== 'new' && r.suggestions && r.suggestions.length > 0;
+        const topSuggestion = shouldAdoptTopSuggestion ? r.suggestions![0] : null;
+
         const matchedCompanyId = r.matched_company_id || (topSuggestion ? topSuggestion.id : null);
-        const companyName = r.company_name || (topSuggestion ? topSuggestion.name : r.raw_company_name);
+        const companyName = topSuggestion ? topSuggestion.name : (r.company_name || r.raw_company_name);
 
         rowsToQueue.push({
           ...r,
@@ -1132,12 +1170,12 @@ export default function CallLogImportPreviewModal({
           is_queued: true,
           matched_company_id: matchedCompanyId,
           company_name: companyName,
-          industry: r.industry || (topSuggestion ? topSuggestion.industry : r.raw_industry),
-          state_province: r.state_province || (topSuggestion ? topSuggestion.state_province : r.raw_state_province),
-          location: r.location || (topSuggestion ? topSuggestion.location : r.raw_location),
-          contact_name: r.contact_name || (topSuggestion ? topSuggestion.contact_name : r.raw_contact_name),
-          position: r.position || (topSuggestion ? topSuggestion.position : r.raw_position),
-          phone_number: r.phone_number || (topSuggestion ? topSuggestion.phone_number : r.raw_phone_number),
+          industry: (topSuggestion ? topSuggestion.industry : null) || r.industry || r.raw_industry,
+          state_province: (topSuggestion ? topSuggestion.state_province : null) || r.state_province || r.raw_state_province,
+          location: (topSuggestion ? topSuggestion.location : null) || r.location || r.raw_location,
+          contact_name: (topSuggestion ? topSuggestion.contact_name : null) || r.contact_name || r.raw_contact_name,
+          position: (topSuggestion ? topSuggestion.position : null) || r.position || r.raw_position,
+          phone_number: (topSuggestion ? topSuggestion.phone_number : null) || r.phone_number || r.raw_phone_number,
         });
       }
     }
@@ -1223,9 +1261,11 @@ export default function CallLogImportPreviewModal({
 
     // Resolve company name and suggestions for each selected row so no record is dropped
     const rowsToQueue: IndexedRow[] = selectedRows.map((r) => {
-      const topSuggestion = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0] : null;
+      const shouldAdoptTopSuggestion = !r.matched_company_id && r.match_type !== 'new' && r.suggestions && r.suggestions.length > 0;
+      const topSuggestion = shouldAdoptTopSuggestion ? r.suggestions![0] : null;
+
       const matchedCompanyId = r.matched_company_id || (topSuggestion ? topSuggestion.id : null);
-      const companyName = r.company_name || (topSuggestion ? topSuggestion.name : r.raw_company_name);
+      const companyName = topSuggestion ? topSuggestion.name : (r.company_name || r.raw_company_name);
 
       return {
         ...r,
@@ -1234,12 +1274,12 @@ export default function CallLogImportPreviewModal({
         is_queued: true,
         matched_company_id: matchedCompanyId,
         company_name: companyName,
-        industry: r.industry || (topSuggestion ? topSuggestion.industry : r.raw_industry),
-        state_province: r.state_province || (topSuggestion ? topSuggestion.state_province : r.raw_state_province),
-        location: r.location || (topSuggestion ? topSuggestion.location : r.raw_location),
-        contact_name: r.contact_name || (topSuggestion ? topSuggestion.contact_name : r.raw_contact_name),
-        position: r.position || (topSuggestion ? topSuggestion.position : r.raw_position),
-        phone_number: r.phone_number || (topSuggestion ? topSuggestion.phone_number : r.raw_phone_number),
+        industry: (topSuggestion ? topSuggestion.industry : null) || r.industry || r.raw_industry,
+        state_province: (topSuggestion ? topSuggestion.state_province : null) || r.state_province || r.raw_state_province,
+        location: (topSuggestion ? topSuggestion.location : null) || r.location || r.raw_location,
+        contact_name: (topSuggestion ? topSuggestion.contact_name : null) || r.contact_name || r.raw_contact_name,
+        position: (topSuggestion ? topSuggestion.position : null) || r.position || r.raw_position,
+        phone_number: (topSuggestion ? topSuggestion.phone_number : null) || r.phone_number || r.raw_phone_number,
       };
     });
 

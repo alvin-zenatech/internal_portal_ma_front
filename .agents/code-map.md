@@ -708,7 +708,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `auditTable` (fn)
     - `loginTable` (fn)
 
-## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1763 lines) - call log import preview modal (pages  pipeline)
+## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1803 lines) - call log import preview modal (pages  pipeline)
 - `Props` (interface)
 - `IndexedRow` (interface)
 - `normalizeForDupCheck` (const)
