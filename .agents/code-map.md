@@ -45,7 +45,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `BDAnalystSelectProps` (interface)
 - `BDAnalystSelect` (export function)
 
-## src/components/Pipeline/CallLogUploadQueuePanel.tsx (183 lines) - call log upload queue panel (components  pipeline)
+## src/components/Pipeline/CallLogUploadQueuePanel.tsx (237 lines) - call log upload queue panel (components  pipeline)
 - `Props` (interface)
 - `CallLogUploadQueuePanel` (export function)
 
@@ -708,7 +708,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `auditTable` (fn)
     - `loginTable` (fn)
 
-## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1664 lines) - call log import preview modal (pages  pipeline)
+## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1696 lines) - call log import preview modal (pages  pipeline)
 - `Props` (interface)
 - `IndexedRow` (interface)
 - `normalizeForDupCheck` (const)
@@ -742,7 +742,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleSaveCompanyForm` (fn)
     - `handleConfirm` (fn)
 
-## src/pages/Pipeline/CallTracking.tsx (1436 lines) - call tracking (pages  pipeline)
+## src/pages/Pipeline/CallTracking.tsx (1440 lines) - call tracking (pages  pipeline)
 - `getCountryFullName` (const)
 - `formatCallLocation` (function)
     - `state` (fn)
@@ -1159,6 +1159,13 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `monitoredFetch` (function)
     - `method` (fn)
 - `apiClient` (export const)
+
+## src/services/callLogImportQueue.ts (189 lines) - call log import queue (services)
+- `QueueProgress` (export interface)
+- `QueueListener` (export type)
+- `CallLogImportQueueService` (class)
+- `callLogImportQueue` (export const)
+- `useCallLogImportQueue` (export function)
 
 ## src/services/errorReporting.ts (75 lines) - error reporting (services)
 - `ClientErrorType` (export type)

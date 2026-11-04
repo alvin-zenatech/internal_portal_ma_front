@@ -9,6 +9,8 @@ export interface QueueProgress {
   completed: number;
   queued: number;
   isRunning: boolean;
+  taskId?: string;
+  filename?: string;
 }
 
 export type QueueListener = (event: {
@@ -26,6 +28,8 @@ class CallLogImportQueueService {
   private listeners = new Set<QueueListener>();
   private queryClient: QueryClient | null = null;
   private toastId = 'call-log-bg-batch-import';
+  private activeTaskId?: string;
+  private activeFilename?: string;
 
   public setQueryClient(qc: QueryClient) {
     this.queryClient = qc;
@@ -45,6 +49,8 @@ class CallLogImportQueueService {
       completed: this.totalCompleted,
       queued: this.queue.length,
       isRunning: this.isProcessing,
+      taskId: this.activeTaskId,
+      filename: this.activeFilename,
     };
   }
 
@@ -52,9 +58,15 @@ class CallLogImportQueueService {
     return this.queuedRowIndices.has(rowIndex);
   }
 
-  public enqueue(rows: CallLogPreviewRow[], qc?: QueryClient) {
+  public enqueue(rows: CallLogPreviewRow[], qc?: QueryClient, taskId?: string, filename?: string) {
     if (qc && !this.queryClient) {
       this.queryClient = qc;
+    }
+    if (taskId) {
+      this.activeTaskId = taskId;
+    }
+    if (filename) {
+      this.activeFilename = filename;
     }
 
     const newRows: CallLogPreviewRow[] = [];
@@ -170,6 +182,7 @@ export function useCallLogImportQueue() {
 
   return {
     ...progress,
-    enqueue: (rows: CallLogPreviewRow[], qc?: QueryClient) => callLogImportQueue.enqueue(rows, qc),
+    enqueue: (rows: CallLogPreviewRow[], qc?: QueryClient, taskId?: string, filename?: string) =>
+      callLogImportQueue.enqueue(rows, qc, taskId, filename),
   };
 }

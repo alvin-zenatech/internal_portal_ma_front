@@ -33,6 +33,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   previewData: CallLogPreviewResponse | null;
+  taskId?: string;
   onSuccess: () => void;
 }
 
@@ -476,6 +477,7 @@ export default function CallLogImportPreviewModal({
   open,
   onOpenChange,
   previewData,
+  taskId,
   onSuccess
 }: Props) {
   const [rows, setRows] = useState<IndexedRow[]>([]);
@@ -1153,7 +1155,7 @@ export default function CallLogImportPreviewModal({
     );
 
     // Push to the background import queue (appended to the back of the queue)
-    callLogImportQueue.enqueue(rowsToQueue, queryClient);
+    callLogImportQueue.enqueue(rowsToQueue, queryClient, taskId);
   };
 
   const handleExportPreview = () => {
@@ -1236,6 +1238,36 @@ export default function CallLogImportPreviewModal({
             Review detected companies, smart fuzzy suggestions, and potential duplicate call logs before importing.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Another bar: Blue batch import progress bar showing where it is and call logs remaining */}
+        {queueProgress.total > 0 && (
+          <div className="p-3 rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 space-y-1.5 shrink-0 shadow-xs">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
+              <div className="flex items-center gap-2 flex-wrap">
+                {queueProgress.isRunning ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                )}
+                <span className="text-blue-950 dark:text-blue-100 font-medium">
+                  Batch Importing: <strong className="font-semibold text-blue-700 dark:text-blue-300">{queueProgress.completed.toLocaleString()} / {queueProgress.total.toLocaleString()}</strong> call logs imported
+                </span>
+                <span className="text-blue-600/80 dark:text-blue-400/80 font-normal">
+                  ({(queueProgress.total - queueProgress.completed).toLocaleString()} call logs remaining in queue)
+                </span>
+              </div>
+              <span className="font-semibold text-blue-700 dark:text-blue-300 text-sm">
+                {Math.min(100, Math.round((queueProgress.completed / queueProgress.total) * 100))}%
+              </span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-blue-200/60 dark:bg-blue-900/50">
+              <div
+                className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.round((queueProgress.completed / queueProgress.total) * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Stats Bar (Clickable Filters) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 shrink-0">

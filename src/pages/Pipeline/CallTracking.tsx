@@ -469,6 +469,7 @@ export default function CallTracking() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<CallLogPreviewResponse | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const previewTaskId = searchParams.get("preview_task_id");
@@ -480,6 +481,7 @@ export default function CallTracking() {
         .then((data) => {
           toast.dismiss("load-preview");
           setPreviewData(data);
+          setActiveTaskId(previewTaskId);
           setPreviewOpen(true);
         })
         .catch((err) => {
@@ -1286,6 +1288,7 @@ export default function CallTracking() {
                     .then((data) => {
                       toast.dismiss("load-preview");
                       setPreviewData(data);
+                      setActiveTaskId(taskId);
                       setPreviewOpen(true);
                     })
                     .catch((err) => {
@@ -1407,6 +1410,7 @@ export default function CallTracking() {
 
       <CallLogImportPreviewModal
         open={previewOpen}
+        taskId={activeTaskId || previewTaskId || undefined}
         onOpenChange={(isOpen) => {
           setPreviewOpen(isOpen);
           if (!isOpen && searchParams.has("preview_task_id")) {

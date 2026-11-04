@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useImportTasks, useDeleteImportTask, type ImportTaskItem, fetchPreviewCallLogResult, type CallLogPreviewRow } from "@/hooks/usePipeline";
+import { useCallLogImportQueue } from "@/services/callLogImportQueue";
 import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
 import { toast } from "sonner";
 
@@ -13,6 +14,7 @@ interface Props {
 export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
   const { data: tasks = [] } = useImportTasks();
   const deleteTask = useDeleteImportTask();
+  const queueProgress = useCallLogImportQueue();
 
   if (!tasks || tasks.length === 0) return null;
 
@@ -95,43 +97,94 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
         </div>
 
         <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
-          {tasks.map((task) => (
-            <div
-              key={task.task_id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-card border border-border rounded-lg shadow-xs transition-colors hover:border-blue-300 dark:hover:border-blue-800"
-            >
-              <div className="flex-1 min-w-0 space-y-1.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-xs sm:text-sm text-foreground truncate max-w-[260px] sm:max-w-sm md:max-w-md lg:max-w-lg" title={task.filename}>
-                    {task.filename}
-                  </span>
-                  {getStatusBadge(task)}
-                  {task.total_rows ? (
-                    <span className="text-[11px] text-muted-foreground font-medium">
-                      ({task.total_rows.toLocaleString()} rows)
-                    </span>
-                  ) : null}
-                </div>
+          {tasks.map((task) => {
+            const isThisTaskBatching =
+              queueProgress.total > 0 &&
+              (!queueProgress.taskId || queueProgress.taskId === task.task_id || tasks.length === 1);
+            const batchPct = queueProgress.total > 0
+              ? Math.min(100, Math.round((queueProgress.completed / queueProgress.total) * 100))
+              : 0;
+            const remaining = Math.max(0, queueProgress.total - queueProgress.completed);
 
-                {task.status === "processing" ? (
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{task.message || "Processing in background..."}</span>
-                      <span className="font-semibold text-blue-600 dark:text-blue-400">{task.progress}%</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-blue-600 transition-all duration-300"
-                        style={{ width: `${task.progress}%` }}
-                      />
-                    </div>
+            return (
+              <div
+                key={task.task_id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-card border border-border rounded-lg shadow-xs transition-colors hover:border-blue-300 dark:hover:border-blue-800"
+              >
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-xs sm:text-sm text-foreground truncate max-w-[260px] sm:max-w-sm md:max-w-md lg:max-w-lg" title={task.filename}>
+                      {task.filename}
+                    </span>
+                    {getStatusBadge(task)}
+                    {isThisTaskBatching && (
+                      <Badge variant="secondary" className="gap-1 text-[11px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium">
+                        {queueProgress.isRunning ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-blue-600 dark:text-blue-400" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                        )}
+                        Batching ({queueProgress.completed.toLocaleString()}/{queueProgress.total.toLocaleString()})
+                      </Badge>
+                    )}
+                    {task.total_rows ? (
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        ({task.total_rows.toLocaleString()} rows)
+                      </span>
+                    ) : null}
                   </div>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {task.message || "Completed"}
-                  </p>
-                )}
-              </div>
+
+                  {task.status === "processing" ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{task.message || "Processing in background..."}</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">{task.progress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                          style={{ width: `${task.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {task.message || "Completed"}
+                      </p>
+
+                      {/* Another bar: Blue batch import progress bar showing where it is and call logs remaining */}
+                      {isThisTaskBatching && (
+                        <div className="p-2.5 rounded-lg bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 space-y-1.5 mt-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-blue-900 dark:text-blue-100 font-medium flex items-center gap-1.5 flex-wrap">
+                              {queueProgress.isRunning ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                              )}
+                              <span>
+                                Batch Importing: <strong className="font-semibold text-blue-700 dark:text-blue-300">{queueProgress.completed.toLocaleString()} / {queueProgress.total.toLocaleString()}</strong> call logs imported
+                              </span>
+                              <span className="text-blue-600/80 dark:text-blue-400/80 font-normal">
+                                ({remaining.toLocaleString()} remaining in queue)
+                              </span>
+                            </span>
+                            <span className="font-semibold text-blue-700 dark:text-blue-300 text-xs shrink-0">
+                              {batchPct}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-blue-200/60 dark:bg-blue-900/50">
+                            <div
+                              className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-300"
+                              style={{ width: `${batchPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
               <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                 {task.status === "completed" && (
@@ -174,7 +227,8 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
                 </Button>
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       </CardContent>
     </Card>
