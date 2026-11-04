@@ -202,9 +202,8 @@ const TableRowItem = React.memo(function TableRowItem({
 }: RowProps) {
   return (
     <TableRow
-      className={`hover:bg-muted/50 transition-colors ${
-        !row.selected_for_import ? 'opacity-50 bg-muted/20' : row.is_duplicate ? 'bg-rose-500/5' : ''
-      }`}
+      className={`hover:bg-muted/50 transition-colors ${!row.selected_for_import ? 'opacity-50 bg-muted/20' : row.is_duplicate ? 'bg-rose-500/5' : ''
+        }`}
     >
       <TableCell className="text-center py-1.5 px-2.5">
         <Checkbox
@@ -476,9 +475,7 @@ export default function CallLogImportPreviewModal({
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'exact' | 'suggested' | 'new' | 'duplicate' | 'selected'>('all');
   const [subTab, setSubTab] = useState<'all' | 'pending'>('all');
-  const [page, setPage] = useState(1);
-  const [pageInput, setPageInput] = useState('1');
-  const [pageSize, setPageSize] = useState(50);
+  const [visibleCount, setVisibleCount] = useState(60);
 
   const { data: liveCallLogs } = useQuery<ExistingCallLogItem[]>({
     queryKey: ["live-existing-call-logs"],
@@ -495,9 +492,6 @@ export default function CallLogImportPreviewModal({
     return new DupLookupIndex(liveCallLogs || previewData?.existing_logs || []);
   }, [liveCallLogs, previewData?.existing_logs]);
 
-  useEffect(() => {
-    setPageInput(String(page));
-  }, [page]);
 
   const [editingRowForCompany, setEditingRowForCompany] = useState<CallLogPreviewRow | null>(null);
   const [companyForm, setCompanyForm] = useState({
@@ -582,7 +576,7 @@ export default function CallLogImportPreviewModal({
     confirmImport([targetRow], {
       onSuccess: () => {
         toast.success(`Imported call log for "${targetRow.company_name || targetRow.raw_company_name}"`);
-        
+
         // 1. Add this newly imported log to the duplicate lookup index
         dupIndex.add(
           targetRow.company_name || targetRow.raw_company_name,
@@ -777,14 +771,21 @@ export default function CallLogImportPreviewModal({
   }, [rows, searchFilter, statusFilter, subTab]);
 
   useEffect(() => {
-    setPage(1);
+    setVisibleCount(60);
   }, [searchFilter, statusFilter, subTab, previewData]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const paginatedRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, page, pageSize]);
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 400) {
+      if (visibleCount < filteredRows.length) {
+        setVisibleCount((prev) => Math.min(prev + 50, filteredRows.length));
+      }
+    }
+  };
+
+  const visibleRows = useMemo(() => {
+    return filteredRows.slice(0, visibleCount);
+  }, [filteredRows, visibleCount]);
 
   // Single-pass stats with comprehensive All vs Pending breakdown
   const stats = useMemo(() => {
@@ -1001,9 +1002,21 @@ export default function CallLogImportPreviewModal({
   };
 
   const handleConfirmAllSuggested = () => {
+    // Collect row_indexes of eligible rows based on current filter or pending suggested
+    const eligibleIndices = new Set(
+      (statusFilter === 'all'
+        ? rows.filter((r) => r.match_type === 'suggested' || (r.suggestions && r.suggestions.length > 0))
+        : filteredRows
+      )
+        .filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate)
+        .map((r) => r.row_index)
+    );
+
     setRows((prev) =>
       prev.map((r) => {
-        if (r.match_type !== 'suggested' && (!r.suggestions || r.suggestions.length === 0)) return r;
+        // Only confirm pending suggested matches
+        if (!eligibleIndices.has(r.row_index)) return r;
+        if (r.is_imported || r.is_confirmed || r.is_duplicate) return r;
         const targetName = r.company_name || r.raw_company_name;
         const { isDup, dupReason } = dupIndex.check(targetName, r.phone_number, r.date_of_call);
         return {
@@ -1103,11 +1116,10 @@ export default function CallLogImportPreviewModal({
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${
-                statusFilter === 'all'
-                  ? 'bg-muted border-primary/50 shadow-xs ring-2 ring-primary/30'
-                  : 'bg-muted/30 border-border hover:bg-muted/60'
-            }`}
+            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${statusFilter === 'all'
+              ? 'bg-muted border-primary/50 shadow-xs ring-2 ring-primary/30'
+              : 'bg-muted/30 border-border hover:bg-muted/60'
+              }`}
           >
             <div className="text-xs sm:text-sm text-muted-foreground font-medium mb-0.5">Total Rows</div>
             <div className="text-base sm:text-lg font-bold">{stats.allTotal}</div>
@@ -1117,11 +1129,10 @@ export default function CallLogImportPreviewModal({
           <button
             type="button"
             onClick={() => setStatusFilter(statusFilter === 'exact' ? 'all' : 'exact')}
-            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${
-                statusFilter === 'exact'
-                  ? 'bg-emerald-500/20 border-emerald-500 shadow-xs ring-2 ring-emerald-500/40'
-                  : 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15'
-            }`}
+            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${statusFilter === 'exact'
+              ? 'bg-emerald-500/20 border-emerald-500 shadow-xs ring-2 ring-emerald-500/40'
+              : 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15'
+              }`}
           >
             <div className="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-0.5">Exact Matches</div>
             <div className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-300">{stats.allExact}</div>
@@ -1131,11 +1142,10 @@ export default function CallLogImportPreviewModal({
           <button
             type="button"
             onClick={() => setStatusFilter(statusFilter === 'suggested' ? 'all' : 'suggested')}
-            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${
-                statusFilter === 'suggested'
-                  ? 'bg-amber-500/20 border-amber-500 shadow-xs ring-2 ring-amber-500/40'
-                  : 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/15'
-            }`}
+            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${statusFilter === 'suggested'
+              ? 'bg-amber-500/20 border-amber-500 shadow-xs ring-2 ring-amber-500/40'
+              : 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/15'
+              }`}
           >
             <div className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 font-medium mb-0.5">Suggested Matches</div>
             <div className="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-300">{stats.allSuggested}</div>
@@ -1145,11 +1155,10 @@ export default function CallLogImportPreviewModal({
           <button
             type="button"
             onClick={() => setStatusFilter(statusFilter === 'new' ? 'all' : 'new')}
-            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${
-                statusFilter === 'new'
-                  ? 'bg-blue-500/20 border-blue-500 shadow-xs ring-2 ring-blue-500/40'
-                  : 'bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/15'
-            }`}
+            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer ${statusFilter === 'new'
+              ? 'bg-blue-500/20 border-blue-500 shadow-xs ring-2 ring-blue-500/40'
+              : 'bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/15'
+              }`}
           >
             <div className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-medium mb-0.5">New Companies</div>
             <div className="text-base sm:text-lg font-bold text-blue-700 dark:text-blue-300">{stats.allNew}</div>
@@ -1159,11 +1168,10 @@ export default function CallLogImportPreviewModal({
           <button
             type="button"
             onClick={() => setStatusFilter(statusFilter === 'duplicate' ? 'all' : 'duplicate')}
-            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer col-span-2 sm:col-span-1 ${
-                statusFilter === 'duplicate'
-                  ? 'bg-rose-500/20 border-rose-500 shadow-xs ring-2 ring-rose-500/40'
-                  : 'bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/15'
-            }`}
+            className={`border rounded-lg p-1.5 sm:p-2 text-center transition-all cursor-pointer col-span-2 sm:col-span-1 ${statusFilter === 'duplicate'
+              ? 'bg-rose-500/20 border-rose-500 shadow-xs ring-2 ring-rose-500/40'
+              : 'bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/15'
+              }`}
           >
             <div className="text-xs sm:text-sm text-rose-600 dark:text-rose-400 font-medium mb-0.5">Duplicates</div>
             <div className="text-base sm:text-lg font-bold text-rose-700 dark:text-rose-300">{stats.allDuplicate}</div>
@@ -1194,11 +1202,10 @@ export default function CallLogImportPreviewModal({
             <button
               type="button"
               onClick={() => setSubTab('all')}
-              className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                subTab === 'all'
-                  ? 'bg-background text-foreground shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 ${subTab === 'all'
+                ? 'bg-background text-foreground shadow-xs font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <span>All</span>
               <span className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-semibold text-muted-foreground">
@@ -1208,18 +1215,16 @@ export default function CallLogImportPreviewModal({
             <button
               type="button"
               onClick={() => setSubTab('pending')}
-              className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                subTab === 'pending'
-                  ? 'bg-background text-foreground shadow-xs font-semibold border border-amber-500/40 text-amber-800 dark:text-amber-300'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 ${subTab === 'pending'
+                ? 'bg-background text-foreground shadow-xs font-semibold border border-amber-500/40 text-amber-800 dark:text-amber-300'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <span>Pending</span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                activeCategoryCounts.pending > 0
-                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
-                  : 'bg-muted text-muted-foreground'
-              }`}>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${activeCategoryCounts.pending > 0
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                : 'bg-muted text-muted-foreground'
+                }`}>
                 {activeCategoryCounts.pending}
               </span>
             </button>
@@ -1238,14 +1243,14 @@ export default function CallLogImportPreviewModal({
               Export CSV
             </Button>
 
-            {stats.suggestedCount > 0 && (
+            {activeCategoryCounts.pending > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 className="h-9 sm:h-10 text-xs sm:text-sm px-3.5 bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 font-medium"
                 onClick={handleConfirmAllSuggested}
               >
-                Accept All Suggestions ({stats.suggestedCount})
+                Accept All Pending ({activeCategoryCounts.pending})
               </Button>
             )}
 
@@ -1270,7 +1275,10 @@ export default function CallLogImportPreviewModal({
         </div>
 
         {/* Table Container */}
-        <div className="border rounded-xl flex-1 min-h-0 overflow-x-auto overflow-y-auto bg-card shadow-xs overscroll-contain">
+        <div
+          className="border rounded-xl flex-1 min-h-0 overflow-x-auto overflow-y-auto bg-card shadow-xs overscroll-contain"
+          onScroll={handleScroll}
+        >
           <Table className="text-xs min-w-[1850px] w-full" containerClassName="none">
             <TableHeader className="sticky top-0 bg-muted/95 z-10 backdrop-blur-xs shadow-xs">
               <TableRow className="h-8">
@@ -1298,7 +1306,7 @@ export default function CallLogImportPreviewModal({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedRows.map((row) => (
+              {visibleRows.map((row) => (
                 <TableRowItem
                   key={row.row_index}
                   row={row}
@@ -1320,112 +1328,17 @@ export default function CallLogImportPreviewModal({
           </Table>
         </div>
 
-        {/* Pagination Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 border rounded-xl bg-muted/20 text-xs sm:text-sm text-muted-foreground shrink-0">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing {filteredRows.length === 0 ? 0 : (page - 1) * pageSize + 1} to{' '}
-              {Math.min(page * pageSize, filteredRows.length)} of {filteredRows.length} rows
-            </span>
-            <div className="flex items-center gap-2 ml-4">
-              <span>Per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="h-8 text-xs sm:text-sm rounded-md border border-border bg-background px-2 focus:outline-none"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-              </select>
-            </div>
+        {/* Endless Scroll Counter Bar */}
+        <div className="flex items-center justify-between px-4 py-2 border rounded-xl bg-muted/20 text-xs sm:text-sm text-muted-foreground font-medium shrink-0">
+          <div>
+            Showing {visibleRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} rows
+            {filteredRows.length !== rows.length ? ` (filtered from ${rows.length.toLocaleString()} total)` : ''}
           </div>
-
-          <div className="flex items-center gap-1.5">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs sm:text-sm"
-              onClick={() => setPage(1)}
-              disabled={page <= 1}
-            >
-              First
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs sm:text-sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-            >
-              Prev
-            </Button>
-            <div className="flex items-center gap-1.5 px-2 font-medium text-foreground text-xs sm:text-sm">
-              <span>Page</span>
-              <input
-                type="number"
-                min={1}
-                max={totalPages}
-                value={pageInput}
-                onChange={(e) => {
-                  setPageInput(e.target.value);
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val) && val >= 1 && val <= totalPages) {
-                    setPage(val);
-                  }
-                }}
-                onBlur={() => {
-                  const val = parseInt(pageInput, 10);
-                  if (isNaN(val) || val < 1) {
-                    setPage(1);
-                    setPageInput("1");
-                  } else if (val > totalPages) {
-                    setPage(totalPages);
-                    setPageInput(String(totalPages));
-                  } else {
-                    setPage(val);
-                    setPageInput(String(val));
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const val = parseInt(pageInput, 10);
-                    if (!isNaN(val) && val >= 1 && val <= totalPages) {
-                      setPage(val);
-                    }
-                  }
-                }}
-                className="h-6 w-9 sm:w-10 rounded border border-input bg-background px-1 py-0 text-center text-xs font-medium text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span>of {totalPages}</span>
+          {visibleRows.length < filteredRows.length && (
+            <div className="text-[11px] text-muted-foreground/80">
+              Scroll down to load more
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs sm:text-sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-            >
-              Next
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs sm:text-sm"
-              onClick={() => setPage(totalPages)}
-              disabled={page >= totalPages}
-            >
-              Last
-            </Button>
-          </div>
+          )}
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t shrink-0">
@@ -1486,7 +1399,7 @@ export default function CallLogImportPreviewModal({
                   value={companyForm.country}
                   onChange={(val) => setCompanyForm({ ...companyForm, country: val, state_province: '' })}
                   placeholder="Select country..."
-                  
+
                 />
               </div>
 
@@ -1497,7 +1410,7 @@ export default function CallLogImportPreviewModal({
                   value={companyForm.state_province}
                   onChange={(val) => setCompanyForm({ ...companyForm, state_province: val })}
                   placeholder="Select state..."
-                  
+
                   disabled={!companyForm.country}
                 />
               </div>

@@ -708,7 +708,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `auditTable` (fn)
     - `loginTable` (fn)
 
-## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1550 lines) - call log import preview modal (pages  pipeline)
+## src/pages/Pipeline/CallLogImportPreviewModal.tsx (1463 lines) - call log import preview modal (pages  pipeline)
 - `Props` (interface)
 - `IndexedRow` (interface)
 - `normalizeForDupCheck` (const)
@@ -723,8 +723,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleRemoveSingleRow` (fn)
     - `handleImportSingleRow` (fn)
     - `filteredRows` (fn) - Fast Filtering with robust symbol, phrase, and word-boundary matching
-    - `paginatedRows` (fn)
-    - `start` (fn)
+    - `handleScroll` (fn)
+    - `visibleRows` (fn)
     - `stats` (fn) - Single-pass stats with comprehensive All vs Pending breakdown
     - `activeCategoryCounts` (fn) - Context-aware counts for the All vs Pending subTab based on currently selected category
     - `handleToggleRow` (fn) - Stable event callbacks for memoized rows
