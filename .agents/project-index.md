@@ -87,7 +87,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Configurations/UserRoleAssignment.tsx (386 lines) - user role assignment (pages  configurations)
 - src/pages/Configurations/Users.tsx (567 lines) - users (pages  configurations)
 - src/pages/Log/AuditLog.tsx (496 lines) - audit log (pages  log)
-- src/pages/Pipeline/CallLogImportPreviewModal.tsx (1557 lines) - call log import preview modal (pages  pipeline)
+- src/pages/Pipeline/CallLogImportPreviewModal.tsx (1649 lines) - call log import preview modal (pages  pipeline)
 - src/pages/Pipeline/CallTracking.tsx (1436 lines) - call tracking (pages  pipeline)
 - src/pages/Pipeline/CallTrackingDetails.tsx (495 lines) - call tracking details (pages  pipeline)
 - src/pages/Pipeline/CompaniesListView.tsx (426 lines) - companies list view (pages  pipeline)

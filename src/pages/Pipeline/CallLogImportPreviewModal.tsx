@@ -509,6 +509,8 @@ export default function CallLogImportPreviewModal({
 
   const queryClient = useQueryClient();
   const { mutate: confirmImport, isPending: isImporting } = useConfirmImportCallLog();
+  const [isBatchAddingPending, setIsBatchAddingPending] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   const [importingRows, setImportingRows] = useState<Record<number, boolean>>({});
   const [removingRows, setRemovingRows] = useState<Record<number, boolean>>({});
 
@@ -1036,8 +1038,8 @@ export default function CallLogImportPreviewModal({
     setRows((prev) => prev.map((r) => (r.is_duplicate ? { ...r, selected_for_import: false } : r)));
   };
 
-  const handleConfirmAllSuggested = () => {
-    // Collect row_indexes of eligible rows based on current filter or pending suggested
+  const handleConfirmAllSuggested = async () => {
+    // Collect eligible rows based on current filter or pending suggested
     const eligibleIndices = new Set(
       (statusFilter === 'all'
         ? rows.filter((r) => r.match_type === 'suggested' || (r.suggestions && r.suggestions.length > 0))
@@ -1047,22 +1049,104 @@ export default function CallLogImportPreviewModal({
         .map((r) => r.row_index)
     );
 
-    setRows((prev) =>
-      prev.map((r) => {
-        // Only confirm pending suggested matches
-        if (!eligibleIndices.has(r.row_index)) return r;
-        if (r.is_imported || r.is_confirmed || r.is_duplicate) return r;
-        const targetName = r.company_name || r.raw_company_name;
-        const { isDup, dupReason } = dupIndex.check(targetName, r.phone_number, r.date_of_call);
-        return {
+    if (eligibleIndices.size === 0) return;
+
+    // Build the confirmed row payload to add directly to database in batches
+    const rowsToImport: IndexedRow[] = [];
+    for (const r of rows) {
+      if (eligibleIndices.has(r.row_index) && !r.is_imported && !r.is_confirmed && !r.is_duplicate) {
+        const topSuggestion = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0] : null;
+        const matchedCompanyId = r.matched_company_id || (topSuggestion ? topSuggestion.id : null);
+        const companyName = r.company_name || (topSuggestion ? topSuggestion.name : r.raw_company_name);
+
+        rowsToImport.push({
           ...r,
+          selected_for_import: true,
           is_confirmed: true,
-          is_duplicate: isDup,
-          duplicate_reason: dupReason,
-          selected_for_import: !isDup
-        };
-      })
-    );
+          matched_company_id: matchedCompanyId,
+          company_name: companyName,
+          industry: r.industry || (topSuggestion ? topSuggestion.industry : r.raw_industry),
+          state_province: r.state_province || (topSuggestion ? topSuggestion.state_province : r.raw_state_province),
+          location: r.location || (topSuggestion ? topSuggestion.location : r.raw_location),
+          contact_name: r.contact_name || (topSuggestion ? topSuggestion.contact_name : r.raw_contact_name),
+          position: r.position || (topSuggestion ? topSuggestion.position : r.raw_position),
+          phone_number: r.phone_number || (topSuggestion ? topSuggestion.phone_number : r.raw_phone_number),
+        });
+      }
+    }
+
+    if (rowsToImport.length === 0) return;
+
+    setIsBatchAddingPending(true);
+    const BATCH_SIZE = 100;
+    const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
+    setBatchProgress({ current: 0, total: totalBatches });
+    let successCount = 0;
+    const importedIndices = new Set<number>();
+
+    try {
+      for (let i = 0; i < rowsToImport.length; i += BATCH_SIZE) {
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        setBatchProgress({ current: batchNum, total: totalBatches });
+        const chunk = rowsToImport.slice(i, i + BATCH_SIZE);
+        await api.post<{ imported_count: number; status: string }>('/api/pipeline/confirm-import-call-log', { rows: chunk });
+        successCount += chunk.length;
+
+        // Add chunk to live dupIndex
+        for (const r of chunk) {
+          importedIndices.add(r.row_index);
+          dupIndex.add(
+            r.company_name || r.raw_company_name,
+            r.phone_number || r.raw_phone_number,
+            r.date_of_call,
+            r.analyst || r.raw_analyst
+          );
+        }
+
+        // Live update modal rows so imported items show as added and newly formed dups get marked
+        setRows((prev) =>
+          prev.map((r) => {
+            if (importedIndices.has(r.row_index)) {
+              const importedRow = rowsToImport.find((x) => x.row_index === r.row_index);
+              return {
+                ...r,
+                ...(importedRow || {}),
+                is_imported: true,
+                is_confirmed: true,
+                selected_for_import: false,
+                is_duplicate: true,
+                duplicate_reason: 'Imported to database'
+              };
+            }
+            const targetName = r.company_name || r.raw_company_name;
+            const targetPhone = r.phone_number || r.raw_phone_number;
+            const { isDup, dupReason } = dupIndex.check(targetName, targetPhone, r.date_of_call);
+            if (isDup && !r.is_duplicate) {
+              return {
+                ...r,
+                is_duplicate: true,
+                duplicate_reason: dupReason,
+                selected_for_import: false
+              };
+            }
+            return r;
+          })
+        );
+      }
+
+      toast.success(`Successfully added ${successCount} pending call logs to database.`);
+      queryClient.invalidateQueries({ queryKey: ['call-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['call-tracking-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['call-tracking-summary-infinite'] });
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-tasks'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to add batch of pending call logs');
+    } finally {
+      setIsBatchAddingPending(false);
+      setBatchProgress(null);
+    }
   };
 
   const handleExportPreview = () => {
@@ -1130,7 +1214,7 @@ export default function CallLogImportPreviewModal({
   if (!previewData) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => { if (!isImporting && !isBatchAddingPending) onOpenChange(val); }}>
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -1343,8 +1427,16 @@ export default function CallLogImportPreviewModal({
                 size="sm"
                 className="h-9 sm:h-10 text-xs sm:text-sm px-3.5 bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 font-medium"
                 onClick={handleConfirmAllSuggested}
+                disabled={isBatchAddingPending || isImporting}
               >
-                Accept All Pending ({activeCategoryCounts.pending})
+                {isBatchAddingPending && batchProgress ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Adding Batches ({batchProgress.current}/{batchProgress.total})...
+                  </>
+                ) : (
+                  `Accept All Pending (${activeCategoryCounts.pending})`
+                )}
               </Button>
             )}
 
@@ -1440,13 +1532,13 @@ export default function CallLogImportPreviewModal({
             Ready to import <span className="font-semibold text-foreground">{stats.selectedCount}</span> of {stats.total} rows.
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" size="sm" className="h-9 sm:h-10 text-sm px-4" onClick={() => onOpenChange(false)} disabled={isImporting}>
+            <Button variant="outline" size="sm" className="h-9 sm:h-10 text-sm px-4" onClick={() => onOpenChange(false)} disabled={isImporting || isBatchAddingPending}>
               Cancel
             </Button>
             <Button
               size="sm"
               className="h-9 sm:h-10 text-sm px-5 font-semibold"
-              disabled={stats.selectedCount === 0 || isImporting}
+              disabled={stats.selectedCount === 0 || isImporting || isBatchAddingPending}
               onClick={handleConfirm}
             >
               {isImporting ? (
