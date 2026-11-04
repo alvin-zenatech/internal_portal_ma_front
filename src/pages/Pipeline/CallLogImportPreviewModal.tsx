@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Edit3, Download, Check, Trash2 } from 'lucide-react';
+import { CheckCircle2, Building2, HelpCircle, PlusCircle, Search, Loader2, Edit3, Download, Check, Trash2, X } from 'lucide-react';
 import { type CallLogPreviewResponse, type CallLogPreviewRow, type ExistingCallLogItem, useConfirmImportCallLog, useAnalysts, useCountries, useStates } from '@/hooks/usePipeline';
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
 import { formatYesNo, formatPhoneNumber } from "@/lib/utils";
@@ -1308,6 +1308,17 @@ export default function CallLogImportPreviewModal({
                       </button>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScoreOp('all');
+                      setScoreVal('80');
+                    }}
+                    title="Close score filter and reset to normal"
+                    className="ml-1 p-1 rounded-md text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 hover:text-amber-950 dark:hover:text-amber-100 cursor-pointer flex items-center justify-center transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               )}
             </div>
