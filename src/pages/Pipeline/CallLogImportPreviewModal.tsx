@@ -880,7 +880,7 @@ export default function CallLogImportPreviewModal({
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      if (r.selected_for_import) selectedCount++;
+      if (r.selected_for_import && !r.is_imported && !r.is_queued) selectedCount++;
 
       const isPending = !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued;
 
@@ -1211,13 +1211,57 @@ export default function CallLogImportPreviewModal({
   };
 
   const handleConfirm = () => {
-    const selectedRows = rows.filter((r) => r.selected_for_import);
-    confirmImport(selectedRows, {
-      onSuccess: () => {
-        onSuccess();
-        onOpenChange(false);
-      }
+    const selectedRows = rows.filter((r) => r.selected_for_import && !r.is_imported && !r.is_queued);
+    if (selectedRows.length === 0) return;
+
+    // Resolve company name and suggestions for each selected row so no record is dropped
+    const rowsToQueue: IndexedRow[] = selectedRows.map((r) => {
+      const topSuggestion = r.suggestions && r.suggestions.length > 0 ? r.suggestions[0] : null;
+      const matchedCompanyId = r.matched_company_id || (topSuggestion ? topSuggestion.id : null);
+      const companyName = r.company_name || (topSuggestion ? topSuggestion.name : r.raw_company_name);
+
+      return {
+        ...r,
+        selected_for_import: true,
+        is_confirmed: true,
+        is_queued: true,
+        matched_company_id: matchedCompanyId,
+        company_name: companyName,
+        industry: r.industry || (topSuggestion ? topSuggestion.industry : r.raw_industry),
+        state_province: r.state_province || (topSuggestion ? topSuggestion.state_province : r.raw_state_province),
+        location: r.location || (topSuggestion ? topSuggestion.location : r.raw_location),
+        contact_name: r.contact_name || (topSuggestion ? topSuggestion.contact_name : r.raw_contact_name),
+        position: r.position || (topSuggestion ? topSuggestion.position : r.raw_position),
+        phone_number: r.phone_number || (topSuggestion ? topSuggestion.phone_number : r.raw_phone_number),
+      };
     });
+
+    const queuedIndices = new Set(rowsToQueue.map((r) => r.row_index));
+
+    // Mark as queued immediately in modal state
+    setRows((prev) =>
+      prev.map((r) => {
+        if (queuedIndices.has(r.row_index)) {
+          const queuedRow = rowsToQueue.find((x) => x.row_index === r.row_index);
+          return {
+            ...r,
+            ...(queuedRow || {}),
+            is_confirmed: true,
+            is_queued: true,
+            selected_for_import: false,
+          };
+        }
+        return r;
+      })
+    );
+
+    // Enqueue in batches of 100 via the background batch worker
+    callLogImportQueue.enqueue(rowsToQueue, queryClient, taskId);
+
+    onSuccess?.();
+
+    // Close preview modal so user can monitor the blue batch progress bar on the upload card
+    onOpenChange(false);
   };
 
   if (!previewData) return null;
