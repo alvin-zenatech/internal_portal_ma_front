@@ -149,8 +149,11 @@ export default function CallLogUploadQueuePanel({ onOpenPreview }: Props) {
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {task.message || "Completed"}
+                      <p
+                        className={`text-[11px] truncate ${task.status === "failed" ? "text-rose-600 dark:text-rose-400 font-medium" : "text-muted-foreground"}`}
+                        title={task.message}
+                      >
+                        {task.status === "failed" ? `Error: ${task.message || "Failed to parse call log file"}` : (task.message || "Completed")}
                       </p>
 
                       {/* Another bar: Blue batch import progress bar showing where it is and call logs remaining */}

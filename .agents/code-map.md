@@ -45,7 +45,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `BDAnalystSelectProps` (interface)
 - `BDAnalystSelect` (export function)
 
-## src/components/Pipeline/CallLogUploadQueuePanel.tsx (237 lines) - call log upload queue panel (components  pipeline)
+## src/components/Pipeline/CallLogUploadQueuePanel.tsx (240 lines) - call log upload queue panel (components  pipeline)
 - `Props` (interface)
 - `CallLogUploadQueuePanel` (export function)
 

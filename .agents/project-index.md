@@ -15,7 +15,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - src/components/AppShell/TopBar.tsx (395 lines) - top bar (components  app shell)
 - src/components/Pipeline/BDAnalystSelect.tsx (110 lines) - b d analyst select (components  pipeline)
-- src/components/Pipeline/CallLogUploadQueuePanel.tsx (237 lines) - call log upload queue panel (components  pipeline)
+- src/components/Pipeline/CallLogUploadQueuePanel.tsx (240 lines) - call log upload queue panel (components  pipeline)
 - src/components/Pipeline/ExecutionAnalystKPICards.tsx (278 lines) - execution analyst k p i cards (components  pipeline)
 - src/components/Pipeline/ExecutionAnalystSelect.tsx (121 lines) - execution analyst select (components  pipeline)
 - src/components/Pipeline/ManageAnalystsDialog.tsx (459 lines) - manage analysts dialog (components  pipeline)
