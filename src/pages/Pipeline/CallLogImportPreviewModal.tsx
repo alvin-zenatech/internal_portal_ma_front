@@ -1614,7 +1614,23 @@ export default function CallLogImportPreviewModal({
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span>
               Ready to import <span className="font-semibold text-foreground">{stats.selectedCount}</span> of {stats.total} rows.
+              {stats.duplicateCount > 0 && stats.selectedCount < stats.total && (
+                <span className="ml-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  ({stats.duplicateCount} duplicates deselected by default)
+                </span>
+              )}
             </span>
+            {stats.duplicateCount > 0 && stats.selectedCount < stats.total && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs px-2 text-primary hover:underline cursor-pointer"
+                onClick={() => handleToggleAll(true)}
+              >
+                Select All ({stats.total})
+              </Button>
+            )}
             {queueProgress.isRunning && (
               <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
                 <Loader2 className="h-3 w-3 animate-spin shrink-0" />
