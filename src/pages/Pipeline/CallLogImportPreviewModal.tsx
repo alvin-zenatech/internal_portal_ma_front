@@ -838,9 +838,13 @@ export default function CallLogImportPreviewModal({
       }
     }
 
-    // Apply pending filter if selected (excludes confirmed, imported, duplicates, and queued)
+    // Apply pending filter if selected
     if (subTab === 'pending') {
-      list = list.filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued);
+      if (statusFilter === 'duplicate') {
+        list = list.filter((r) => r.is_duplicate && !r.is_imported && !r.is_confirmed && !r.is_queued);
+      } else {
+        list = list.filter((r) => !r.is_imported && !r.is_confirmed && !r.is_duplicate && !r.is_queued);
+      }
     }
     return list;
   }, [rows, searchFilter, statusFilter, subTab, scoreOp, scoreVal]);
@@ -897,6 +901,9 @@ export default function CallLogImportPreviewModal({
 
       if (r.is_duplicate) {
         allDuplicate++;
+        if (!r.is_imported && !r.is_confirmed && !r.is_queued) {
+          pendingDuplicate++;
+        }
       }
 
       if (r.is_confirmed || r.is_imported) {
@@ -1504,7 +1511,7 @@ export default function CallLogImportPreviewModal({
               Export CSV
             </Button>
 
-            {activeCategoryCounts.pending > 0 && (
+            {statusFilter !== 'duplicate' && activeCategoryCounts.pending > 0 && (
               <Button
                 variant="outline"
                 size="sm"
