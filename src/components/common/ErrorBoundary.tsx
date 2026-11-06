@@ -19,6 +19,21 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    const isChunkLoadError =
+      error?.name === "ChunkLoadError" ||
+      /loading chunk|failed to fetch dynamically imported module|expected a javascript-or-wasm module script/i.test(
+        error?.message || ""
+      );
+
+    if (isChunkLoadError) {
+      const sessionKey = "chunk_load_reload";
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, "true");
+        window.location.reload();
+        return;
+      }
+    }
+
     reportClientError("react", error, info.componentStack ?? undefined);
   }
 

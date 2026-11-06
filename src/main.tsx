@@ -9,6 +9,19 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import ErrorBoundary from "@/components/common/ErrorBoundary"
 import { installGlobalErrorReporting } from "@/services/errorReporting"
 
+// Automatically reload once if a new deployment removed old hashed chunks
+window.addEventListener("vite:preloadError", (event) => {
+  const sessionKey = "vite_chunk_reload";
+  if (!sessionStorage.getItem(sessionKey)) {
+    sessionStorage.setItem(sessionKey, "true");
+    event.preventDefault();
+    window.location.reload();
+  }
+});
+window.addEventListener("load", () => {
+  sessionStorage.removeItem("vite_chunk_reload");
+});
+
 installGlobalErrorReporting();
 
 // Create a client
