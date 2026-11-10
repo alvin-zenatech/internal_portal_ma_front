@@ -20,6 +20,24 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `IntegrationStatusResponse` (export interface)
 - `ConnectionStatusLight` (export function)
 
+## src/components/AppShell/MessageHubStatusDropdown.tsx (572 lines) - message hub status dropdown (components  app shell)
+- `HubQueueOrStreamItem` (export interface)
+- `HubChannelGroupStatus` (export interface)
+- `HubConnectedServer` (export interface)
+- `MessageHubStatusResponse` (export interface)
+- `forceServerOffline` (function)
+- `buildOfflineServer` (function)
+    - `q` (fn)
+- `buildAllOfflineFallback` (function)
+- `fetchWithTimeout` (function)
+- `MessageHubStatusDropdown` (export function)
+    - `queryClient` (fn)
+    - `handleActiveTest` (fn)
+    - `getStatusDot` (fn)
+    - `getServerBadge` (fn)
+    - `formatLastSeen` (fn)
+    - `renderMetric` (fn)
+
 ## src/components/AppShell/Navigation.tsx (121 lines) - navigation (components  app shell)
 - `NavigationSubItem` (export interface)
 - `NavigationItem` (export interface)
@@ -37,7 +55,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
 - `ThemeSwitch` (export function)
 
-## src/components/AppShell/TopBar.tsx (395 lines) - top bar (components  app shell)
+## src/components/AppShell/TopBar.tsx (397 lines) - top bar (components  app shell)
 - `TopBarClock` (function)
 - `TopBar` (export function)
 
@@ -104,7 +122,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `getCurrencyBadgeClass` (fn)
     - `handleCheckboxClick` (fn)
 
-## src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
+## src/components/common/ErrorBoundary.tsx (63 lines) - error boundary (components common)
 - `Props` (interface)
 - `State` (interface)
 - `ErrorBoundary` (export class)
@@ -112,6 +130,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/components/common/ProtectedRoute.tsx (64 lines) - protected route (components common)
 - `ProtectedRouteProps` (interface)
 - `ProtectedRoute` (export function)
+
+## src/components/ui/AdminIntegrationBanner.tsx (29 lines) - Banner whose state follows the live reachability of the Administration server.
+- `AdminIntegrationBanner` (export function) - Banner whose state follows the live reachability of the Administration server.
 
 ## src/components/ui/FloatingVerticalFilter.tsx (290 lines) - floating vertical filter (components ui)
 - `CardColorVariant` (export type)
@@ -630,7 +651,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `formatCurrencyShort` (export function)
 - `getPriorityColors` (export const)
 
-## src/pages/Auth/Login.tsx (135 lines) - login (pages  auth)
+## src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
+
+## src/pages/Auth/Login.tsx (134 lines) - login (pages  auth)
 - `Login` (export function)
 
 ## src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home

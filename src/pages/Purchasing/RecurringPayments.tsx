@@ -1,4 +1,4 @@
-import { PageConnectionBanner } from "@/components/ui/PageConnectionBanner";
+import { AdminIntegrationBanner } from "@/components/ui/AdminIntegrationBanner";
 import { FloatingVerticalFilter } from "@/components/ui/FloatingVerticalFilter";
 import { ScheduleDatesBuilder } from "./ScheduleDatesBuilder";
 import LocationAutocomplete from "./LocationAutocomplete";
@@ -1427,7 +1427,7 @@ export default function RecurringPayments() {
   return (
     <div className="w-full flex flex-col gap-3 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       {/* Header */}
-      <PageConnectionBanner serviceName="Admin Portal Integration" mode="Connected (Live)" description="Real-time purchasing, scheduled payments, and approval sync" />
+      <AdminIntegrationBanner description="Real-time purchasing, scheduled payments, and approval sync" />
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">

@@ -75,8 +75,7 @@ export default function Login() {
   }, [searchParams, navigate, refreshPermissions]);
 
   const handleLogin = () => {
-    const originUrl = window.location.origin.includes(":5173") ? "http://localhost:8000" : (BASE_URL || "");
-    window.location.href = `${originUrl}/api/auth/microsoft/login`;
+    window.location.href = `${BASE_URL || ""}/api/auth/microsoft/login`;
   };
 
   return (

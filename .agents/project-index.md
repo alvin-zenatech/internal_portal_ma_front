@@ -9,11 +9,12 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/AppShell/AppShell.tsx (56 lines) - app shell (components  app shell)
 - src/components/AppShell/Breadcrumbs.tsx (195 lines) - breadcrumbs (components  app shell)
 - src/components/AppShell/ConnectionStatusLight.tsx (263 lines) - connection status light (components  app shell)
+- src/components/AppShell/MessageHubStatusDropdown.tsx (572 lines) - message hub status dropdown (components  app shell)
 - src/components/AppShell/Navigation.tsx (121 lines) - navigation (components  app shell)
 - src/components/AppShell/SessionTimeout.tsx (6 lines) - Inactivity auto-signout removed per user requirement.
 - src/components/AppShell/Sidebar.tsx (251 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
-- src/components/AppShell/TopBar.tsx (395 lines) - top bar (components  app shell)
+- src/components/AppShell/TopBar.tsx (397 lines) - top bar (components  app shell)
 - src/components/Pipeline/BDAnalystSelect.tsx (110 lines) - b d analyst select (components  pipeline)
 - src/components/Pipeline/CallLogUploadQueuePanel.tsx (240 lines) - call log upload queue panel (components  pipeline)
 - src/components/Pipeline/ExecutionAnalystKPICards.tsx (278 lines) - execution analyst k p i cards (components  pipeline)
@@ -22,8 +23,9 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/Pipeline/MultiPhoneInput.tsx (286 lines) - multi phone input (components  pipeline)
 - src/components/Pipeline/PhoneDisplay.tsx (154 lines) - phone display (components  pipeline)
 - src/components/Purchasing/DebtSchedulePreviewModal.tsx (1390 lines) - debt schedule preview modal (components  purchasing)
-- src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
+- src/components/common/ErrorBoundary.tsx (63 lines) - error boundary (components common)
 - src/components/common/ProtectedRoute.tsx (64 lines) - protected route (components common)
+- src/components/ui/AdminIntegrationBanner.tsx (29 lines) - Banner whose state follows the live reachability of the Administration server.
 - src/components/ui/FloatingVerticalFilter.tsx (290 lines) - floating vertical filter (components ui)
 - src/components/ui/HelpIcon.tsx (30 lines) - help icon (components ui)
 - src/components/ui/PageConnectionBanner.tsx (65 lines) - page connection banner (components ui)
@@ -79,7 +81,8 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/lib/requestStatus.ts (126 lines) - The only place raw status strings are interpreted.
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (88 lines) - utils (lib)
-- src/pages/Auth/Login.tsx (135 lines) - login (pages  auth)
+- src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
+- src/pages/Auth/Login.tsx (134 lines) - login (pages  auth)
 - src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
 - src/pages/Configurations/RoleApiPermissions.tsx (407 lines) - We order actions so they appear logically: CREATE, READ (VIEW), UPDATE, DELETE
 - src/pages/Configurations/RoleGroupPermissions.tsx (307 lines) - role group permissions (pages  configurations)
