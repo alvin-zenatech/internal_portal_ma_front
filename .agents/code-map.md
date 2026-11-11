@@ -104,7 +104,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `getCurrencyBadgeClass` (fn)
     - `handleCheckboxClick` (fn)
 
-## src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
+## src/components/common/ErrorBoundary.tsx (63 lines) - error boundary (components common)
 - `Props` (interface)
 - `State` (interface)
 - `ErrorBoundary` (export class)
@@ -419,7 +419,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useClearReadNotifications` (export function)
 - `useClearAllNotifications` (export function)
 
-## src/hooks/usePipeline.ts (1040 lines) - use pipeline (hooks)
+## src/hooks/usePipeline.ts (1052 lines) - use pipeline (hooks)
 - `MasterData` (export interface)
 - `CompanyData` (export interface)
 - `PipelinePriority` (export interface)
@@ -476,7 +476,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useDeleteState` (export const)
 - `useNdaTypes` (export const)
 - `usePandLTypes` (export const)
-- `usePipelineTasks` (export const) - Task Hooks
+- `DASHBOARD_PRIORITY_STATUSES` (export const) - says a company is "on the dashboard" agrees with what the dashboard actually shows.
+- `isOnPipelineDashboard` (export const)
+- `usePipelineTasks` (export const)
 - `usePipelineTask` (export const)
 - `useCreateTask` (export const)
 - `useUpdateTask` (export const)
@@ -630,6 +632,8 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `formatCurrencyShort` (export function)
 - `getPriorityColors` (export const)
 
+## src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
+
 ## src/pages/Auth/Login.tsx (135 lines) - login (pages  auth)
 - `Login` (export function)
 
@@ -742,7 +746,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleSaveCompanyForm` (fn)
     - `handleConfirm` (fn)
 
-## src/pages/Pipeline/CallTracking.tsx (1440 lines) - call tracking (pages  pipeline)
+## src/pages/Pipeline/CallTracking.tsx (1477 lines) - call tracking (pages  pipeline)
 - `getCountryFullName` (const)
 - `formatCallLocation` (function)
     - `state` (fn)
@@ -870,7 +874,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Pipeline/MasterDataTemplate.tsx (312 lines) - master data template (pages  pipeline)
 - `MasterDataTemplate` (export function)
 
-## src/pages/Pipeline/PipelineDashboard.tsx (745 lines) - pipeline dashboard (pages  pipeline)
+## src/pages/Pipeline/PipelineDashboard.tsx (736 lines) - pipeline dashboard (pages  pipeline)
 - `PipelineDashboard` (export function)
     - `isSuperAdminUser` (fn)
     - `name` (fn)

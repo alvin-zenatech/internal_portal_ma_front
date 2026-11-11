@@ -23,12 +23,12 @@ function formatCallLocation(stateProvince?: string | null, rawCountry?: string |
   return state || country || "-";
 }
 
-import { exportToCsv, type ExportColumn } from "@/lib/exportUtils";
+import { type ExportColumn } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import React, { useState, useDeferredValue, useRef, useEffect } from 'react';
-import { useCallLogs, usePipelineTasks, useDoNotContactList, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
+import { useCallLogs, usePipelineTasks, isOnPipelineDashboard, useDoNotContactList, type CallLog, useTableColumnOrder, useUpdateTableColumnOrder, usePipelineUsers, useIndustries, usePreviewCallLog, useDeleteImportTask, fetchPreviewCallLogResult, type CallLogPreviewResponse } from '@/hooks/usePipeline';
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -806,15 +806,16 @@ export default function CallTracking() {
       if (!pipelineTasks) {
         toast.warning("Couldn't load the Pipeline Dashboard, so the export won't flag companies already on it.");
       }
+      // Ignore case and spacing so "Acme  Inc" still matches "acme inc"
+      const normalizeCompany = (name?: string | null) => (name || '').toLowerCase().replace(/\s+/g, '');
+      // Only tasks in a status the Pipeline Dashboard displays count as "On Dashboard".
       const dashboardCompanies = new Set(
-        (pipelineTasks || []).map(t => (t.company_name || '').toLowerCase().trim()).filter(Boolean)
+        (pipelineTasks || []).filter(isOnPipelineDashboard).map(t => normalizeCompany(t.company_name)).filter(Boolean)
       );
 
       if (!doNotContactList) {
         toast.warning("Couldn't load the Do Not Contact list, so the export won't flag those companies.");
       }
-      // Ignore case and spacing so "Acme  Inc" still matches "acme inc"
-      const normalizeCompany = (name?: string | null) => (name || '').toLowerCase().replace(/\s+/g, '');
       const doNotContactCompanies = new Set(
         (doNotContactList || []).map(d => normalizeCompany(d.company_name)).filter(Boolean)
       );
@@ -825,7 +826,16 @@ export default function CallTracking() {
           doNotContact: doNotContactCompanies.has(normalizeCompany(calls[0].company_name)),
           callScheduled: outcomes.some(o => o.includes("call scheduled")),
           notInterested: outcomes.some(o => o.includes("not interested")),
-          onDashboard: dashboardCompanies.has((calls[0].company_name || '').toLowerCase().trim()),
+          onDashboard: dashboardCompanies.has(normalizeCompany(calls[0].company_name)),
+        };
+      };
+      // Excel ARGB fills: Do Not Contact = grey, On Dashboard = yellow (company cell);
+      // Call Scheduled = green, Not Interested = red (outcome cell).
+      const getCellFills = (calls: CallLog[]): Record<string, string | undefined> => {
+        const flags = getFlags(calls);
+        return {
+          company_name: flags.doNotContact ? "FFD9D9D9" : flags.onDashboard ? "FFFFEB9C" : undefined,
+          current_status: flags.callScheduled ? "FFC6EFCE" : flags.notInterested ? "FFFFC7CE" : undefined,
         };
       };
       columnMap.flag = {
@@ -840,15 +850,43 @@ export default function CallTracking() {
           ].filter(Boolean).join("\n");
         },
       };
+      const columnWidths: Record<string, number> = {
+        flag: 18, call_count: 8, company_name: 30, industry: 22, location: 20, contact_name: 22, phone_number: 18,
+        email: 28, date_of_call: 14, kdm: 8, picked_up: 10, current_status: 22, latest_analyst: 18, call_length: 12, notes: 60,
+      };
 
       const visibleIds = ["flag", ...table.getVisibleLeafColumns().map(col => col.id).filter(id => columnMap[id])];
 
-      const exportCols: ExportColumn<any>[] = visibleIds.map(id => ({
-        header: columnMap[id].header,
-        accessor: (calls) => columnMap[id].accessor(calls) ?? ""
-      }));
+      const { default: ExcelJS } = await import("exceljs");
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Call Tracking", { views: [{ state: "frozen", ySplit: 1 }] });
+      sheet.columns = visibleIds.map(id => ({ header: columnMap[id].header, width: columnWidths[id] ?? 18 }));
+      sheet.getRow(1).font = { bold: true };
+      sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: visibleIds.length } };
+      companyRows.forEach(calls => {
+        const values = visibleIds.map(id => columnMap[id].accessor(calls) ?? "");
+        const row = sheet.addRow(values);
+        row.alignment = { vertical: "top", wrapText: true };
+        // Set row height so every stacked call is visible in viewers that don't auto-fit.
+        const lineCount = Math.max(1, ...values.map((val, i) => {
+          const charsPerLine = Math.max(1, (columnWidths[visibleIds[i]] ?? 18) - 1);
+          return String(val).split("\n").reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+        }));
+        row.height = lineCount * 15;
+        const fills = getCellFills(calls);
+        visibleIds.forEach((id, i) => {
+          const fill = fills[id];
+          if (fill) row.getCell(i + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
+        });
+      });
 
-      exportToCsv(companyRows, exportCols, "call_tracking");
+      const buffer = await workbook.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `call_tracking_${new Date().toLocaleDateString("en-CA")}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
       toast.success("Call tracking exported successfully");
     } catch (e: any) {
       toast.error(e?.message || "Failed to export call tracking");

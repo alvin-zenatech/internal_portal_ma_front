@@ -22,7 +22,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/components/Pipeline/MultiPhoneInput.tsx (286 lines) - multi phone input (components  pipeline)
 - src/components/Pipeline/PhoneDisplay.tsx (154 lines) - phone display (components  pipeline)
 - src/components/Purchasing/DebtSchedulePreviewModal.tsx (1390 lines) - debt schedule preview modal (components  purchasing)
-- src/components/common/ErrorBoundary.tsx (48 lines) - error boundary (components common)
+- src/components/common/ErrorBoundary.tsx (63 lines) - error boundary (components common)
 - src/components/common/ProtectedRoute.tsx (64 lines) - protected route (components common)
 - src/components/ui/FloatingVerticalFilter.tsx (290 lines) - floating vertical filter (components ui)
 - src/components/ui/HelpIcon.tsx (30 lines) - help icon (components ui)
@@ -70,7 +70,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/hooks/useHeartbeat.ts (44 lines) - Track user activity
 - src/hooks/useMasterTables.ts (108 lines) - use master tables (hooks)
 - src/hooks/useNotifications.ts (299 lines) - use notifications (hooks)
-- src/hooks/usePipeline.ts (1040 lines) - use pipeline (hooks)
+- src/hooks/usePipeline.ts (1052 lines) - use pipeline (hooks)
 - src/hooks/usePurchasing.ts (377 lines) - use purchasing (hooks)
 - src/hooks/useSearch.ts (16 lines) - use search (hooks)
 - src/lib/AuthContext.tsx (181 lines) - auth context (lib)
@@ -79,6 +79,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/lib/requestStatus.ts (126 lines) - The only place raw status strings are interpreted.
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (88 lines) - utils (lib)
+- src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
 - src/pages/Auth/Login.tsx (135 lines) - login (pages  auth)
 - src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
 - src/pages/Configurations/RoleApiPermissions.tsx (407 lines) - We order actions so they appear logically: CREATE, READ (VIEW), UPDATE, DELETE
@@ -88,7 +89,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Configurations/Users.tsx (567 lines) - users (pages  configurations)
 - src/pages/Log/AuditLog.tsx (496 lines) - audit log (pages  log)
 - src/pages/Pipeline/CallLogImportPreviewModal.tsx (1803 lines) - call log import preview modal (pages  pipeline)
-- src/pages/Pipeline/CallTracking.tsx (1440 lines) - call tracking (pages  pipeline)
+- src/pages/Pipeline/CallTracking.tsx (1477 lines) - call tracking (pages  pipeline)
 - src/pages/Pipeline/CallTrackingDetails.tsx (495 lines) - call tracking details (pages  pipeline)
 - src/pages/Pipeline/CompaniesListView.tsx (426 lines) - companies list view (pages  pipeline)
 - src/pages/Pipeline/DoNotContact.tsx (920 lines) - do not contact (pages  pipeline)
@@ -102,7 +103,7 @@ For detailed function and route definitions, see `.agents/code-map.md`.
 - src/pages/Pipeline/MasterDataPriority.tsx (11 lines) - master data priority (pages  pipeline)
 - src/pages/Pipeline/MasterDataState.tsx (20 lines) - master data state (pages  pipeline)
 - src/pages/Pipeline/MasterDataTemplate.tsx (312 lines) - master data template (pages  pipeline)
-- src/pages/Pipeline/PipelineDashboard.tsx (745 lines) - pipeline dashboard (pages  pipeline)
+- src/pages/Pipeline/PipelineDashboard.tsx (736 lines) - pipeline dashboard (pages  pipeline)
 - src/pages/Pipeline/PipelineKanbanView.tsx (258 lines) - pipeline kanban view (pages  pipeline)
 - src/pages/Pipeline/PipelineListView.tsx (1142 lines) - pipeline list view (pages  pipeline)
 - src/pages/Pipeline/PipelineUploads.tsx (281 lines) - pipeline uploads (pages  pipeline)
