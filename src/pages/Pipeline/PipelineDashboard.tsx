@@ -13,7 +13,8 @@ import TaskFormModal from "./TaskFormModal";
 import TaskDetailPanel from "./TaskDetailPanel";
 import MultiPhoneInput from "@/components/Pipeline/MultiPhoneInput";
 import { 
-  usePipelineTasks, 
+  usePipelineTasks,
+  isOnPipelineDashboard,
   usePipelineUsers,
   usePriorities, 
   type PipelineTask, 
@@ -128,17 +129,7 @@ export default function PipelineDashboard() {
       }
     }
 
-    const validStatuses = [
-      "high value", "good fit", "50/50", 
-      "loi-sent", "loi sent", 
-      "loi-accepted", "loi sent - accepted", 
-      "loi-declined", "loi sent - declined",
-      "not a fit", "not ready to sell"
-    ];
-    result = result.filter(t => {
-      const p = (t.priority_name || "").toLowerCase();
-      return validStatuses.includes(p);
-    });
+    result = result.filter(isOnPipelineDashboard);
 
     if (executionAnalystFilter !== "all" && executionAnalystFilter !== "unassigned") {
       const activeOpportunityStatuses = ["high value", "good fit", "50/50"];

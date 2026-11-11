@@ -460,6 +460,7 @@ export default function CallTrackingDetails({
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-3 text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-md">
+                  <div>Contact: <span className="text-foreground font-medium">{log.contact_name || '-'}</span></div>
                   <div className="flex items-center gap-1.5">Phone: <PhoneDisplay phone={log.phone_number} mode="badges" /></div>
                   <div>Email: <span className="text-foreground font-medium break-all">{log.email ? <a href={`mailto:${log.email}`} className="text-primary hover:underline">{log.email}</a> : '-'}</span></div>
                   <div>KDM: <span className="text-foreground font-medium">{formatYesNo(log.kdm)}</span> | Picked up: <span className="text-foreground font-medium">{formatYesNo(log.picked_up)}</span></div>

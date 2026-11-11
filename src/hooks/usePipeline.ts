@@ -352,6 +352,18 @@ export const useNdaTypes = () => useQuery({ queryKey: ["nda-types"], queryFn: ()
 export const usePandLTypes = () => useQuery({ queryKey: ["p-and-l-types"], queryFn: () => api.get<string[]>("/api/pipeline/p-and-l-types") });
 
 // Task Hooks
+// Statuses (priority names) that appear on the Pipeline Dashboard. Shared so anything that
+// says a company is "on the dashboard" agrees with what the dashboard actually shows.
+export const DASHBOARD_PRIORITY_STATUSES = [
+  "high value", "good fit", "50/50",
+  "loi-sent", "loi sent",
+  "loi-accepted", "loi sent - accepted",
+  "loi-declined", "loi sent - declined",
+  "not a fit", "not ready to sell"
+];
+export const isOnPipelineDashboard = (task: { priority_name?: string | null }) =>
+  DASHBOARD_PRIORITY_STATUSES.includes((task.priority_name || "").toLowerCase());
+
 export const usePipelineTasks = () => useQuery({ queryKey: ["tasks"], queryFn: () => api.get<PipelineTask[]>("/api/pipeline/tasks") });
 export const usePipelineTask = (id: number | null) => useQuery({ queryKey: ["tasks", id], queryFn: () => api.get<PipelineTask>(`/api/pipeline/tasks/${id}`), enabled: !!id });
 export const useCreateTask = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (data: any) => api.post("/api/pipeline/tasks", data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); qc.invalidateQueries({ queryKey: ["companies"] }); qc.invalidateQueries({ queryKey: ["nda-types"] }); qc.invalidateQueries({ queryKey: ["p-and-l-types"] }); } }); };

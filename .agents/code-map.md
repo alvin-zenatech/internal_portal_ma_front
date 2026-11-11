@@ -440,7 +440,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useClearReadNotifications` (export function)
 - `useClearAllNotifications` (export function)
 
-## src/hooks/usePipeline.ts (1040 lines) - use pipeline (hooks)
+## src/hooks/usePipeline.ts (1052 lines) - use pipeline (hooks)
 - `MasterData` (export interface)
 - `CompanyData` (export interface)
 - `PipelinePriority` (export interface)
@@ -497,7 +497,9 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 - `useDeleteState` (export const)
 - `useNdaTypes` (export const)
 - `usePandLTypes` (export const)
-- `usePipelineTasks` (export const) - Task Hooks
+- `DASHBOARD_PRIORITY_STATUSES` (export const) - says a company is "on the dashboard" agrees with what the dashboard actually shows.
+- `isOnPipelineDashboard` (export const)
+- `usePipelineTasks` (export const)
 - `usePipelineTask` (export const)
 - `useCreateTask` (export const)
 - `useUpdateTask` (export const)
@@ -765,7 +767,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleSaveCompanyForm` (fn)
     - `handleConfirm` (fn)
 
-## src/pages/Pipeline/CallTracking.tsx (1440 lines) - call tracking (pages  pipeline)
+## src/pages/Pipeline/CallTracking.tsx (1478 lines) - call tracking (pages  pipeline)
 - `getCountryFullName` (const)
 - `formatCallLocation` (function)
     - `state` (fn)
@@ -797,7 +799,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
     - `handleScroll` (fn)
     - `renderTableContent` (fn)
 
-## src/pages/Pipeline/CallTrackingDetails.tsx (495 lines) - call tracking details (pages  pipeline)
+## src/pages/Pipeline/CallTrackingDetails.tsx (496 lines) - call tracking details (pages  pipeline)
 - `CallTrackingDetails` (export function)
     - `getAnalystName` (fn)
     - `formatDate` (fn)
@@ -893,7 +895,7 @@ How to use: check `.agents/project-index.md` first to locate the file, then insp
 ## src/pages/Pipeline/MasterDataTemplate.tsx (312 lines) - master data template (pages  pipeline)
 - `MasterDataTemplate` (export function)
 
-## src/pages/Pipeline/PipelineDashboard.tsx (745 lines) - pipeline dashboard (pages  pipeline)
+## src/pages/Pipeline/PipelineDashboard.tsx (736 lines) - pipeline dashboard (pages  pipeline)
 - `PipelineDashboard` (export function)
     - `isSuperAdminUser` (fn)
     - `name` (fn)
