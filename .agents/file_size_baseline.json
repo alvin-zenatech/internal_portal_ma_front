@@ -1,5 +1,9 @@
 {
   "limit": 500,
+  "block_limits": {
+    "jsx_return": 80,
+    "py_function": 120
+  },
   "files": {
     "src/components/AppShell/MessageHubStatusDropdown.tsx": {
       "max_lines": 571,
@@ -84,6 +88,224 @@
     "src/utils/glAccountUtils.tsx": {
       "max_lines": 743,
       "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    }
+  },
+  "blocks": {
+    "src/components/AppShell/ConnectionStatusLight.tsx#ConnectionStatusLight": {
+      "max_lines": 93,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/MessageHubStatusDropdown.tsx#MessageHubStatusDropdown": {
+      "max_lines": 155,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/Sidebar.tsx#Sidebar": {
+      "max_lines": 171,
+      "kind": "jsx_return"
+    },
+    "src/components/AppShell/TopBar.tsx#TopBar": {
+      "max_lines": 274,
+      "kind": "jsx_return"
+    },
+    "src/components/Pipeline/CallLogUploadQueuePanel.tsx#CallLogUploadQueuePanel": {
+      "max_lines": 155,
+      "kind": "jsx_return"
+    },
+    "src/components/Pipeline/ExecutionAnalystKPICards.tsx#ExecutionAnalystKPICards": {
+      "max_lines": 99,
+      "kind": "jsx_return"
+    },
+    "src/components/Pipeline/ExecutionAnalystSelect.tsx#ExecutionAnalystSelect": {
+      "max_lines": 83,
+      "kind": "jsx_return"
+    },
+    "src/components/Pipeline/ManageAnalystsDialog.tsx#ManageAnalystsDialog": {
+      "max_lines": 220,
+      "kind": "jsx_return"
+    },
+    "src/components/Pipeline/MultiPhoneInput.tsx#MultiPhoneInput": {
+      "max_lines": 101,
+      "kind": "jsx_return"
+    },
+    "src/components/Purchasing/DebtSchedulePreviewModal.tsx#DebtSchedulePreviewModal": {
+      "max_lines": 1064,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/autocomplete-combobox.tsx#AutocompleteCombobox": {
+      "max_lines": 88,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/autocomplete-input.tsx#AutocompleteInput": {
+      "max_lines": 90,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/calendar.tsx#Calendar": {
+      "max_lines": 151,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/data-table-pagination.tsx#DataTablePagination": {
+      "max_lines": 106,
+      "kind": "jsx_return"
+    },
+    "src/components/ui/FloatingVerticalFilter.tsx#FloatingVerticalFilter": {
+      "max_lines": 121,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/RoleApiPermissions.tsx#RoleApiPermissions": {
+      "max_lines": 173,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/RoleGroupPermissions.tsx#RoleGroupPermissions": {
+      "max_lines": 198,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Roles.tsx#Roles": {
+      "max_lines": 342,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/UserRoleAssignment.tsx#UserRoleAssignment": {
+      "max_lines": 128,
+      "kind": "jsx_return"
+    },
+    "src/pages/Configurations/Users.tsx#Users": {
+      "max_lines": 224,
+      "kind": "jsx_return"
+    },
+    "src/pages/Log/AuditLog.tsx#AuditLog": {
+      "max_lines": 225,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/CallLogImportPreviewModal.tsx#CallLogImportPreviewModal": {
+      "max_lines": 486,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/CallLogImportPreviewModal.tsx#TableRowItem": {
+      "max_lines": 269,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/CallTracking.tsx#CallTracking": {
+      "max_lines": 339,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/CallTracking.tsx#ColumnHeader": {
+      "max_lines": 137,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/CallTrackingDetails.tsx#CallTrackingDetails": {
+      "max_lines": 229,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/CompaniesListView.tsx#CompaniesListView": {
+      "max_lines": 188,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/DoNotContact.tsx#DoNotContact": {
+      "max_lines": 525,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/FollowUpCalendar.tsx#FollowUpCalendar": {
+      "max_lines": 112,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/FollowUps.tsx#FollowUps": {
+      "max_lines": 201,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/MasterDataTemplate.tsx#MasterDataTemplate": {
+      "max_lines": 153,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/PipelineDashboard.tsx#PipelineDashboard": {
+      "max_lines": 491,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/PipelineListView.tsx#ColumnHeader": {
+      "max_lines": 206,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/PipelineListView.tsx#PipelineListView": {
+      "max_lines": 158,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/PipelineUploads.tsx#PipelineUploads": {
+      "max_lines": 90,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/TaskDetailPanel.tsx#TaskDetailPanel": {
+      "max_lines": 390,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/TaskFormModal.tsx#TaskFormModal": {
+      "max_lines": 243,
+      "kind": "jsx_return"
+    },
+    "src/pages/Pipeline/WeeklyCheckIn.tsx#WeeklyCheckIn": {
+      "max_lines": 248,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/BankAccountAutocomplete.tsx#BankAccountAutocomplete": {
+      "max_lines": 162,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/CategoryAutocomplete.tsx#CategoryAutocomplete": {
+      "max_lines": 142,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/ClassAutocomplete.tsx#ClassAutocomplete": {
+      "max_lines": 159,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/CountryAutocomplete.tsx#CountryAutocomplete": {
+      "max_lines": 180,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/CreatableCombobox.tsx#CreatableCombobox": {
+      "max_lines": 199,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/CurrencyAutocomplete.tsx#CurrencyAutocomplete": {
+      "max_lines": 169,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/GLCodeAutocomplete.tsx#GLCodeAutocomplete": {
+      "max_lines": 213,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/LocationAutocomplete.tsx#LocationAutocomplete": {
+      "max_lines": 159,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/MasterTransactionsTable.tsx#MasterTransactionsTable": {
+      "max_lines": 462,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/PurchaseRequestDetail.tsx#PurchaseRequestDetail": {
+      "max_lines": 1674,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/RecurringPayments.tsx#RecurringPayments": {
+      "max_lines": 1813,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/ScheduleBreakdownModal.tsx#ScheduleBreakdownModal": {
+      "max_lines": 226,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/ScheduleDatesBuilder.tsx#ScheduleDatesBuilder": {
+      "max_lines": 331,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WireBankingFields.tsx#WireBankingFields": {
+      "max_lines": 782,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WireGeneralPaymentFields.tsx#WireGeneralPaymentFields": {
+      "max_lines": 415,
+      "kind": "jsx_return"
+    },
+    "src/pages/Purchasing/WireTransferDialog.tsx#WireTransferDialog": {
+      "max_lines": 1051,
+      "kind": "jsx_return"
     }
   }
 }
