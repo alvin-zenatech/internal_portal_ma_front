@@ -1,0 +1,89 @@
+{
+  "limit": 500,
+  "files": {
+    "src/components/AppShell/MessageHubStatusDropdown.tsx": {
+      "max_lines": 571,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/components/Purchasing/DebtSchedulePreviewModal.tsx": {
+      "max_lines": 1389,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/hooks/usePipeline.ts": {
+      "max_lines": 1051,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/Roles.tsx": {
+      "max_lines": 785,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Configurations/Users.tsx": {
+      "max_lines": 566,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Pipeline/CallLogImportPreviewModal.tsx": {
+      "max_lines": 1802,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Pipeline/CallTracking.tsx": {
+      "max_lines": 1477,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Pipeline/DoNotContact.tsx": {
+      "max_lines": 919,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Pipeline/FollowUps.tsx": {
+      "max_lines": 501,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Pipeline/PipelineDashboard.tsx": {
+      "max_lines": 735,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Pipeline/PipelineListView.tsx": {
+      "max_lines": 1141,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/MasterTransactionsTable.tsx": {
+      "max_lines": 837,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/PurchaseRequestDetail.tsx": {
+      "max_lines": 2154,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/RecurringPayments.tsx": {
+      "max_lines": 3240,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WireBankingFields.tsx": {
+      "max_lines": 1017,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WireGeneralPaymentFields.tsx": {
+      "max_lines": 611,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/pages/Purchasing/WireTransferDialog.tsx": {
+      "max_lines": 1598,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/services/apiClient.ts": {
+      "max_lines": 648,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/services/purchasingService.ts": {
+      "max_lines": 566,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/types/purchasing.ts": {
+      "max_lines": 630,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    },
+    "src/utils/glAccountUtils.tsx": {
+      "max_lines": 743,
+      "reason": "Over the limit when the check was introduced; split it when you next work on it."
+    }
+  }
+}
