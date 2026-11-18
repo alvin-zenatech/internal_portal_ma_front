@@ -519,11 +519,11 @@ async function monitoredFetch(endpoint: string, options: ApiRequestOptions): Pro
           recentPerformanceReports.delete(key);
         }
       }
-      const method = options.method ?? "GET";
+      const method = (options.method ?? "GET").toUpperCase();
       const path = endpoint.split("?", 1)[0];
       const fingerprint = `${method}:${path}`;
       const lastReportedAt = recentPerformanceReports.get(fingerprint) ?? 0;
-      if (
+      if (Boolean(getAuthHeaders().Authorization) && Number.isFinite(durationMs) && statusCode >= 0 && statusCode <= 599 &&
         performanceReportTimes.length < MAX_PERFORMANCE_REPORTS_PER_MINUTE &&
         now - lastReportedAt >= PERFORMANCE_DEDUPLICATION_MS
       ) {
