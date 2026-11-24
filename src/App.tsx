@@ -3,6 +3,8 @@ import { lazy, Suspense } from "react";
 import { AuthProvider } from "./lib/AuthContext";
 
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import { lazy } from "react";
+const AiStatusPage = lazy(() => import("./pages/Configurations/AiStatusPage"));
 
 const AppShell = lazy(() => import("./components/AppShell/AppShell"));
 
@@ -83,6 +85,7 @@ function App() {
 
 
           </Route>
+                  <Route path="/configurations/ai-status" element={<AiStatusPage />} />
         </Routes>
         </Suspense>
       </BrowserRouter>
