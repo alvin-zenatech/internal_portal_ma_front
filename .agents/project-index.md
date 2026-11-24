@@ -5,12 +5,12 @@
 Scan this index first to locate the right file and description without loading symbol trees or line numbers.
 For function and route definitions with their line numbers, grep `.agents/code-map/` (listed in `.agents/code-map.md`).
 
-- src/App.tsx (94 lines) - Purchasing / Scheduled Payments
+- src/App.tsx (97 lines) - Purchasing / Scheduled Payments
 - src/components/AppShell/AppShell.tsx (56 lines) - app shell (components  app shell)
 - src/components/AppShell/Breadcrumbs.tsx (195 lines) - breadcrumbs (components  app shell)
 - src/components/AppShell/ConnectionStatusLight.tsx (263 lines) - connection status light (components  app shell)
 - src/components/AppShell/MessageHubStatusDropdown.tsx (572 lines) - message hub status dropdown (components  app shell)
-- src/components/AppShell/Navigation.tsx (121 lines) - navigation (components  app shell)
+- src/components/AppShell/Navigation.tsx (122 lines) - navigation (components  app shell)
 - src/components/AppShell/SessionTimeout.tsx (6 lines) - Inactivity auto-signout removed per user requirement.
 - src/components/AppShell/Sidebar.tsx (251 lines) - sidebar (components  app shell)
 - src/components/AppShell/ThemeSwitch.tsx (41 lines) - theme switch (components  app shell)
@@ -68,6 +68,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/components/ui/toggle-group.tsx (90 lines) - toggle group (components ui)
 - src/components/ui/toggle.tsx (46 lines) - toggle (components ui)
 - src/components/ui/tooltip.tsx (56 lines) - tooltip (components ui)
+- src/hooks/useAiOverview.ts (16 lines) - use ai overview (hooks)
 - src/hooks/useExecutionAnalyst.ts (70 lines) - use execution analyst (hooks)
 - src/hooks/useHeartbeat.ts (44 lines) - Track user activity
 - src/hooks/useMasterTables.ts (108 lines) - use master tables (hooks)
@@ -84,11 +85,18 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
 - src/pages/Auth/Login.tsx (134 lines) - login (pages  auth)
 - src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
+- src/pages/Configurations/AiStatusPage.tsx (85 lines) - ai status page (pages  configurations)
 - src/pages/Configurations/RoleApiPermissions.tsx (407 lines) - We order actions so they appear logically: CREATE, READ (VIEW), UPDATE, DELETE
 - src/pages/Configurations/RoleGroupPermissions.tsx (307 lines) - role group permissions (pages  configurations)
 - src/pages/Configurations/Roles.tsx (786 lines) - roles (pages  configurations)
 - src/pages/Configurations/UserRoleAssignment.tsx (386 lines) - user role assignment (pages  configurations)
 - src/pages/Configurations/Users.tsx (567 lines) - users (pages  configurations)
+- src/pages/Configurations/aiStatus/AiCoresGrid.tsx (78 lines) - ai cores grid (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiErrorsDialog.tsx (110 lines) - ai errors dialog (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiFeatureMatrix.tsx (203 lines) - ai feature matrix (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiPipelineTelemetry.tsx (179 lines) - ai pipeline telemetry (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/AiSummaryCards.tsx (140 lines) - ai summary cards (pages  configurations ai status)
+- src/pages/Configurations/aiStatus/statusStyles.ts (31 lines) - status styles (pages  configurations ai status)
 - src/pages/Log/AuditLog.tsx (496 lines) - audit log (pages  log)
 - src/pages/Pipeline/CallLogImportPreviewModal.tsx (1803 lines) - call log import preview modal (pages  pipeline)
 - src/pages/Pipeline/CallTracking.tsx (1478 lines) - call tracking (pages  pipeline)
@@ -137,6 +145,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/services/helper.ts (17 lines) - helper (services)
 - src/services/masterTablesService.ts (65 lines) - master tables service (services)
 - src/services/purchasingService.ts (567 lines) - API wrappers for the Purchasing + Accounts Payable workflow.
+- src/types/aiOverview.ts (152 lines) - ai overview (types)
 - src/types/chartOfAccount.ts (25 lines) - chart of account (types)
 - src/types/purchasing.ts (631 lines) - purchasing (types)
 - src/types/search.ts (8 lines) - search (types)

@@ -4,6 +4,20 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
+## src/types/aiOverview.ts (152 lines) - ai overview (types)
+- `AiStateCode` (export type) L1
+- `AiFeatureCoreRef` (export interface) L3
+- `AiFeatureUsage24h` (export interface) L8
+- `AiOverviewFeature` (export interface) L17
+- `AiCoreStatus` (export interface) L45
+- `AiModelBreakdownRow` (export interface) L59
+- `AiStepBreakdownRow` (export interface) L72
+- `AiGuardBreakdownRow` (export interface) L81
+- `AiErrorsFilter` (export interface) L87
+- `AiErrorEntry` (export interface) L93
+- `AiErrorsResponse` (export interface) L108
+- `AiOverviewResponse` (export interface) L115
+
 ## src/types/chartOfAccount.ts (25 lines) - chart of account (types)
 - `ChartOfAccount` (export interface) L1
 - `ChartOfAccounts` (export interface) L10

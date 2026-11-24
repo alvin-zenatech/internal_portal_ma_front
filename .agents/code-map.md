@@ -15,13 +15,14 @@ to find the right file.
 | .agents/code-map/src__components__Pipeline.md | 7 | 2 KB |
 | .agents/code-map/src__components__Purchasing.md | 1 | 1 KB |
 | .agents/code-map/src__components__ui.md | 43 | 10 KB |
-| .agents/code-map/src__hooks.md | 7 | 9 KB |
+| .agents/code-map/src__hooks.md | 8 | 9 KB |
 | .agents/code-map/src__lib.md | 6 | 3 KB |
 | .agents/code-map/src__pages__Auth.md | 2 | 1 KB |
-| .agents/code-map/src__pages__Configurations.md | 5 | 3 KB |
+| .agents/code-map/src__pages__Configurations.md | 6 | 3 KB |
+| .agents/code-map/src__pages__Configurations__aiStatus.md | 6 | 2 KB |
 | .agents/code-map/src__pages__Log.md | 1 | 1 KB |
 | .agents/code-map/src__pages__Pipeline.md | 23 | 9 KB |
 | .agents/code-map/src__pages__Purchasing.md | 18 | 10 KB |
 | .agents/code-map/src__services.md | 6 | 4 KB |
-| .agents/code-map/src__types.md | 3 | 3 KB |
+| .agents/code-map/src__types.md | 4 | 3 KB |
 | .agents/code-map/src__utils.md | 3 | 3 KB |
