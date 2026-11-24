@@ -4,7 +4,7 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/App.tsx (97 lines) - Purchasing / Scheduled Payments
-- `App` (function) L39
+## src/App.tsx (96 lines) - Purchasing / Scheduled Payments
+- `App` (function) L38
 
 ## src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks

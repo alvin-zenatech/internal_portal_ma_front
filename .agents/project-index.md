@@ -5,7 +5,7 @@
 Scan this index first to locate the right file and description without loading symbol trees or line numbers.
 For function and route definitions with their line numbers, grep `.agents/code-map/` (listed in `.agents/code-map.md`).
 
-- src/App.tsx (97 lines) - Purchasing / Scheduled Payments
+- src/App.tsx (96 lines) - Purchasing / Scheduled Payments
 - src/components/AppShell/AppShell.tsx (56 lines) - app shell (components  app shell)
 - src/components/AppShell/Breadcrumbs.tsx (195 lines) - breadcrumbs (components  app shell)
 - src/components/AppShell/ConnectionStatusLight.tsx (263 lines) - connection status light (components  app shell)
@@ -85,7 +85,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
 - src/pages/Auth/Login.tsx (134 lines) - login (pages  auth)
 - src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
-- src/pages/Configurations/AiStatusPage.tsx (85 lines) - ai status page (pages  configurations)
+- src/pages/Configurations/AiStatusPage.tsx (86 lines) - ai status page (pages  configurations)
 - src/pages/Configurations/RoleApiPermissions.tsx (407 lines) - We order actions so they appear logically: CREATE, READ (VIEW), UPDATE, DELETE
 - src/pages/Configurations/RoleGroupPermissions.tsx (307 lines) - role group permissions (pages  configurations)
 - src/pages/Configurations/Roles.tsx (786 lines) - roles (pages  configurations)
