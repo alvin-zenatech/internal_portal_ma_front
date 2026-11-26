@@ -65,7 +65,7 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `effectiveDueDate` (fn) L339
     - `paidToDate` (fn) L448
 
-## src/pages/Purchasing/RecurringPayments.tsx (3241 lines) - recurring payments (pages  purchasing)
+## src/pages/Purchasing/RecurringPayments.tsx (3240 lines) - recurring payments (pages  purchasing)
 - `CalendarCell` (interface) L103
 - `RequesterAutocomplete` (function) L109
     - `handleClickOutside` (fn) L130
@@ -80,30 +80,30 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `handleCardFilterChange` (fn) L296
     - `handleSaveWire` (fn) L323
     - `handleExportDebtSchedule` (fn) L351
-    - `handleFileSelect` (fn) L379
-    - `handleMasterListSelect` (fn) L409
-    - `handleSaveImport` (fn) L439
-    - `saveSettingsMutation` (fn) L516
-    - `testReminderMutation` (fn) L533
-    - `reviewMutation` (fn) L602 - Toggle review status mutation
-    - `transitionMutation` (fn) L639 - Transition request mutation (Hold / Resume)
-    - `getInitialDefaultSchedule` (fn) L673 - Helper to generate default 2-installment schedule starting from a base date
-    - `handleOpenCreate` (fn) L732
-    - `createMutation` (fn) L767
-    - `updateMutation` (fn) L806
-    - `handleCloseEdit` (fn) L825
-    - `handleOpenEdit` (fn) L833
-    - `reqLoc` (fn) L867
-    - `reqClass` (fn) L868
-    - `handleCreateSubmit` (fn) L911
-    - `effectiveDueDate` (fn) L1016
-    - `handleEditSubmit` (fn) L1064
-    - `effectiveDueDate` (fn) L1172
-    - `isScheduledPayment` (fn) L1220 - Helper to check if a recurring request is an M&A scheduled payment
-    - `isDueSoon` (fn) L1235 - Helper to check if a recurring request is due within 7 days
-    - `filteredRequests` (fn) L1249 - Filtered requests
-    - `lastTableRowRef` (fn) L1338
-    - `stats` (fn) L1352 - Summary statistics
+    - `handleFileSelect` (fn) L378
+    - `handleMasterListSelect` (fn) L408
+    - `handleSaveImport` (fn) L438
+    - `saveSettingsMutation` (fn) L515
+    - `testReminderMutation` (fn) L532
+    - `reviewMutation` (fn) L601 - Toggle review status mutation
+    - `transitionMutation` (fn) L638 - Transition request mutation (Hold / Resume)
+    - `getInitialDefaultSchedule` (fn) L672 - Helper to generate default 2-installment schedule starting from a base date
+    - `handleOpenCreate` (fn) L731
+    - `createMutation` (fn) L766
+    - `updateMutation` (fn) L805
+    - `handleCloseEdit` (fn) L824
+    - `handleOpenEdit` (fn) L832
+    - `reqLoc` (fn) L866
+    - `reqClass` (fn) L867
+    - `handleCreateSubmit` (fn) L910
+    - `effectiveDueDate` (fn) L1015
+    - `handleEditSubmit` (fn) L1063
+    - `effectiveDueDate` (fn) L1171
+    - `isScheduledPayment` (fn) L1219 - Helper to check if a recurring request is an M&A scheduled payment
+    - `isDueSoon` (fn) L1234 - Helper to check if a recurring request is due within 7 days
+    - `filteredRequests` (fn) L1248 - Filtered requests
+    - `lastTableRowRef` (fn) L1337
+    - `stats` (fn) L1351 - Summary statistics
 
 ## src/pages/Purchasing/ScheduleBreakdownModal.tsx (352 lines) - schedule breakdown modal (pages  purchasing)
 - `ScheduleBreakdownModalProps` (interface) L25

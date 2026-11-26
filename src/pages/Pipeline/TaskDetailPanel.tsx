@@ -14,7 +14,6 @@ import { formatYesNo } from "@/lib/utils";
 import { FollowUpActions } from "./FollowUpActions";
 
 export default function TaskDetailPanel({ task, onClose, onEdit }: { task: PipelineTask | null, onClose: () => void, onEdit: (t: PipelineTask) => void }) {
-  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   const { user: currentUser } = useAuth();
   const { data: notes } = useTaskNotes(task?.id || null);
 
@@ -358,15 +357,15 @@ export default function TaskDetailPanel({ task, onClose, onEdit }: { task: Pipel
                             <p className="whitespace-pre-wrap break-words">{note.note}</p>
                             {note.attachment_url && (
                               note.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                                <a href={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment?token=${token || ''}`} target="_blank" rel="noreferrer" className="block max-w-[200px] sm:max-w-xs overflow-hidden rounded-md border bg-muted/50 p-2 hover:opacity-90 transition-opacity">
-                                  <img src={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment?token=${token || ''}`} alt={note.attachment_name || "Attachment preview"} className="w-full h-auto object-cover rounded" />
+                                <a href={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment`} target="_blank" rel="noreferrer" className="block max-w-[200px] sm:max-w-xs overflow-hidden rounded-md border bg-muted/50 p-2 hover:opacity-90 transition-opacity">
+                                  <img src={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment`} alt={note.attachment_name || "Attachment preview"} className="w-full h-auto object-cover rounded" />
                                   <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                                     <Paperclip className="h-3 w-3 shrink-0" />
                                     <span className="truncate">{note.attachment_name}</span>
                                   </div>
                                 </a>
                               ) : (
-                                <a href={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment?token=${token || ''}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit max-w-full">
+                                <a href={`${BASE_URL}/api/pipeline/notes/${note.id}/attachment`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/50 p-2 rounded-md border w-fit max-w-full">
                                   <Paperclip className="w-4 h-4 shrink-0" />
                                   <span className="truncate">{note.attachment_name}</span>
                                 </a>

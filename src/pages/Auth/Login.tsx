@@ -50,11 +50,6 @@ export default function Login() {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           localStorage.removeItem("ms_id_token");
-          const token = searchParams.get("token");
-          if (token) {
-            sessionStorage.setItem("token", token);
-            localStorage.setItem("token", token);
-          }
           const permissionsData = await refreshPermissions();
           if (!permissionsData || !permissionsData.user) {
             throw new Error("Failed to load user permissions");

@@ -208,15 +208,15 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
     - `table` (fn) L808
     - `handleScroll` (fn) L970
 
-## src/pages/Pipeline/PipelineUploads.tsx (281 lines) - pipeline uploads (pages  pipeline)
+## src/pages/Pipeline/PipelineUploads.tsx (280 lines) - pipeline uploads (pages  pipeline)
 - `ColumnHeader` (function) L19
 - `PipelineUploads` (export function) L91
 
-## src/pages/Pipeline/TaskDetailPanel.tsx (471 lines) - task detail panel (pages  pipeline)
+## src/pages/Pipeline/TaskDetailPanel.tsx (470 lines) - task detail panel (pages  pipeline)
 - `TaskDetailPanel` (export function) L16
-    - `getAnalystName` (fn) L41
-    - `formatDate` (fn) L56
-    - `handleAddNote` (fn) L70
+    - `getAnalystName` (fn) L40
+    - `formatDate` (fn) L55
+    - `handleAddNote` (fn) L69
 
 ## src/pages/Pipeline/TaskFormModal.tsx (374 lines) - task form modal (pages  pipeline)
 - `TaskFormModal` (export function) L33

@@ -433,10 +433,6 @@ function resolveActionMeta(
 const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 export const BASE_URL = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
-const getAuthHeaders = (): Record<string, string> => {
-  const token = sessionStorage.getItem("token");
-  return token ? { "Authorization": `Bearer ${token}` } : {};
-};
 
 const configuredSlowRequestMs = Number(import.meta.env.VITE_SLOW_REQUEST_MS ?? 2000);
 const SLOW_REQUEST_MS = Number.isFinite(configuredSlowRequestMs)
@@ -523,7 +519,7 @@ async function monitoredFetch(endpoint: string, options: ApiRequestOptions): Pro
       const path = endpoint.split("?", 1)[0];
       const fingerprint = `${method}:${path}`;
       const lastReportedAt = recentPerformanceReports.get(fingerprint) ?? 0;
-      if (Boolean(getAuthHeaders().Authorization) && Number.isFinite(durationMs) && statusCode >= 0 && statusCode <= 599 &&
+      if (statusCode !== 401 && Number.isFinite(durationMs) && statusCode >= 0 && statusCode <= 599 &&
         performanceReportTimes.length < MAX_PERFORMANCE_REPORTS_PER_MINUTE &&
         now - lastReportedAt >= PERFORMANCE_DEDUPLICATION_MS
       ) {
@@ -535,7 +531,7 @@ async function monitoredFetch(endpoint: string, options: ApiRequestOptions): Pro
           keepalive: true,
           headers: { 
             "Content-Type": "application/json",
-            ...getAuthHeaders()
+
           },
           body: JSON.stringify({
             method,
@@ -556,7 +552,7 @@ export const apiClient = {
       method: "GET",
       credentials: "include",
       headers: {
-        ...getAuthHeaders(),
+
         ...(options?.headers as Record<string, string>)
       } as HeadersInit
     });
@@ -571,7 +567,7 @@ export const apiClient = {
       credentials: "include",
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
-        ...getAuthHeaders(),
+
         ...(options?.headers as Record<string, string>),
       } as HeadersInit,
       body: isFormData ? body : JSON.stringify(body),
@@ -586,7 +582,7 @@ export const apiClient = {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
+
         ...(options?.headers as Record<string, string>),
       } as HeadersInit,
       body: JSON.stringify(body),
@@ -601,7 +597,7 @@ export const apiClient = {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
+
         ...(options?.headers as Record<string, string>),
       } as HeadersInit,
       body: JSON.stringify(body),
@@ -615,7 +611,7 @@ export const apiClient = {
       method: "DELETE",
       credentials: "include",
       headers: {
-        ...getAuthHeaders(),
+
         ...(options?.headers as Record<string, string>)
       } as HeadersInit
     });
@@ -627,7 +623,7 @@ export const apiClient = {
       method: "GET",
       credentials: "include",
       headers: {
-        ...getAuthHeaders(),
+
       } as HeadersInit
     });
     if (!res.ok) {

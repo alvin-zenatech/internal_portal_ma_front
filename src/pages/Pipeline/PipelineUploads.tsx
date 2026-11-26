@@ -114,7 +114,6 @@ export default function PipelineUploads() {
   };
 
 
-  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   const { data: attachments, isLoading } = usePipelineAttachments();
   const [actualGlobalFilter, setActualGlobalFilter] = useState("");
   const deferredGlobalFilter = React.useDeferredValue(actualGlobalFilter);
@@ -151,7 +150,7 @@ export default function PipelineUploads() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <Button variant="ghost" size="sm" asChild className="h-8 gap-2">
-            <a href={`${BASE_URL}${row.original.attachment_url}?token=${token || ''}`} target="_blank" rel="noreferrer">
+            <a href={`${BASE_URL}${row.original.attachment_url}`} target="_blank" rel="noreferrer">
               <Download className="h-4 w-4" />
               <span className="sr-only sm:not-sr-only">Download</span>
             </a>

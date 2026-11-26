@@ -4,7 +4,7 @@
 
 Each symbol shows its start line (`L<n>`); read from there to the next symbol's line, not the whole file.
 
-## src/pages/Auth/Login.tsx (134 lines) - login (pages  auth)
+## src/pages/Auth/Login.tsx (129 lines) - login (pages  auth)
 - `Login` (export function) L10
 
 ## src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
