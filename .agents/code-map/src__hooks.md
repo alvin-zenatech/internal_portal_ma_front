@@ -24,21 +24,20 @@ Each symbol shows its start line (`L<n>`); read from there to the next symbol's 
 - `useUpdateMasterClass` (export function) L80
 - `useDeleteMasterClass` (export function) L95
 
-## src/hooks/useNotifications.ts (299 lines) - use notifications (hooks)
+## src/hooks/useNotifications.ts (283 lines) - use notifications (hooks)
 - `Notification` (export interface) L5
 - `NotificationListener` (type) L36
 - `toWebSocketScheme` (const) L49
-- `isTokenUsable` (function) L56 - An already-expired JWT is worse than none: it is checked first and rejected,  whereas omitting it lets the handshake fall back to the Htt...
-- `scheduleReconnect` (function) L66
-- `openSocket` (function) L74
-- `subscribeToNotifications` (function) L148
-- `useNotificationStream` (export function) L176 - Subscribe to the shared notification stream.
-- `useNotifications` (export function) L195
-- `useUnreadNotificationCount` (export function) L213
-- `useMarkNotificationAsRead` (export function) L230
-- `useMarkAllNotificationsAsRead` (export function) L247
-- `useClearReadNotifications` (export function) L264
-- `useClearAllNotifications` (export function) L282
+- `scheduleReconnect` (function) L53
+- `openSocket` (function) L61
+- `subscribeToNotifications` (function) L132
+- `useNotificationStream` (export function) L160 - Subscribe to the shared notification stream.
+- `useNotifications` (export function) L179
+- `useUnreadNotificationCount` (export function) L197
+- `useMarkNotificationAsRead` (export function) L214
+- `useMarkAllNotificationsAsRead` (export function) L231
+- `useClearReadNotifications` (export function) L248
+- `useClearAllNotifications` (export function) L266
 
 ## src/hooks/usePipeline.ts (1052 lines) - use pipeline (hooks)
 - `MasterData` (export interface) L5

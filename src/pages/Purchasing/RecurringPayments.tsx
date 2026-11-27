@@ -351,9 +351,8 @@ export default function RecurringPayments() {
   const handleExportDebtSchedule = async () => {
     try {
       setIsExporting(true);
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       const res = await fetch("/api/purchasing/export-debt-schedules", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
       });
       if (!res.ok) {
         throw new Error(`Export failed with status ${res.status}`);

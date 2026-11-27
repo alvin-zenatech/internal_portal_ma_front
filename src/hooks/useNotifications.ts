@@ -48,20 +48,7 @@ let authRetries = 0;
 
 const toWebSocketScheme = (url: string) => url.replace(/^http/i, "ws");
 
-/**
- * An already-expired JWT is worse than none: it is checked first and rejected,
- * whereas omitting it lets the handshake fall back to the HttpOnly auth cookie,
- * which the heartbeat keeps fresh.
- */
-function isTokenUsable(token: string | null): token is string {
-  if (!token) return false;
-  try {
-    const claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof claims.exp !== "number" || claims.exp * 1000 > Date.now() + 5000;
-  } catch {
-    return false;
-  }
-}
+
 
 function scheduleReconnect(delayMs: number) {
   if (reconnectTimer || listeners.size === 0) return;
@@ -80,10 +67,8 @@ function openSocket() {
     const base = /^https?:\/\//i.test(BASE_URL)
       ? toWebSocketScheme(BASE_URL)
       : `${toWebSocketScheme(window.location.origin)}${BASE_URL}`;
-    const storedToken = sessionStorage.getItem("token");
-    const tokenParam = isTokenUsable(storedToken) ? `?token=${encodeURIComponent(storedToken)}` : "";
 
-    const ws = new WebSocket(`${base}/ws/notifications${tokenParam}`);
+    const ws = new WebSocket(`${base}/ws/notifications`);
     socket = ws;
 
     ws.onopen = () => {
@@ -130,8 +115,7 @@ function openSocket() {
       if (authRetries < MAX_AUTH_RETRIES) {
         authRetries += 1;
         // Silent refresh. The heartbeat re-issues the HttpOnly auth cookie,
-        // which the handshake falls back to once the stored token is stale.
-        // It is HttpOnly by design, so it cannot be copied into sessionStorage.
+        // which is sent automatically with the WebSocket handshake.
         apiClient
           .post("/auth/heartbeat", {})
           .then(() => scheduleReconnect(RECONNECT_DELAY_MS))

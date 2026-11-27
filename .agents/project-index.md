@@ -72,7 +72,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/hooks/useExecutionAnalyst.ts (70 lines) - use execution analyst (hooks)
 - src/hooks/useHeartbeat.ts (44 lines) - Track user activity
 - src/hooks/useMasterTables.ts (108 lines) - use master tables (hooks)
-- src/hooks/useNotifications.ts (299 lines) - use notifications (hooks)
+- src/hooks/useNotifications.ts (283 lines) - use notifications (hooks)
 - src/hooks/usePipeline.ts (1052 lines) - use pipeline (hooks)
 - src/hooks/usePurchasing.ts (377 lines) - use purchasing (hooks)
 - src/hooks/useSearch.ts (16 lines) - use search (hooks)
@@ -83,7 +83,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/lib/userDepartment.ts (170 lines) - user department (lib)
 - src/lib/utils.ts (88 lines) - utils (lib)
 - src/main.tsx (61 lines) - Automatically reload once if a new deployment removed old hashed chunks
-- src/pages/Auth/Login.tsx (134 lines) - login (pages  auth)
+- src/pages/Auth/Login.tsx (129 lines) - login (pages  auth)
 - src/pages/Auth/PendingAccess.tsx (62 lines) - If user somehow gets another role, maybe redirect them to home
 - src/pages/Configurations/AiStatusPage.tsx (86 lines) - ai status page (pages  configurations)
 - src/pages/Configurations/RoleApiPermissions.tsx (407 lines) - We order actions so they appear logically: CREATE, READ (VIEW), UPDATE, DELETE
@@ -116,8 +116,8 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Pipeline/PipelineDashboard.tsx (736 lines) - pipeline dashboard (pages  pipeline)
 - src/pages/Pipeline/PipelineKanbanView.tsx (258 lines) - pipeline kanban view (pages  pipeline)
 - src/pages/Pipeline/PipelineListView.tsx (1142 lines) - pipeline list view (pages  pipeline)
-- src/pages/Pipeline/PipelineUploads.tsx (281 lines) - pipeline uploads (pages  pipeline)
-- src/pages/Pipeline/TaskDetailPanel.tsx (471 lines) - task detail panel (pages  pipeline)
+- src/pages/Pipeline/PipelineUploads.tsx (280 lines) - pipeline uploads (pages  pipeline)
+- src/pages/Pipeline/TaskDetailPanel.tsx (470 lines) - task detail panel (pages  pipeline)
 - src/pages/Pipeline/TaskFormModal.tsx (374 lines) - task form modal (pages  pipeline)
 - src/pages/Pipeline/WeeklyCheckIn.tsx (394 lines) - weekly check in (pages  pipeline)
 - src/pages/Pipeline/followUpStatus.ts (57 lines) - A follow-up counts as "this week" if it lands within this many days from today.
@@ -131,7 +131,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/LocationAutocomplete.tsx (349 lines) - location autocomplete (pages  purchasing)
 - src/pages/Purchasing/MasterTransactionsTable.tsx (838 lines) - master transactions table (pages  purchasing)
 - src/pages/Purchasing/PurchaseRequestDetail.tsx (2155 lines) - purchase request detail (pages  purchasing)
-- src/pages/Purchasing/RecurringPayments.tsx (3241 lines) - recurring payments (pages  purchasing)
+- src/pages/Purchasing/RecurringPayments.tsx (3240 lines) - recurring payments (pages  purchasing)
 - src/pages/Purchasing/ScheduleBreakdownModal.tsx (352 lines) - schedule breakdown modal (pages  purchasing)
 - src/pages/Purchasing/ScheduleDatesBuilder.tsx (497 lines) - schedule dates builder (pages  purchasing)
 - src/pages/Purchasing/WireBankingFields.tsx (1018 lines) - wire banking fields (pages  purchasing)
@@ -139,7 +139,7 @@ For function and route definitions with their line numbers, grep `.agents/code-m
 - src/pages/Purchasing/WireTransferDialog.tsx (1599 lines) - wire transfer dialog (pages  purchasing)
 - src/pages/Purchasing/purchasingMeta.ts (350 lines) - Presentation metadata for Purchasing + Tasks.
 - src/pages/Purchasing/recurringScheduleUtils.ts (450 lines) - recurring schedule utils (pages  purchasing)
-- src/services/apiClient.ts (649 lines) - api client (services)
+- src/services/apiClient.ts (645 lines) - api client (services)
 - src/services/callLogImportQueue.ts (189 lines) - call log import queue (services)
 - src/services/errorReporting.ts (75 lines) - error reporting (services)
 - src/services/helper.ts (17 lines) - helper (services)
